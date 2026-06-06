@@ -1,0 +1,297 @@
+`comment("
+============================================================
+HuntingThreats — Splunk SPL Hunt Rules
+Category  : Discovery — Enumeration (T1016, T1018, T1069, T1082, T1087)
+Batch     : 10 / Discovery
+Rules     : SP-106001 – SP-106035
+Platform  : Splunk Enterprise 8.0+ / Splunk Cloud
+Sources   : Sysmon Event 1, Windows Event 4688
+============================================================
+")`
+
+`comment("SP-106001 | T1082 | Discovery: Systeminfo executed — OS/hardware enumeration | Severity: MEDIUM | Confidence: HIGH")`
+index=windows (EventCode=1 OR EventCode=4688)
+(Image="*\\systeminfo.exe" OR NewProcessName="*\\systeminfo.exe")
+| eval rule_id="SP-106001", mitre_technique="T1082", mitre_tactic="Discovery", severity="MEDIUM", confidence="HIGH"
+| table _time, host, user, ParentImage, Image, CommandLine, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-106002 | T1087.002 | Discovery: Net user /domain — AD user enumeration | Severity: HIGH | Confidence: HIGH")`
+index=windows (EventCode=1 OR EventCode=4688)
+(Image="*\\net.exe" OR Image="*\\net1.exe" OR NewProcessName="*\\net.exe")
+(CommandLine="*user*" AND CommandLine="*/domain*")
+| eval rule_id="SP-106002", mitre_technique="T1087.002", mitre_tactic="Discovery", severity="HIGH", confidence="HIGH"
+| table _time, host, user, Image, CommandLine, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-106003 | T1069.002 | Discovery: Net group /domain — domain group enumeration | Severity: HIGH | Confidence: HIGH")`
+index=windows (EventCode=1 OR EventCode=4688)
+(Image="*\\net.exe" OR Image="*\\net1.exe")
+(CommandLine="*group*" AND CommandLine="*/domain*")
+| eval rule_id="SP-106003", mitre_technique="T1069.002", mitre_tactic="Discovery", severity="HIGH", confidence="HIGH"
+| table _time, host, user, Image, CommandLine, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-106004 | T1018 | Discovery: Ping sweep — high-frequency ICMP to multiple hosts | Severity: HIGH | Confidence: HIGH")`
+index=windows (EventCode=1 OR EventCode=4688)
+(Image="*\\ping.exe" OR NewProcessName="*\\ping.exe")
+| bin _time span=5m
+| stats count as PingCount dc(CommandLine) as UniqueTargets by _time, host
+| where PingCount > 10
+| eval rule_id="SP-106004", mitre_technique="T1018", mitre_tactic="Discovery", severity="HIGH", confidence="HIGH"
+| table _time, host, PingCount, UniqueTargets, rule_id, severity
+| sort -_time
+
+`comment("SP-106005 | T1016 | Discovery: Ipconfig /all — network configuration dump | Severity: LOW | Confidence: HIGH")`
+index=windows (EventCode=1 OR EventCode=4688)
+(Image="*\\ipconfig.exe" OR NewProcessName="*\\ipconfig.exe")
+CommandLine="*/all*"
+NOT (ParentImage="*\\explorer.exe" OR ParentImage="*\\cmd.exe")
+| eval rule_id="SP-106005", mitre_technique="T1016", mitre_tactic="Discovery", severity="LOW", confidence="HIGH"
+| table _time, host, user, ParentImage, Image, CommandLine, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-106006 | T1018 | Discovery: Arp -a — ARP table enumeration for host discovery | Severity: MEDIUM | Confidence: HIGH")`
+index=windows (EventCode=1 OR EventCode=4688)
+(Image="*\\arp.exe" OR NewProcessName="*\\arp.exe")
+CommandLine="*-a*"
+NOT (ParentImage="*\\explorer.exe" OR ParentImage="*\\svchost.exe")
+| eval rule_id="SP-106006", mitre_technique="T1018", mitre_tactic="Discovery", severity="MEDIUM", confidence="HIGH"
+| table _time, host, user, ParentImage, Image, CommandLine, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-106007 | T1049 | Discovery: Netstat — network connection enumeration | Severity: LOW | Confidence: HIGH")`
+index=windows (EventCode=1 OR EventCode=4688)
+(Image="*\\netstat.exe" OR NewProcessName="*\\netstat.exe")
+NOT (ParentImage="*\\explorer.exe" OR ParentImage="*\\cmd.exe")
+| eval rule_id="SP-106007", mitre_technique="T1049", mitre_tactic="Discovery", severity="LOW", confidence="HIGH"
+| table _time, host, user, ParentImage, Image, CommandLine, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-106008 | T1083 | Discovery: Dir /s /b — recursive directory listing | Severity: MEDIUM | Confidence: MEDIUM")`
+index=windows (EventCode=1 OR EventCode=4688)
+(Image="*\\cmd.exe" OR NewProcessName="*\\cmd.exe")
+CommandLine="*/c dir*" (CommandLine="*/s*" OR CommandLine="*/b*")
+NOT (ParentImage="*\\explorer.exe")
+| eval rule_id="SP-106008", mitre_technique="T1083", mitre_tactic="Discovery", severity="MEDIUM", confidence="MEDIUM"
+| table _time, host, user, ParentImage, Image, CommandLine, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-106009 | T1069.001 | Discovery: Net localgroup administrators — local admin enumeration | Severity: HIGH | Confidence: HIGH")`
+index=windows (EventCode=1 OR EventCode=4688)
+(Image="*\\net.exe" OR Image="*\\net1.exe")
+CommandLine="*localgroup*" CommandLine="*administrators*"
+| eval rule_id="SP-106009", mitre_technique="T1069.001", mitre_tactic="Discovery", severity="HIGH", confidence="HIGH"
+| table _time, host, user, Image, CommandLine, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-106010 | T1087.001 | Discovery: Whoami /all — privilege and group enumeration | Severity: MEDIUM | Confidence: HIGH")`
+index=windows (EventCode=1 OR EventCode=4688)
+(Image="*\\whoami.exe" OR NewProcessName="*\\whoami.exe")
+(CommandLine="*/all*" OR CommandLine="*/priv*" OR CommandLine="*/groups*")
+NOT (ParentImage="*\\explorer.exe")
+| eval rule_id="SP-106010", mitre_technique="T1087.001", mitre_tactic="Discovery", severity="MEDIUM", confidence="HIGH"
+| table _time, host, user, ParentImage, Image, CommandLine, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-106011 | T1012 | Discovery: Reg query for sensitive hive paths | Severity: HIGH | Confidence: HIGH")`
+index=windows (EventCode=1 OR EventCode=4688)
+(Image="*\\reg.exe" OR NewProcessName="*\\reg.exe")
+CommandLine="*query*"
+(CommandLine="*Winlogon*" OR CommandLine="*LSA*" OR CommandLine="*SAM*" OR CommandLine="*System\\CurrentControlSet*")
+| eval rule_id="SP-106011", mitre_technique="T1012", mitre_tactic="Discovery", severity="HIGH", confidence="HIGH"
+| table _time, host, user, Image, CommandLine, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-106012 | T1057 | Discovery: Tasklist / Get-Process — running process enumeration | Severity: LOW | Confidence: HIGH")`
+index=windows (EventCode=1 OR EventCode=4688 OR EventCode=4104)
+((Image="*\\tasklist.exe" OR NewProcessName="*\\tasklist.exe") OR ScriptBlockText="*Get-Process*" OR ScriptBlockText="*ps -*")
+NOT (ParentImage="*\\explorer.exe")
+| eval rule_id="SP-106012", mitre_technique="T1057", mitre_tactic="Discovery", severity="LOW", confidence="HIGH"
+| table _time, host, user, Image, CommandLine, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-106013 | T1082 | Discovery: WMIC OS/bios get — system info via WMI | Severity: MEDIUM | Confidence: HIGH")`
+index=windows (EventCode=1 OR EventCode=4688)
+(Image="*\\wmic.exe" OR NewProcessName="*\\wmic.exe")
+(CommandLine="*os get*" OR CommandLine="*computersystem get*" OR CommandLine="*bios get*" OR CommandLine="*cpu get*")
+NOT (CommandLine="*/node:*")
+| eval rule_id="SP-106013", mitre_technique="T1082", mitre_tactic="Discovery", severity="MEDIUM", confidence="HIGH"
+| table _time, host, user, Image, CommandLine, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-106014 | T1135 | Discovery: Net share — local share enumeration | Severity: MEDIUM | Confidence: HIGH")`
+index=windows (EventCode=1 OR EventCode=4688)
+(Image="*\\net.exe" OR Image="*\\net1.exe")
+CommandLine="*share*" NOT (CommandLine="*/add*" OR CommandLine="*/delete*")
+| eval rule_id="SP-106014", mitre_technique="T1135", mitre_tactic="Discovery", severity="MEDIUM", confidence="HIGH"
+| table _time, host, user, Image, CommandLine, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-106015 | T1087.002 | Discovery: PowerShell AD module user enumeration | Severity: HIGH | Confidence: HIGH")`
+index=windows EventCode=4104
+(ScriptBlockText="*Get-ADUser*" OR ScriptBlockText="*Get-ADGroup*" OR ScriptBlockText="*Get-ADComputer*" OR ScriptBlockText="*Get-ADGroupMember*")
+NOT (ScriptBlockText="*-Identity*" AND ScriptBlockText!="*Filter*")
+| eval rule_id="SP-106015", mitre_technique="T1087.002", mitre_tactic="Discovery", severity="HIGH", confidence="HIGH"
+| table _time, host, user, ScriptBlockText, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-106016 | T1046 | Discovery: Port scan via PowerShell Test-NetConnection | Severity: HIGH | Confidence: HIGH")`
+index=windows EventCode=4104
+(ScriptBlockText="*Test-NetConnection*" OR ScriptBlockText="*TcpClient*" OR ScriptBlockText="*New-Object System.Net.Sockets*")
+ScriptBlockText="*port*"
+| eval rule_id="SP-106016", mitre_technique="T1046", mitre_tactic="Discovery", severity="HIGH", confidence="HIGH"
+| table _time, host, user, ScriptBlockText, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-106017 | T1082 | Discovery: Get-ComputerInfo — comprehensive system info | Severity: MEDIUM | Confidence: HIGH")`
+index=windows EventCode=4104
+(ScriptBlockText="*Get-ComputerInfo*" OR ScriptBlockText="*Get-HotFix*" OR ScriptBlockText="*Get-WmiObject Win32_ComputerSystem*")
+| eval rule_id="SP-106017", mitre_technique="T1082", mitre_tactic="Discovery", severity="MEDIUM", confidence="HIGH"
+| table _time, host, user, ScriptBlockText, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-106018 | T1201 | Discovery: Password policy — net accounts | Severity: MEDIUM | Confidence: HIGH")`
+index=windows (EventCode=1 OR EventCode=4688)
+(Image="*\\net.exe" OR Image="*\\net1.exe")
+CommandLine="*accounts*"
+| eval rule_id="SP-106018", mitre_technique="T1201", mitre_tactic="Discovery", severity="MEDIUM", confidence="HIGH"
+| table _time, host, user, Image, CommandLine, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-106019 | T1082 | Discovery: Set — environment variable dump | Severity: LOW | Confidence: MEDIUM")`
+index=windows (EventCode=1 OR EventCode=4688)
+Image="*\\cmd.exe"
+CommandLine="*/c set*"
+NOT (ParentImage="*\\explorer.exe")
+| eval rule_id="SP-106019", mitre_technique="T1082", mitre_tactic="Discovery", severity="LOW", confidence="MEDIUM"
+| table _time, host, user, ParentImage, Image, CommandLine, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-106020 | T1007 | Discovery: Sc query / tasklist /svc — service enumeration | Severity: MEDIUM | Confidence: HIGH")`
+index=windows (EventCode=1 OR EventCode=4688)
+((Image="*\\sc.exe" AND CommandLine="*query*") OR (Image="*\\tasklist.exe" AND CommandLine="*/svc*"))
+| eval rule_id="SP-106020", mitre_technique="T1007", mitre_tactic="Discovery", severity="MEDIUM", confidence="HIGH"
+| table _time, host, user, Image, CommandLine, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-106021 | T1069.002 | Discovery: BloodHound/SharpHound execution — AD recon tool | Severity: CRITICAL | Confidence: HIGH")`
+index=windows (EventCode=1 OR EventCode=4688)
+(Image="*\\SharpHound*" OR Image="*\\BloodHound*" OR CommandLine="*SharpHound*" OR CommandLine="*CollectionMethod*")
+| eval rule_id="SP-106021", mitre_technique="T1069.002", mitre_tactic="Discovery", severity="CRITICAL", confidence="HIGH"
+| table _time, host, user, Image, CommandLine, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-106022 | T1087.002 | Discovery: ADFind tool — LDAP enumeration | Severity: HIGH | Confidence: HIGH")`
+index=windows (EventCode=1 OR EventCode=4688)
+(Image="*\\AdFind*" OR CommandLine="*AdFind*" OR CommandLine="*-f objectcategory*")
+| eval rule_id="SP-106022", mitre_technique="T1087.002", mitre_tactic="Discovery", severity="HIGH", confidence="HIGH"
+| table _time, host, user, Image, CommandLine, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-106023 | T1016 | Discovery: Route print — routing table enumeration | Severity: LOW | Confidence: HIGH")`
+index=windows (EventCode=1 OR EventCode=4688)
+(Image="*\\route.exe" OR NewProcessName="*\\route.exe")
+CommandLine="*print*"
+NOT (ParentImage="*\\explorer.exe")
+| eval rule_id="SP-106023", mitre_technique="T1016", mitre_tactic="Discovery", severity="LOW", confidence="HIGH"
+| table _time, host, user, ParentImage, Image, CommandLine, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-106024 | T1018 | Discovery: Nmap-like port scan — nmap or masscan execution | Severity: HIGH | Confidence: HIGH")`
+index=windows (EventCode=1 OR EventCode=4688)
+(Image="*\\nmap*" OR Image="*\\masscan*" OR CommandLine="*nmap*" OR CommandLine="*masscan*")
+| eval rule_id="SP-106024", mitre_technique="T1018", mitre_tactic="Discovery", severity="HIGH", confidence="HIGH"
+| table _time, host, user, Image, CommandLine, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-106025 | T1082 | Discovery: Query for AV/security product via wmic antivirus | Severity: MEDIUM | Confidence: HIGH")`
+index=windows (EventCode=1 OR EventCode=4688)
+(Image="*\\wmic.exe" OR NewProcessName="*\\wmic.exe")
+(CommandLine="*antivirus*" OR CommandLine="*AntiVirusProduct*" OR CommandLine="*SecurityCenter*")
+| eval rule_id="SP-106025", mitre_technique="T1082", mitre_tactic="Discovery", severity="MEDIUM", confidence="HIGH"
+| table _time, host, user, Image, CommandLine, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-106026 | T1010 | Discovery: Window enumeration — GetForegroundWindow PS script | Severity: MEDIUM | Confidence: MEDIUM")`
+index=windows EventCode=4104
+(ScriptBlockText="*GetForegroundWindow*" OR ScriptBlockText="*EnumWindows*" OR ScriptBlockText="*FindWindowEx*")
+| eval rule_id="SP-106026", mitre_technique="T1010", mitre_tactic="Discovery", severity="MEDIUM", confidence="MEDIUM"
+| table _time, host, user, ScriptBlockText, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-106027 | T1033 | Discovery: Query session / quser — logged-on user enumeration | Severity: MEDIUM | Confidence: HIGH")`
+index=windows (EventCode=1 OR EventCode=4688)
+(Image="*\\quser.exe" OR Image="*\\query.exe" OR NewProcessName="*\\quser.exe")
+(CommandLine="*session*" OR CommandLine="*user*")
+| eval rule_id="SP-106027", mitre_technique="T1033", mitre_tactic="Discovery", severity="MEDIUM", confidence="HIGH"
+| table _time, host, user, Image, CommandLine, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-106028 | T1082 | Discovery: Msinfo32 — system info GUI tool launched silently | Severity: LOW | Confidence: MEDIUM")`
+index=windows (EventCode=1 OR EventCode=4688)
+(Image="*\\msinfo32.exe" OR NewProcessName="*\\msinfo32.exe")
+NOT (ParentImage="*\\explorer.exe")
+| eval rule_id="SP-106028", mitre_technique="T1082", mitre_tactic="Discovery", severity="LOW", confidence="MEDIUM"
+| table _time, host, user, ParentImage, Image, CommandLine, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-106029 | T1217 | Discovery: Browser bookmark file access — credential/target mapping | Severity: MEDIUM | Confidence: MEDIUM")`
+index=windows EventCode=11
+(TargetFilename="*\\Chrome\\User Data\\Default\\Bookmarks*" OR TargetFilename="*\\Firefox\\Profiles\\*\\places.sqlite*" OR TargetFilename="*\\Edge\\User Data\\Default\\Bookmarks*")
+NOT (Image="*\\chrome.exe" OR Image="*\\firefox.exe" OR Image="*\\msedge.exe")
+| eval rule_id="SP-106029", mitre_technique="T1217", mitre_tactic="Discovery", severity="MEDIUM", confidence="MEDIUM"
+| table _time, host, Image, TargetFilename, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-106030 | T1087.002 | Discovery: LDAP query via PS — Get-ADDomain/Forest | Severity: HIGH | Confidence: HIGH")`
+index=windows EventCode=4104
+(ScriptBlockText="*Get-ADDomain*" OR ScriptBlockText="*Get-ADForest*" OR ScriptBlockText="*Get-ADTrust*" OR ScriptBlockText="*Get-ADOrganizationalUnit*")
+| eval rule_id="SP-106030", mitre_technique="T1087.002", mitre_tactic="Discovery", severity="HIGH", confidence="HIGH"
+| table _time, host, user, ScriptBlockText, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-106031 | T1082 | Discovery: Recon burst — >8 discovery tools in 2 minutes | Severity: CRITICAL | Confidence: HIGH")`
+index=windows (EventCode=1 OR EventCode=4688)
+(Image="*\\whoami.exe" OR Image="*\\ipconfig.exe" OR Image="*\\systeminfo.exe" OR Image="*\\net.exe" OR Image="*\\arp.exe" OR Image="*\\netstat.exe" OR Image="*\\tasklist.exe" OR Image="*\\ping.exe" OR Image="*\\route.exe" OR Image="*\\nltest.exe")
+| bin _time span=2m
+| stats dc(Image) as UniqueTools count as Executions by _time, host
+| where UniqueTools > 5
+| eval rule_id="SP-106031", mitre_technique="T1082", mitre_tactic="Discovery", severity="CRITICAL", confidence="HIGH"
+| table _time, host, UniqueTools, Executions, rule_id, severity
+| sort -_time
+
+`comment("SP-106032 | T1083 | Discovery: Powershell Get-ChildItem sensitive directory | Severity: MEDIUM | Confidence: MEDIUM")`
+index=windows EventCode=4104
+ScriptBlockText="*Get-ChildItem*"
+(ScriptBlockText="*\\Users\\*" OR ScriptBlockText="*\\Documents\\*" OR ScriptBlockText="*\\Desktop\\*" OR ScriptBlockText="*-Recurse*")
+| eval rule_id="SP-106032", mitre_technique="T1083", mitre_tactic="Discovery", severity="MEDIUM", confidence="MEDIUM"
+| table _time, host, user, ScriptBlockText, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-106033 | T1046 | Discovery: Internal port scan via Test-NetConnection burst | Severity: HIGH | Confidence: HIGH")`
+index=windows EventCode=3
+NOT (DestinationIp="127.*")
+(DestinationIp="10.*" OR DestinationIp="192.168.*" OR DestinationIp="172.16.*")
+| bin _time span=2m
+| stats dc(DestinationPort) as UniquePorts dc(DestinationIp) as UniqueIPs by _time, host, Image
+| where UniquePorts > 10 OR UniqueIPs > 20
+| eval rule_id="SP-106033", mitre_technique="T1046", mitre_tactic="Discovery", severity="HIGH", confidence="HIGH"
+| table _time, host, Image, UniquePorts, UniqueIPs, rule_id, severity
+| sort -_time
+
+`comment("SP-106034 | T1040 | Discovery: Network sniffer execution — Wireshark/tcpdump | Severity: HIGH | Confidence: MEDIUM")`
+index=windows (EventCode=1 OR EventCode=4688)
+(Image="*\\Wireshark*" OR Image="*\\tshark*" OR Image="*\\tcpdump*" OR Image="*\\windump*" OR Image="*\\rawshark*")
+NOT (ParentImage="*\\explorer.exe")
+| eval rule_id="SP-106034", mitre_technique="T1040", mitre_tactic="Discovery", severity="HIGH", confidence="MEDIUM"
+| table _time, host, user, ParentImage, Image, CommandLine, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-106035 | T1069.002 | Discovery: Domain admin group enumeration — net group 'Domain Admins' | Severity: HIGH | Confidence: HIGH")`
+index=windows (EventCode=1 OR EventCode=4688)
+(Image="*\\net.exe" OR Image="*\\net1.exe")
+(CommandLine="*Domain Admins*" OR CommandLine="*Enterprise Admins*" OR CommandLine="*Schema Admins*")
+| eval rule_id="SP-106035", mitre_technique="T1069.002", mitre_tactic="Discovery", severity="HIGH", confidence="HIGH"
+| table _time, host, user, Image, CommandLine, rule_id, mitre_technique, severity
+| sort -_time

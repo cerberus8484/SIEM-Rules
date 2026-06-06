@@ -1,0 +1,203 @@
+`comment("
+============================================================
+HuntingThreats — Splunk SPL Hunt Rules
+Category  : Execution — PowerShell (T1059.001)
+Batch     : 1 / Execution
+Rules     : SP-100001 – SP-100025
+Platform  : Splunk Enterprise 8.0+ / Splunk Cloud
+Sources   : Sysmon Event 1, Windows Event 4688, PS Event 4104
+============================================================
+")`
+
+`comment("SP-100001 | T1059.001 | PowerShell: -EncodedCommand flag — obfuscated execution | Severity: HIGH | Confidence: HIGH")`
+index=windows (EventCode=1 OR EventCode=4688)
+(CommandLine="*-EncodedCommand*" OR CommandLine="*-enc *" OR CommandLine="*-e *")
+Image="*\\powershell.exe" OR NewProcessName="*\\powershell.exe"
+| eval rule_id="SP-100001", mitre_technique="T1059.001", mitre_tactic="Execution", severity="HIGH", confidence="HIGH"
+| table _time, host, user, ParentImage, Image, CommandLine, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-100002 | T1059.001 | PowerShell: Hidden Window (-w hidden / -windowstyle hidden) | Severity: HIGH | Confidence: HIGH")`
+index=windows (EventCode=1 OR EventCode=4688)
+(Image="*\\powershell.exe" OR NewProcessName="*\\powershell.exe")
+(CommandLine="*-w hidden*" OR CommandLine="*-windowstyle hidden*" OR CommandLine="*-window hidden*")
+| eval rule_id="SP-100002", mitre_technique="T1059.001", mitre_tactic="Execution", severity="HIGH", confidence="HIGH"
+| table _time, host, user, ParentImage, Image, CommandLine, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-100003 | T1059.001 | PowerShell: IEX + WebClient DownloadString — remote script execution | Severity: HIGH | Confidence: HIGH")`
+index=windows EventCode=4104
+(ScriptBlockText="*Invoke-Expression*" OR ScriptBlockText="*iex*")
+(ScriptBlockText="*DownloadString*" OR ScriptBlockText="*WebClient*" OR ScriptBlockText="*Net.WebClient*")
+| eval rule_id="SP-100003", mitre_technique="T1059.001", mitre_tactic="Execution", severity="HIGH", confidence="HIGH"
+| table _time, host, user, ScriptBlockText, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-100004 | T1562.001 | PowerShell: AMSI bypass — AmsiScanBuffer/AmsiInitFailed patch | Severity: CRITICAL | Confidence: HIGH")`
+index=windows EventCode=4104
+(ScriptBlockText="*AmsiScanBuffer*" OR ScriptBlockText="*amsiInitFailed*" OR ScriptBlockText="*amsi.dll*" OR ScriptBlockText="*[Ref].Assembly.GetType*")
+| eval rule_id="SP-100004", mitre_technique="T1562.001", mitre_tactic="Defense Evasion", severity="CRITICAL", confidence="HIGH"
+| table _time, host, user, ScriptBlockText, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-100005 | T1059.001 | PowerShell: Reflection Assembly Load — in-memory PE loading | Severity: HIGH | Confidence: HIGH")`
+index=windows EventCode=4104
+(ScriptBlockText="*Reflection.Assembly*" OR ScriptBlockText="*[System.Reflection.Assembly]::Load*" OR ScriptBlockText="*Assembly.Load(*")
+| eval rule_id="SP-100005", mitre_technique="T1059.001", mitre_tactic="Execution", severity="HIGH", confidence="HIGH"
+| table _time, host, user, ScriptBlockText, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-100006 | T1003.001 | PowerShell: Invoke-Mimikatz keyword — credential dumping | Severity: CRITICAL | Confidence: HIGH")`
+index=windows EventCode=4104
+(ScriptBlockText="*Invoke-Mimikatz*" OR ScriptBlockText="*sekurlsa*" OR ScriptBlockText="*lsadump*" OR ScriptBlockText="*privilege::debug*")
+| eval rule_id="SP-100006", mitre_technique="T1003.001", mitre_tactic="Credential Access", severity="CRITICAL", confidence="HIGH"
+| table _time, host, user, ScriptBlockText, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-100007 | T1059.001 | PowerShell: No-profile + Encoded + NonInteractive combo — stealth execution | Severity: HIGH | Confidence: HIGH")`
+index=windows (EventCode=1 OR EventCode=4688)
+(Image="*\\powershell.exe" OR NewProcessName="*\\powershell.exe")
+CommandLine="*-nop*" CommandLine="*-enc*" CommandLine="*-noni*"
+| eval rule_id="SP-100007", mitre_technique="T1059.001", mitre_tactic="Execution", severity="HIGH", confidence="HIGH"
+| table _time, host, user, ParentImage, Image, CommandLine, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-100008 | T1059.001 | PowerShell: Spawned by Office application — macro execution | Severity: HIGH | Confidence: HIGH")`
+index=windows EventCode=1
+(ParentImage="*\\winword.exe" OR ParentImage="*\\excel.exe" OR ParentImage="*\\powerpnt.exe" OR ParentImage="*\\onenote.exe" OR ParentImage="*\\outlook.exe")
+(Image="*\\powershell.exe" OR Image="*\\pwsh.exe")
+| eval rule_id="SP-100008", mitre_technique="T1059.001", mitre_tactic="Execution", severity="HIGH", confidence="HIGH"
+| table _time, host, user, ParentImage, Image, CommandLine, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-100009 | T1059.001 | PowerShell: Executed from Temp or AppData path — staging | Severity: HIGH | Confidence: HIGH")`
+index=windows (EventCode=1 OR EventCode=4688)
+(Image="*\\Temp\\*" OR Image="*\\AppData\\*" OR Image="*\\ProgramData\\*")
+(Image="*\\powershell.exe" OR Image="*\\pwsh.exe")
+| eval rule_id="SP-100009", mitre_technique="T1059.001", mitre_tactic="Execution", severity="HIGH", confidence="HIGH"
+| table _time, host, user, ParentImage, Image, CommandLine, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-100010 | T1027 | PowerShell: Char/join obfuscation pattern — string concatenation evasion | Severity: HIGH | Confidence: MEDIUM")`
+index=windows EventCode=4104
+(ScriptBlockText="*[char]*" OR ScriptBlockText="*-join*" OR ScriptBlockText="*$env:*" OR ScriptBlockText="*('{0}'-f*")
+ScriptBlockText="*invoke*"
+| eval rule_id="SP-100010", mitre_technique="T1027", mitre_tactic="Defense Evasion", severity="HIGH", confidence="MEDIUM"
+| table _time, host, user, ScriptBlockText, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-100011 | T1059.001 | PowerShell: Empire cradle — New-Object Net.WebClient DownloadString | Severity: CRITICAL | Confidence: HIGH")`
+index=windows EventCode=4104
+ScriptBlockText="*New-Object*" ScriptBlockText="*Net.WebClient*"
+(ScriptBlockText="*DownloadString*" OR ScriptBlockText="*DownloadFile*" OR ScriptBlockText="*DownloadData*")
+| eval rule_id="SP-100011", mitre_technique="T1059.001", mitre_tactic="Execution", severity="CRITICAL", confidence="HIGH"
+| table _time, host, user, ScriptBlockText, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-100012 | T1021.006 | PowerShell: Invoke-Command -ComputerName — remote execution | Severity: HIGH | Confidence: HIGH")`
+index=windows EventCode=4104
+(ScriptBlockText="*Invoke-Command*" OR ScriptBlockText="*icm *")
+(ScriptBlockText="*-ComputerName*" OR ScriptBlockText="*-cn *")
+| eval rule_id="SP-100012", mitre_technique="T1021.006", mitre_tactic="Lateral Movement", severity="HIGH", confidence="HIGH"
+| table _time, host, user, ScriptBlockText, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-100013 | T1059.001 | PowerShell: Shellcode byte array — [byte[]]/0x pattern | Severity: CRITICAL | Confidence: HIGH")`
+index=windows EventCode=4104
+(ScriptBlockText="*[byte[]]*" OR ScriptBlockText="*[Byte[]]*")
+(ScriptBlockText="*0x00*" OR ScriptBlockText="*0xfc*" OR ScriptBlockText="*0xe8*" OR ScriptBlockText="*0x90*")
+| eval rule_id="SP-100013", mitre_technique="T1059.001", mitre_tactic="Execution", severity="CRITICAL", confidence="HIGH"
+| table _time, host, user, ScriptBlockText, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-100014 | T1053.005 | PowerShell: New-ScheduledTask — persistence via task scheduler | Severity: HIGH | Confidence: HIGH")`
+index=windows EventCode=4104
+(ScriptBlockText="*New-ScheduledTask*" OR ScriptBlockText="*Register-ScheduledTask*" OR ScriptBlockText="*New-ScheduledTaskAction*")
+| eval rule_id="SP-100014", mitre_technique="T1053.005", mitre_tactic="Persistence", severity="HIGH", confidence="HIGH"
+| table _time, host, user, ScriptBlockText, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-100015 | T1562.006 | PowerShell: ETW provider disable — telemetry evasion | Severity: HIGH | Confidence: HIGH")`
+index=windows EventCode=4104
+(ScriptBlockText="*[Reflection.FieldInfo]*" OR ScriptBlockText="*EtwEventWrite*" OR ScriptBlockText="*NtTraceEvent*")
+(ScriptBlockText="*SetValue*" OR ScriptBlockText="*GetField*")
+| eval rule_id="SP-100015", mitre_technique="T1562.006", mitre_tactic="Defense Evasion", severity="HIGH", confidence="HIGH"
+| table _time, host, user, ScriptBlockText, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-100016 | T1059.001 | PowerShell: Add-Type inline C# — code compilation in memory | Severity: HIGH | Confidence: MEDIUM")`
+index=windows EventCode=4104
+ScriptBlockText="*Add-Type*"
+(ScriptBlockText="*DllImport*" OR ScriptBlockText="*unsafe*" OR ScriptBlockText="*VirtualAlloc*" OR ScriptBlockText="*CreateThread*")
+| eval rule_id="SP-100016", mitre_technique="T1059.001", mitre_tactic="Execution", severity="HIGH", confidence="MEDIUM"
+| table _time, host, user, ScriptBlockText, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-100017 | T1056.001 | PowerShell: Get-Clipboard keylogger pattern | Severity: HIGH | Confidence: HIGH")`
+index=windows EventCode=4104
+(ScriptBlockText="*Get-Clipboard*" OR ScriptBlockText="*[Windows.Forms.Clipboard]::GetText*" OR ScriptBlockText="*GetClipboardData*")
+| eval rule_id="SP-100017", mitre_technique="T1056.001", mitre_tactic="Credential Access", severity="HIGH", confidence="HIGH"
+| table _time, host, user, ScriptBlockText, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-100018 | T1070.001 | PowerShell: Clear-EventLog — log clearing for cover | Severity: HIGH | Confidence: HIGH")`
+index=windows (EventCode=1 OR EventCode=4688 OR EventCode=4104)
+(CommandLine="*Clear-EventLog*" OR ScriptBlockText="*Clear-EventLog*" OR CommandLine="*wevtutil cl*")
+| eval rule_id="SP-100018", mitre_technique="T1070.001", mitre_tactic="Defense Evasion", severity="HIGH", confidence="HIGH"
+| table _time, host, user, Image, CommandLine, ScriptBlockText, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-100019 | T1560.001 | PowerShell: Compress-Archive to staging path — exfil prep | Severity: MEDIUM | Confidence: MEDIUM")`
+index=windows EventCode=4104
+ScriptBlockText="*Compress-Archive*"
+(ScriptBlockText="*\\Temp\\*" OR ScriptBlockText="*\\AppData\\*" OR ScriptBlockText="*\\ProgramData\\*" OR ScriptBlockText="*\\Public\\*")
+| eval rule_id="SP-100019", mitre_technique="T1560.001", mitre_tactic="Collection", severity="MEDIUM", confidence="MEDIUM"
+| table _time, host, user, ScriptBlockText, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-100020 | T1134.001 | PowerShell: Token manipulation — DuplicateTokenEx/ImpersonateLoggedOnUser | Severity: HIGH | Confidence: HIGH")`
+index=windows EventCode=4104
+(ScriptBlockText="*DuplicateTokenEx*" OR ScriptBlockText="*ImpersonateLoggedOnUser*" OR ScriptBlockText="*Invoke-TokenManipulation*" OR ScriptBlockText="*OpenProcessToken*")
+| eval rule_id="SP-100020", mitre_technique="T1134.001", mitre_tactic="Privilege Escalation", severity="HIGH", confidence="HIGH"
+| table _time, host, user, ScriptBlockText, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-100021 | T1059.001 | PowerShell: Direct syscall pattern — API unhooking | Severity: CRITICAL | Confidence: HIGH")`
+index=windows EventCode=4104
+(ScriptBlockText="*NtAllocateVirtualMemory*" OR ScriptBlockText="*NtCreateThread*" OR ScriptBlockText="*NtWriteVirtualMemory*")
+(ScriptBlockText="*syscall*" OR ScriptBlockText="*ntdll*")
+| eval rule_id="SP-100021", mitre_technique="T1059.001", mitre_tactic="Execution", severity="CRITICAL", confidence="HIGH"
+| table _time, host, user, ScriptBlockText, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-100022 | T1490 | PowerShell: Disable-ComputerRestore — backup evasion | Severity: HIGH | Confidence: HIGH")`
+index=windows EventCode=4104
+(ScriptBlockText="*Disable-ComputerRestore*" OR ScriptBlockText="*Remove-RestorePoint*")
+| eval rule_id="SP-100022", mitre_technique="T1490", mitre_tactic="Impact", severity="HIGH", confidence="HIGH"
+| table _time, host, user, ScriptBlockText, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-100023 | T1041 | PowerShell: UploadString/UploadData POST — data exfiltration | Severity: HIGH | Confidence: HIGH")`
+index=windows EventCode=4104
+(ScriptBlockText="*UploadString*" OR ScriptBlockText="*UploadFile*" OR ScriptBlockText="*UploadData*")
+| eval rule_id="SP-100023", mitre_technique="T1041", mitre_tactic="Exfiltration", severity="HIGH", confidence="HIGH"
+| table _time, host, user, ScriptBlockText, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-100024 | T1562.001 | PowerShell: ScriptBlock logging registry disable — evasion | Severity: HIGH | Confidence: HIGH")`
+index=windows EventCode=4104
+(ScriptBlockText="*EnableScriptBlockLogging*" OR ScriptBlockText="*ScriptBlockLogging*" OR ScriptBlockText="*PSModuleLogging*")
+(ScriptBlockText="*0*" OR ScriptBlockText="*$false*" OR ScriptBlockText="*Disable*")
+| eval rule_id="SP-100024", mitre_technique="T1562.001", mitre_tactic="Defense Evasion", severity="HIGH", confidence="HIGH"
+| table _time, host, user, ScriptBlockText, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-100025 | T1059.001 | PowerShell: High-frequency execution threshold — >10 instances in 5 minutes | Severity: MEDIUM | Confidence: MEDIUM")`
+index=windows EventCode=1
+(Image="*\\powershell.exe" OR Image="*\\pwsh.exe")
+| bin _time span=5m
+| stats count as ExecCount by _time, host
+| where ExecCount > 10
+| eval rule_id="SP-100025", mitre_technique="T1059.001", mitre_tactic="Execution", severity="MEDIUM", confidence="MEDIUM"
+| table _time, host, ExecCount, rule_id, severity
+| sort -_time

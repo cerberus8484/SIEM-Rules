@@ -1,0 +1,293 @@
+`comment("
+============================================================
+HuntingThreats — Splunk SPL Hunt Rules
+Category  : Credential Access — LSASS & Dumping (T1003)
+Batch     : 7 / Credential Access
+Rules     : SP-103001 – SP-103035
+Platform  : Splunk Enterprise 8.0+ / Splunk Cloud
+Sources   : Sysmon Event 1/7/10, Windows Event 4688/4648
+============================================================
+")`
+
+`comment("SP-103001 | T1003.001 | LSASS: Process access to lsass.exe — credential dumping attempt | Severity: CRITICAL | Confidence: HIGH")`
+index=windows EventCode=10
+TargetImage="*\\lsass.exe"
+NOT (SourceImage="*\\MsMpEng.exe" OR SourceImage="*\\svchost.exe" OR SourceImage="*\\werfault.exe" OR SourceImage="*\\csrss.exe" OR SourceImage="*\\taskmgr.exe")
+| eval rule_id="SP-103001", mitre_technique="T1003.001", mitre_tactic="Credential Access", severity="CRITICAL", confidence="HIGH"
+| table _time, host, SourceImage, TargetImage, GrantedAccess, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-103002 | T1003.001 | LSASS: GrantedAccess 0x1010 — PROCESS_VM_READ on lsass | Severity: CRITICAL | Confidence: HIGH")`
+index=windows EventCode=10
+TargetImage="*\\lsass.exe"
+GrantedAccess IN ("0x1010", "0x1410", "0x147a", "0x143a")
+| eval rule_id="SP-103002", mitre_technique="T1003.001", mitre_tactic="Credential Access", severity="CRITICAL", confidence="HIGH"
+| table _time, host, SourceImage, TargetImage, GrantedAccess, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-103003 | T1003.001 | Mimikatz: sekurlsa/lsadump keyword in process args | Severity: CRITICAL | Confidence: HIGH")`
+index=windows (EventCode=1 OR EventCode=4688)
+(CommandLine="*sekurlsa*" OR CommandLine="*lsadump*" OR CommandLine="*privilege::debug*" OR CommandLine="*coffee*" OR CommandLine="*kerberos::list*")
+| eval rule_id="SP-103003", mitre_technique="T1003.001", mitre_tactic="Credential Access", severity="CRITICAL", confidence="HIGH"
+| table _time, host, user, Image, CommandLine, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-103004 | T1003.001 | ProcDump: lsass memory dump via procdump.exe | Severity: CRITICAL | Confidence: HIGH")`
+index=windows (EventCode=1 OR EventCode=4688)
+(Image="*\\procdump*" OR NewProcessName="*\\procdump*")
+(CommandLine="*lsass*" OR CommandLine="*-ma*")
+| eval rule_id="SP-103004", mitre_technique="T1003.001", mitre_tactic="Credential Access", severity="CRITICAL", confidence="HIGH"
+| table _time, host, user, Image, CommandLine, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-103005 | T1003.001 | Task Manager: lsass.exe dump via taskmgr — manual memory dump | Severity: CRITICAL | Confidence: HIGH")`
+index=windows EventCode=10
+SourceImage="*\\taskmgr.exe"
+TargetImage="*\\lsass.exe"
+GrantedAccess="0x1fffff"
+| eval rule_id="SP-103005", mitre_technique="T1003.001", mitre_tactic="Credential Access", severity="CRITICAL", confidence="HIGH"
+| table _time, host, SourceImage, TargetImage, GrantedAccess, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-103006 | T1003.002 | SAM dump: reg save HKLM\\SAM — registry hive exfil | Severity: CRITICAL | Confidence: HIGH")`
+index=windows (EventCode=1 OR EventCode=4688)
+(Image="*\\reg.exe" OR NewProcessName="*\\reg.exe")
+CommandLine="*save*" (CommandLine="*SAM*" OR CommandLine="*SYSTEM*" OR CommandLine="*SECURITY*")
+| eval rule_id="SP-103006", mitre_technique="T1003.002", mitre_tactic="Credential Access", severity="CRITICAL", confidence="HIGH"
+| table _time, host, user, Image, CommandLine, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-103007 | T1003.003 | NTDS: ntdsutil snapshot — AD database dump | Severity: CRITICAL | Confidence: HIGH")`
+index=windows (EventCode=1 OR EventCode=4688)
+(Image="*\\ntdsutil.exe" OR NewProcessName="*\\ntdsutil.exe")
+(CommandLine="*snapshot*" OR CommandLine="*ac i ntds*" OR CommandLine="*ifm*")
+| eval rule_id="SP-103007", mitre_technique="T1003.003", mitre_tactic="Credential Access", severity="CRITICAL", confidence="HIGH"
+| table _time, host, user, Image, CommandLine, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-103008 | T1003.001 | Comsvcs: lsass dump via comsvcs.dll MiniDump | Severity: CRITICAL | Confidence: HIGH")`
+index=windows (EventCode=1 OR EventCode=4688 OR EventCode=4104)
+(CommandLine="*comsvcs*" OR ScriptBlockText="*comsvcs*")
+(CommandLine="*MiniDump*" OR CommandLine="*minidump*" OR ScriptBlockText="*MiniDump*")
+| eval rule_id="SP-103008", mitre_technique="T1003.001", mitre_tactic="Credential Access", severity="CRITICAL", confidence="HIGH"
+| table _time, host, user, Image, CommandLine, ScriptBlockText, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-103009 | T1003.001 | Credential Manager: vaultcmd /listcreds — credential vault dump | Severity: HIGH | Confidence: HIGH")`
+index=windows (EventCode=1 OR EventCode=4688)
+(Image="*\\vaultcmd.exe" OR NewProcessName="*\\vaultcmd.exe" OR CommandLine="*vaultcmd*")
+(CommandLine="*/listcreds*" OR CommandLine="*/list*")
+| eval rule_id="SP-103009", mitre_technique="T1003.001", mitre_tactic="Credential Access", severity="HIGH", confidence="HIGH"
+| table _time, host, user, Image, CommandLine, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-103010 | T1555.003 | Browser: Browser credential store access — password extraction | Severity: HIGH | Confidence: HIGH")`
+index=windows EventCode=11
+(TargetFilename="*\\Google\\Chrome\\User Data\\Default\\Login Data*" OR TargetFilename="*\\Mozilla\\Firefox\\Profiles\\*\\logins.json*" OR TargetFilename="*\\Microsoft\\Edge\\User Data\\Default\\Login Data*")
+NOT (Image="*\\chrome.exe" OR Image="*\\firefox.exe" OR Image="*\\msedge.exe")
+| eval rule_id="SP-103010", mitre_technique="T1555.003", mitre_tactic="Credential Access", severity="HIGH", confidence="HIGH"
+| table _time, host, Image, TargetFilename, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-103011 | T1558.003 | Kerberoasting: PowerShell RequestEncTicket — SPNs queried | Severity: HIGH | Confidence: HIGH")`
+index=windows EventCode=4104
+(ScriptBlockText="*GetTGSST*" OR ScriptBlockText="*Invoke-Kerberoast*" OR ScriptBlockText="*RequestEncryptedServiceTicket*" OR ScriptBlockText="*KerberosRequestorSecurityToken*")
+| eval rule_id="SP-103011", mitre_technique="T1558.003", mitre_tactic="Credential Access", severity="HIGH", confidence="HIGH"
+| table _time, host, user, ScriptBlockText, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-103012 | T1558.004 | AS-REP Roasting: Rubeus asreproast pattern | Severity: HIGH | Confidence: HIGH")`
+index=windows EventCode=4104
+(ScriptBlockText="*asreproast*" OR ScriptBlockText="*Get-ASREPHash*" OR ScriptBlockText="*Invoke-ASREPRoast*" OR ScriptBlockText="*Rubeus*asrep*")
+| eval rule_id="SP-103012", mitre_technique="T1558.004", mitre_tactic="Credential Access", severity="HIGH", confidence="HIGH"
+| table _time, host, user, ScriptBlockText, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-103013 | T1003.004 | LSA: Protected process bypass — PPL removal attempt | Severity: CRITICAL | Confidence: HIGH")`
+index=windows EventCode=4104
+(ScriptBlockText="*PPLKiller*" OR ScriptBlockText="*mimidrv*" OR ScriptBlockText="*MimiDrv*" OR ScriptBlockText="*protected process*")
+| eval rule_id="SP-103013", mitre_technique="T1003.004", mitre_tactic="Credential Access", severity="CRITICAL", confidence="HIGH"
+| table _time, host, user, ScriptBlockText, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-103014 | T1003.001 | Comsvc: rundll32 comsvcs.dll lsass — process dump via LOLBin | Severity: CRITICAL | Confidence: HIGH")`
+index=windows (EventCode=1 OR EventCode=4688)
+(Image="*\\rundll32.exe" OR NewProcessName="*\\rundll32.exe")
+CommandLine="*comsvcs.dll*"
+| eval rule_id="SP-103014", mitre_technique="T1003.001", mitre_tactic="Credential Access", severity="CRITICAL", confidence="HIGH"
+| table _time, host, user, Image, CommandLine, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-103015 | T1110.001 | Brute force: >10 failed logon events per host in 5 minutes | Severity: HIGH | Confidence: HIGH")`
+index=windows EventCode=4625
+| bin _time span=5m
+| stats count as FailCount by _time, host, Account_Name
+| where FailCount > 10
+| eval rule_id="SP-103015", mitre_technique="T1110.001", mitre_tactic="Credential Access", severity="HIGH", confidence="HIGH"
+| table _time, host, Account_Name, FailCount, rule_id, severity
+| sort -_time
+
+`comment("SP-103016 | T1110.003 | Password spray: Failed logons from 1 source to >5 accounts | Severity: HIGH | Confidence: HIGH")`
+index=windows EventCode=4625
+| bin _time span=10m
+| stats dc(Account_Name) as UniqueAccounts count as Attempts by _time, host, IpAddress
+| where UniqueAccounts > 5 AND Attempts > 10
+| eval rule_id="SP-103016", mitre_technique="T1110.003", mitre_tactic="Credential Access", severity="HIGH", confidence="HIGH"
+| table _time, host, IpAddress, UniqueAccounts, Attempts, rule_id, severity
+| sort -_time
+
+`comment("SP-103017 | T1003.001 | WCE: Windows Credential Editor execution | Severity: CRITICAL | Confidence: HIGH")`
+index=windows (EventCode=1 OR EventCode=4688)
+(Image="*\\wce.exe" OR Image="*\\wce64.exe" OR CommandLine="*-w*" AND Image="*wce*")
+| eval rule_id="SP-103017", mitre_technique="T1003.001", mitre_tactic="Credential Access", severity="CRITICAL", confidence="HIGH"
+| table _time, host, user, Image, CommandLine, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-103018 | T1003.001 | LSASS: File created with .dmp extension in staging path | Severity: CRITICAL | Confidence: HIGH")`
+index=windows EventCode=11
+TargetFilename="*.dmp"
+(TargetFilename="*\\Temp\\*" OR TargetFilename="*\\AppData\\*" OR TargetFilename="*\\Public\\*" OR TargetFilename="*lsass*")
+| eval rule_id="SP-103018", mitre_technique="T1003.001", mitre_tactic="Credential Access", severity="CRITICAL", confidence="HIGH"
+| table _time, host, Image, TargetFilename, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-103019 | T1003.005 | Password Manager: cmdkey.exe /list — stored credential enumeration | Severity: HIGH | Confidence: HIGH")`
+index=windows (EventCode=1 OR EventCode=4688)
+(Image="*\\cmdkey.exe" OR NewProcessName="*\\cmdkey.exe")
+(CommandLine="*/list*" OR CommandLine="*/add*")
+| eval rule_id="SP-103019", mitre_technique="T1003.005", mitre_tactic="Credential Access", severity="HIGH", confidence="HIGH"
+| table _time, host, user, Image, CommandLine, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-103020 | T1003.001 | LSASS: nanodump or memdump pattern | Severity: CRITICAL | Confidence: HIGH")`
+index=windows (EventCode=1 OR EventCode=4688 OR EventCode=4104)
+(CommandLine="*nanodump*" OR CommandLine="*memdump*" OR ScriptBlockText="*nanodump*")
+| eval rule_id="SP-103020", mitre_technique="T1003.001", mitre_tactic="Credential Access", severity="CRITICAL", confidence="HIGH"
+| table _time, host, user, Image, CommandLine, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-103021 | T1003.006 | DCSync: PowerShell Replication DCsync | Severity: CRITICAL | Confidence: HIGH")`
+index=windows EventCode=4104
+(ScriptBlockText="*DCSync*" OR ScriptBlockText="*Invoke-DCsync*" OR ScriptBlockText="*Get-ADReplAccount*" OR ScriptBlockText="*DS-Replication-Get-Changes*")
+| eval rule_id="SP-103021", mitre_technique="T1003.006", mitre_tactic="Credential Access", severity="CRITICAL", confidence="HIGH"
+| table _time, host, user, ScriptBlockText, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-103022 | T1056.001 | Keylogger: GetAsyncKeyState / SetWindowsHookEx API in script | Severity: HIGH | Confidence: HIGH")`
+index=windows EventCode=4104
+(ScriptBlockText="*GetAsyncKeyState*" OR ScriptBlockText="*SetWindowsHookEx*" OR ScriptBlockText="*keylogger*" OR ScriptBlockText="*GetKeyState*")
+| eval rule_id="SP-103022", mitre_technique="T1056.001", mitre_tactic="Credential Access", severity="HIGH", confidence="HIGH"
+| table _time, host, user, ScriptBlockText, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-103023 | T1003.001 | LSASS: Access from unsigned binary — elevated access | Severity: HIGH | Confidence: HIGH")`
+index=windows EventCode=10
+TargetImage="*\\lsass.exe"
+Signed="false"
+NOT (SourceImage="*\\svchost.exe" OR SourceImage="*\\csrss.exe" OR SourceImage="*\\werfault.exe")
+| eval rule_id="SP-103023", mitre_technique="T1003.001", mitre_tactic="Credential Access", severity="HIGH", confidence="HIGH"
+| table _time, host, SourceImage, TargetImage, GrantedAccess, Signed, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-103024 | T1552.001 | Credentials in files: findstr for password in common locations | Severity: MEDIUM | Confidence: MEDIUM")`
+index=windows (EventCode=1 OR EventCode=4688)
+(Image="*\\findstr.exe" OR NewProcessName="*\\findstr.exe")
+(CommandLine="*password*" OR CommandLine="*passwd*" OR CommandLine="*cred*" OR CommandLine="*secret*")
+| eval rule_id="SP-103024", mitre_technique="T1552.001", mitre_tactic="Credential Access", severity="MEDIUM", confidence="MEDIUM"
+| table _time, host, user, Image, CommandLine, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-103025 | T1552.002 | Credentials in registry: reg query for password/autologon | Severity: HIGH | Confidence: HIGH")`
+index=windows (EventCode=1 OR EventCode=4688)
+(Image="*\\reg.exe" OR NewProcessName="*\\reg.exe")
+CommandLine="*query*"
+(CommandLine="*DefaultPassword*" OR CommandLine="*Autologon*" OR CommandLine="*autologon*" OR CommandLine="*winlogon*password*")
+| eval rule_id="SP-103025", mitre_technique="T1552.002", mitre_tactic="Credential Access", severity="HIGH", confidence="HIGH"
+| table _time, host, user, Image, CommandLine, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-103026 | T1558.001 | Golden Ticket: Kerberos 4768 with RC4 encryption type | Severity: HIGH | Confidence: MEDIUM")`
+index=windows EventCode=4768
+TicketEncryptionType="0x17"
+NOT AccountName="*$*"
+| eval rule_id="SP-103026", mitre_technique="T1558.001", mitre_tactic="Credential Access", severity="HIGH", confidence="MEDIUM"
+| table _time, host, AccountName, ServiceName, TicketEncryptionType, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-103027 | T1558.002 | Silver Ticket: Kerberos 4769 unusual service name + RC4 | Severity: HIGH | Confidence: MEDIUM")`
+index=windows EventCode=4769
+TicketEncryptionType="0x17"
+NOT (ServiceName="krbtgt" OR ServiceName="*$")
+| eval rule_id="SP-103027", mitre_technique="T1558.002", mitre_tactic="Credential Access", severity="HIGH", confidence="MEDIUM"
+| table _time, host, AccountName, ServiceName, TicketEncryptionType, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-103028 | T1003.001 | Pypykatz/Impacket: Python accessing LSASS | Severity: CRITICAL | Confidence: HIGH")`
+index=windows EventCode=10
+TargetImage="*\\lsass.exe"
+(SourceImage="*\\python*" OR SourceImage="*\\python3*" OR SourceImage="*\\py.exe*")
+| eval rule_id="SP-103028", mitre_technique="T1003.001", mitre_tactic="Credential Access", severity="CRITICAL", confidence="HIGH"
+| table _time, host, SourceImage, TargetImage, GrantedAccess, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-103029 | T1003.001 | Logon: Explicit credential use after failed logon — pass the hash | Severity: HIGH | Confidence: MEDIUM")`
+index=windows EventCode=4648
+NOT (TargetServerName="localhost" OR TargetServerName="127.0.0.1")
+NOT SubjectUserName="*$*"
+| bin _time span=10m
+| stats count as ExplicitLogons by _time, host, SubjectUserName
+| where ExplicitLogons > 5
+| eval rule_id="SP-103029", mitre_technique="T1003.001", mitre_tactic="Lateral Movement", severity="HIGH", confidence="MEDIUM"
+| table _time, host, SubjectUserName, ExplicitLogons, rule_id, severity
+| sort -_time
+
+`comment("SP-103030 | T1110.001 | RDP brute force: >15 failed logon type 10 events | Severity: HIGH | Confidence: HIGH")`
+index=windows EventCode=4625
+LogonType=10
+| bin _time span=5m
+| stats count as FailCount by _time, host
+| where FailCount > 15
+| eval rule_id="SP-103030", mitre_technique="T1110.001", mitre_tactic="Credential Access", severity="HIGH", confidence="HIGH"
+| table _time, host, FailCount, rule_id, severity
+| sort -_time
+
+`comment("SP-103031 | T1555.003 | Credential Manager: rundll32 keymgr.dll — credential manager dump | Severity: HIGH | Confidence: HIGH")`
+index=windows (EventCode=1 OR EventCode=4688)
+(Image="*\\rundll32.exe" OR NewProcessName="*\\rundll32.exe")
+(CommandLine="*keymgr.dll*" OR CommandLine="*KRShowKeyMgr*")
+| eval rule_id="SP-103031", mitre_technique="T1555.003", mitre_tactic="Credential Access", severity="HIGH", confidence="HIGH"
+| table _time, host, user, Image, CommandLine, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-103032 | T1003.001 | LSASS: Squiblydoo calls lsass — indirect access via regsvr32 | Severity: CRITICAL | Confidence: HIGH")`
+index=windows EventCode=10
+TargetImage="*\\lsass.exe"
+SourceImage="*\\regsvr32.exe"
+| eval rule_id="SP-103032", mitre_technique="T1003.001", mitre_tactic="Credential Access", severity="CRITICAL", confidence="HIGH"
+| table _time, host, SourceImage, TargetImage, GrantedAccess, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-103033 | T1003.002 | SAM: secretsdump or SAM hive copy pattern | Severity: CRITICAL | Confidence: HIGH")`
+index=windows (EventCode=1 OR EventCode=4688 OR EventCode=4104)
+(CommandLine="*secretsdump*" OR ScriptBlockText="*secretsdump*" OR CommandLine="*SAMDump*" OR CommandLine="*samdump2*")
+| eval rule_id="SP-103033", mitre_technique="T1003.002", mitre_tactic="Credential Access", severity="CRITICAL", confidence="HIGH"
+| table _time, host, user, Image, CommandLine, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-103034 | T1003.001 | LSASS: High-frequency access from single source >3 in 1 minute | Severity: CRITICAL | Confidence: HIGH")`
+index=windows EventCode=10
+TargetImage="*\\lsass.exe"
+| bin _time span=1m
+| stats count as AccessCount by _time, host, SourceImage
+| where AccessCount > 3
+| eval rule_id="SP-103034", mitre_technique="T1003.001", mitre_tactic="Credential Access", severity="CRITICAL", confidence="HIGH"
+| table _time, host, SourceImage, AccessCount, rule_id, severity
+| sort -_time
+
+`comment("SP-103035 | T1556.001 | LSA: Custom SSP DLL registered — credential interception | Severity: CRITICAL | Confidence: HIGH")`
+index=windows EventCode=13
+TargetObject="*\\LSA\\Security Packages*"
+NOT (Details="*kerberos*" OR Details="*msv1_0*" OR Details="*wdigest*" OR Details="*pku2u*" OR Details="*tspkg*" OR Details="*livessp*" OR Details="*cloudap*")
+| eval rule_id="SP-103035", mitre_technique="T1556.001", mitre_tactic="Credential Access", severity="CRITICAL", confidence="HIGH"
+| table _time, host, Image, TargetObject, Details, rule_id, mitre_technique, severity
+| sort -_time

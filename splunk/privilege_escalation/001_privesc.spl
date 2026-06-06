@@ -1,0 +1,328 @@
+`comment("
+============================================================
+HuntingThreats — Splunk SPL Hunt Rules
+Category  : Privilege Escalation (T1134, T1548, T1574)
+Batch     : 13 / Privilege Escalation
+Rules     : SP-109001 – SP-109040
+Platform  : Splunk Enterprise 8.0+ / Splunk Cloud
+Sources   : Sysmon Event 1/7/10/13, Windows Event 4672/4688/4697
+============================================================
+")`
+
+`comment("SP-109001 | T1548.002 | PrivEsc: UAC bypass — eventvwr.exe file association hijack | Severity: HIGH | Confidence: HIGH")`
+index=windows EventCode=13
+(TargetObject="*\\mscfile\\shell\\open\\command*" OR TargetObject="*\\ms-settings\\shell\\open\\command*")
+NOT (Image="*\\msiexec.exe" OR Image="*\\setup.exe")
+| eval rule_id="SP-109001", mitre_technique="T1548.002", mitre_tactic="Privilege Escalation", severity="HIGH", confidence="HIGH"
+| table _time, host, Image, TargetObject, Details, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-109002 | T1548.002 | PrivEsc: UAC bypass — fodhelper.exe registry hijack | Severity: HIGH | Confidence: HIGH")`
+index=windows EventCode=13
+TargetObject="*\\ms-settings\\shell\\open\\command*"
+| eval rule_id="SP-109002", mitre_technique="T1548.002", mitre_tactic="Privilege Escalation", severity="HIGH", confidence="HIGH"
+| table _time, host, Image, TargetObject, Details, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-109003 | T1548.002 | PrivEsc: UAC bypass — sdclt.exe AppPaths hijack | Severity: HIGH | Confidence: HIGH")`
+index=windows EventCode=13
+(TargetObject="*\\App Paths\\control.exe*" OR TargetObject="*\\sdclt.exe*\\IsolatedCommand*")
+| eval rule_id="SP-109003", mitre_technique="T1548.002", mitre_tactic="Privilege Escalation", severity="HIGH", confidence="HIGH"
+| table _time, host, Image, TargetObject, Details, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-109004 | T1134.001 | PrivEsc: Token impersonation — CreateProcessWithToken from PS | Severity: HIGH | Confidence: HIGH")`
+index=windows EventCode=4104
+(ScriptBlockText="*CreateProcessWithToken*" OR ScriptBlockText="*ImpersonateLoggedOnUser*" OR ScriptBlockText="*Invoke-TokenManipulation*" OR ScriptBlockText="*Get-System*")
+| eval rule_id="SP-109004", mitre_technique="T1134.001", mitre_tactic="Privilege Escalation", severity="HIGH", confidence="HIGH"
+| table _time, host, user, ScriptBlockText, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-109005 | T1134.002 | PrivEsc: Runas /savecred — stored credential abuse | Severity: HIGH | Confidence: HIGH")`
+index=windows (EventCode=1 OR EventCode=4688)
+(Image="*\\runas.exe" OR NewProcessName="*\\runas.exe")
+CommandLine="*/savecred*"
+| eval rule_id="SP-109005", mitre_technique="T1134.002", mitre_tactic="Privilege Escalation", severity="HIGH", confidence="HIGH"
+| table _time, host, user, Image, CommandLine, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-109006 | T1574.002 | PrivEsc: DLL search order hijack — DLL dropped next to system binary | Severity: HIGH | Confidence: HIGH")`
+index=windows EventCode=11
+TargetFilename="*\\System32\\*.dll" OR TargetFilename="*\\SysWOW64\\*.dll"
+NOT (Image="*\\msiexec.exe" OR Image="*\\setup.exe" OR Image="*\\TrustedInstaller.exe" OR Image="*\\wusa.exe")
+| eval rule_id="SP-109006", mitre_technique="T1574.002", mitre_tactic="Privilege Escalation", severity="HIGH", confidence="HIGH"
+| table _time, host, Image, TargetFilename, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-109007 | T1548.002 | PrivEsc: UAC bypass — ComputerDefaults.exe hijack | Severity: HIGH | Confidence: HIGH")`
+index=windows EventCode=1
+ParentImage="*\\ComputerDefaults.exe"
+(Image="*\\cmd.exe" OR Image="*\\powershell.exe" OR Image="*\\mshta.exe")
+| eval rule_id="SP-109007", mitre_technique="T1548.002", mitre_tactic="Privilege Escalation", severity="HIGH", confidence="HIGH"
+| table _time, host, ParentImage, Image, CommandLine, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-109008 | T1548.002 | PrivEsc: UAC bypass — auto-elevated process writing registry | Severity: HIGH | Confidence: HIGH")`
+index=windows EventCode=1
+(Image="*\\eventvwr.exe" OR Image="*\\fodhelper.exe" OR Image="*\\sdclt.exe" OR Image="*\\computerdefaults.exe" OR Image="*\\wsreset.exe")
+(ParentImage="*\\powershell.exe" OR ParentImage="*\\cmd.exe" OR ParentImage="*\\wscript.exe")
+| eval rule_id="SP-109008", mitre_technique="T1548.002", mitre_tactic="Privilege Escalation", severity="HIGH", confidence="HIGH"
+| table _time, host, ParentImage, Image, CommandLine, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-109009 | T1548.001 | PrivEsc: Setuid/sudo equivalent — AlwaysInstallElevated MSI | Severity: HIGH | Confidence: HIGH")`
+index=windows (EventCode=1 OR EventCode=4688)
+(Image="*\\msiexec.exe" OR NewProcessName="*\\msiexec.exe")
+CommandLine="*/quiet*" (CommandLine="*/i*" OR CommandLine="*/package*")
+(CommandLine="*\\Temp\\*" OR CommandLine="*\\AppData\\*")
+| eval rule_id="SP-109009", mitre_technique="T1548.001", mitre_tactic="Privilege Escalation", severity="HIGH", confidence="HIGH"
+| table _time, host, user, Image, CommandLine, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-109010 | T1574.001 | PrivEsc: DLL hijack via PATH — binary loaded from user-writable path | Severity: HIGH | Confidence: HIGH")`
+index=windows EventCode=7
+(ImageLoaded="*\\AppData\\*" OR ImageLoaded="*\\Temp\\*" OR ImageLoaded="*\\Users\\Public\\*")
+Image IN ("*\\svchost.exe", "*\\dllhost.exe", "*\\services.exe", "*\\lsass.exe")
+| eval rule_id="SP-109010", mitre_technique="T1574.001", mitre_tactic="Privilege Escalation", severity="HIGH", confidence="HIGH"
+| table _time, host, Image, ImageLoaded, Signed, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-109011 | T1548.002 | PrivEsc: UAC bypass — cmstp.exe INF file abuse | Severity: HIGH | Confidence: HIGH")`
+index=windows EventCode=1
+ParentImage="*\\cmstp.exe"
+(Image="*\\cmd.exe" OR Image="*\\powershell.exe")
+| eval rule_id="SP-109011", mitre_technique="T1548.002", mitre_tactic="Privilege Escalation", severity="HIGH", confidence="HIGH"
+| table _time, host, ParentImage, Image, CommandLine, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-109012 | T1134.001 | PrivEsc: Token steal via OpenProcess + DuplicateToken | Severity: HIGH | Confidence: HIGH")`
+index=windows EventCode=10
+GrantedAccess IN ("0x1fffff", "0x1f0fff")
+NOT (TargetImage="*\\lsass.exe")
+NOT (SourceImage="*\\MsMpEng.exe" OR SourceImage="*\\csrss.exe")
+| eval rule_id="SP-109012", mitre_technique="T1134.001", mitre_tactic="Privilege Escalation", severity="HIGH", confidence="HIGH"
+| table _time, host, SourceImage, TargetImage, GrantedAccess, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-109013 | T1548.003 | PrivEsc: Sudo/SUID abuse — Windows equivalent via scheduled task SYSTEM | Severity: HIGH | Confidence: HIGH")`
+index=windows EventCode=4697
+AccountName="NT AUTHORITY\\SYSTEM" ServiceStartType="Demand Start"
+NOT (ServiceFileName="*\\Windows\\*" OR ServiceFileName="*\\Program Files\\*")
+| eval rule_id="SP-109013", mitre_technique="T1548.003", mitre_tactic="Privilege Escalation", severity="HIGH", confidence="HIGH"
+| table _time, host, ServiceName, ServiceFileName, AccountName, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-109014 | T1574.012 | PrivEsc: KnownDLLs hijack — registry modification for trusted DLL | Severity: CRITICAL | Confidence: HIGH")`
+index=windows EventCode=13
+TargetObject="*\\KnownDLLs\\*"
+NOT (Image="*\\msiexec.exe" OR Image="*\\TrustedInstaller.exe")
+| eval rule_id="SP-109014", mitre_technique="T1574.012", mitre_tactic="Privilege Escalation", severity="CRITICAL", confidence="HIGH"
+| table _time, host, Image, TargetObject, Details, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-109015 | T1055.001 | PrivEsc: DLL injection — CreateRemoteThread into elevated process | Severity: HIGH | Confidence: HIGH")`
+index=windows EventCode=8
+NOT (SourceImage="*\\MsMpEng.exe" OR SourceImage="*\\csrss.exe" OR SourceImage="*\\System")
+TargetImage IN ("*\\explorer.exe", "*\\winlogon.exe", "*\\svchost.exe", "*\\services.exe")
+| eval rule_id="SP-109015", mitre_technique="T1055.001", mitre_tactic="Privilege Escalation", severity="HIGH", confidence="HIGH"
+| table _time, host, SourceImage, TargetImage, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-109016 | T1134.003 | PrivEsc: Make token — explicit credential logon type 9 | Severity: HIGH | Confidence: HIGH")`
+index=windows EventCode=4624
+LogonType=9
+NOT (SubjectUserName="*$*" OR AccountName="ANONYMOUS LOGON")
+| eval rule_id="SP-109016", mitre_technique="T1134.003", mitre_tactic="Privilege Escalation", severity="HIGH", confidence="HIGH"
+| table _time, host, AccountName, LogonType, IpAddress, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-109017 | T1548.002 | PrivEsc: UAC bypass via DiskCleanup scheduled task | Severity: HIGH | Confidence: HIGH")`
+index=windows EventCode=1
+(Image="*\\cleanmgr.exe" OR ParentImage="*\\cleanmgr.exe")
+NOT User IN ("NT AUTHORITY\\SYSTEM", "SYSTEM")
+CommandLine="*sageset*"
+| eval rule_id="SP-109017", mitre_technique="T1548.002", mitre_tactic="Privilege Escalation", severity="HIGH", confidence="HIGH"
+| table _time, host, user, Image, CommandLine, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-109018 | T1055.002 | PrivEsc: PE injection — WriteProcessMemory to elevated PID | Severity: CRITICAL | Confidence: HIGH")`
+index=windows EventCode=4104
+(ScriptBlockText="*VirtualAllocEx*" OR ScriptBlockText="*WriteProcessMemory*" OR ScriptBlockText="*CreateRemoteThread*")
+ScriptBlockText="*OpenProcess*"
+| eval rule_id="SP-109018", mitre_technique="T1055.002", mitre_tactic="Privilege Escalation", severity="CRITICAL", confidence="HIGH"
+| table _time, host, user, ScriptBlockText, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-109019 | T1068 | PrivEsc: PrintSpoofer/Potato exploit pattern | Severity: CRITICAL | Confidence: HIGH")`
+index=windows (EventCode=1 OR EventCode=4688)
+(Image="*\\PrintSpoofer*" OR Image="*\\GodPotato*" OR Image="*\\RoguePotato*" OR Image="*\\Juicy*" OR Image="*\\Sweet*Potato*")
+| eval rule_id="SP-109019", mitre_technique="T1068", mitre_tactic="Privilege Escalation", severity="CRITICAL", confidence="HIGH"
+| table _time, host, user, Image, CommandLine, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-109020 | T1068 | PrivEsc: CVE exploit pattern — ShellExecute as elevated from service | Severity: HIGH | Confidence: MEDIUM")`
+index=windows EventCode=4672
+PrivilegeList IN ("SeDebugPrivilege", "SeTcbPrivilege", "SeAssignPrimaryTokenPrivilege")
+NOT (SubjectUserName IN ("SYSTEM", "Administrator", "*$*"))
+| eval rule_id="SP-109020", mitre_technique="T1068", mitre_tactic="Privilege Escalation", severity="HIGH", confidence="MEDIUM"
+| table _time, host, SubjectUserName, PrivilegeList, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-109021 | T1574.007 | PrivEsc: PATH hijack — exe dropped before System32 in PATH | Severity: HIGH | Confidence: HIGH")`
+index=windows EventCode=11
+(TargetFilename="*\\Users\\*\\*.exe" OR TargetFilename="*\\ProgramData\\*.exe")
+NOT (Image="*\\msiexec.exe" OR Image="*\\setup.exe")
+| eval rule_id="SP-109021", mitre_technique="T1574.007", mitre_tactic="Privilege Escalation", severity="HIGH", confidence="HIGH"
+| table _time, host, Image, TargetFilename, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-109022 | T1548.002 | PrivEsc: WSReset UAC bypass — WSReset.exe auto-elevation | Severity: HIGH | Confidence: HIGH")`
+index=windows EventCode=1
+ParentImage="*\\wsreset.exe"
+(Image="*\\cmd.exe" OR Image="*\\powershell.exe")
+| eval rule_id="SP-109022", mitre_technique="T1548.002", mitre_tactic="Privilege Escalation", severity="HIGH", confidence="HIGH"
+| table _time, host, ParentImage, Image, CommandLine, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-109023 | T1055.012 | PrivEsc: Process hollowing — NtUnmapViewOfSection pattern | Severity: CRITICAL | Confidence: HIGH")`
+index=windows EventCode=4104
+(ScriptBlockText="*NtUnmapViewOfSection*" OR ScriptBlockText="*ZwUnmapViewOfSection*" OR ScriptBlockText="*process hollow*" OR ScriptBlockText="*ProcessHollow*")
+| eval rule_id="SP-109023", mitre_technique="T1055.012", mitre_tactic="Privilege Escalation", severity="CRITICAL", confidence="HIGH"
+| table _time, host, user, ScriptBlockText, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-109024 | T1548.002 | PrivEsc: Slui.exe UAC bypass | Severity: HIGH | Confidence: HIGH")`
+index=windows EventCode=1
+ParentImage="*\\slui.exe"
+(Image="*\\cmd.exe" OR Image="*\\powershell.exe")
+| eval rule_id="SP-109024", mitre_technique="T1548.002", mitre_tactic="Privilege Escalation", severity="HIGH", confidence="HIGH"
+| table _time, host, ParentImage, Image, CommandLine, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-109025 | T1134.004 | PrivEsc: Parent process spoofing — PPID manipulation | Severity: HIGH | Confidence: HIGH")`
+index=windows EventCode=4104
+(ScriptBlockText="*STARTUPINFOEX*" OR ScriptBlockText="*UpdateProcThreadAttribute*" OR ScriptBlockText="*PROC_THREAD_ATTRIBUTE_PARENT_PROCESS*" OR ScriptBlockText="*SelectMyParent*")
+| eval rule_id="SP-109025", mitre_technique="T1134.004", mitre_tactic="Privilege Escalation", severity="HIGH", confidence="HIGH"
+| table _time, host, user, ScriptBlockText, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-109026 | T1068 | PrivEsc: EternalBlue/MS17-010 pattern — unusual pipe access | Severity: CRITICAL | Confidence: HIGH")`
+index=windows EventCode=3
+DestinationPort=445
+(Image="*\\system*" OR Image="*\\svchost.exe")
+| bin _time span=30s
+| stats count as SmbConn by _time, host, DestinationIp
+| where SmbConn > 10
+| eval rule_id="SP-109026", mitre_technique="T1068", mitre_tactic="Privilege Escalation", severity="CRITICAL", confidence="HIGH"
+| table _time, host, DestinationIp, SmbConn, rule_id, severity
+| sort -_time
+
+`comment("SP-109027 | T1055.003 | PrivEsc: Thread execution via APC queue injection | Severity: HIGH | Confidence: HIGH")`
+index=windows EventCode=4104
+(ScriptBlockText="*QueueUserAPC*" OR ScriptBlockText="*NtQueueApcThread*" OR ScriptBlockText="*APC injection*")
+| eval rule_id="SP-109027", mitre_technique="T1055.003", mitre_tactic="Privilege Escalation", severity="HIGH", confidence="HIGH"
+| table _time, host, user, ScriptBlockText, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-109028 | T1548.002 | PrivEsc: UACME tool pattern — AkagiUAC/akagi.exe | Severity: CRITICAL | Confidence: HIGH")`
+index=windows (EventCode=1 OR EventCode=4688)
+(Image="*\\akagi*" OR Image="*\\UACME*" OR CommandLine="*uacme*" OR CommandLine="*AkagiUAC*")
+| eval rule_id="SP-109028", mitre_technique="T1548.002", mitre_tactic="Privilege Escalation", severity="CRITICAL", confidence="HIGH"
+| table _time, host, user, Image, CommandLine, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-109029 | T1574.011 | PrivEsc: Unquoted service path exploitation | Severity: HIGH | Confidence: HIGH")`
+index=windows EventCode=4697 OR EventCode=7045
+ServiceFileName!="\"*\"" ServiceFileName="* *"
+NOT (ServiceFileName="*\\Program Files\\*" OR ServiceFileName="*\\Windows\\*")
+| eval rule_id="SP-109029", mitre_technique="T1574.011", mitre_tactic="Privilege Escalation", severity="HIGH", confidence="HIGH"
+| table _time, host, ServiceName, ServiceFileName, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-109030 | T1055.004 | PrivEsc: Asynchronous procedure call — NtTestAlert trampoline | Severity: HIGH | Confidence: MEDIUM")`
+index=windows EventCode=4104
+(ScriptBlockText="*NtTestAlert*" OR ScriptBlockText="*SleepEx*" OR ScriptBlockText="*alertable*")
+ScriptBlockText="*inject*"
+| eval rule_id="SP-109030", mitre_technique="T1055.004", mitre_tactic="Privilege Escalation", severity="HIGH", confidence="MEDIUM"
+| table _time, host, user, ScriptBlockText, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-109031 | T1546.007 | PrivEsc: Netsh helper DLL load — persistent SYSTEM execution | Severity: CRITICAL | Confidence: HIGH")`
+index=windows EventCode=7
+Image="*\\netsh.exe"
+NOT (ImageLoaded="*\\Windows\\*" OR ImageLoaded="*\\System32\\*")
+| eval rule_id="SP-109031", mitre_technique="T1546.007", mitre_tactic="Privilege Escalation", severity="CRITICAL", confidence="HIGH"
+| table _time, host, Image, ImageLoaded, Signed, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-109032 | T1078.003 | PrivEsc: Local account logon after creation — new admin account | Severity: HIGH | Confidence: HIGH")`
+index=windows
+((EventCode=4720) OR (EventCode=4624 LogonType=2))
+| transaction host, user maxspan=5m
+| where eventcount >= 2 AND mvfind(EventCode,"4720") > -1 AND mvfind(EventCode,"4624") > -1
+| eval rule_id="SP-109032", mitre_technique="T1078.003", mitre_tactic="Privilege Escalation", severity="HIGH", confidence="HIGH"
+| table _time, host, user, rule_id, severity
+| sort -_time
+
+`comment("SP-109033 | T1548.002 | PrivEsc: SilentCleanup task abuse — auto-elevated DiskCleanup | Severity: HIGH | Confidence: HIGH")`
+index=windows EventCode=13
+TargetObject="*\\SilentCleanup*Environment*"
+| eval rule_id="SP-109033", mitre_technique="T1548.002", mitre_tactic="Privilege Escalation", severity="HIGH", confidence="HIGH"
+| table _time, host, Image, TargetObject, Details, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-109034 | T1134.001 | PrivEsc: SeDebugPrivilege enabled — privilege state change | Severity: HIGH | Confidence: HIGH")`
+index=windows EventCode=4672
+PrivilegeList="*SeDebugPrivilege*"
+NOT (SubjectUserName IN ("*$*", "SYSTEM", "LOCAL SERVICE", "NETWORK SERVICE"))
+| eval rule_id="SP-109034", mitre_technique="T1134.001", mitre_tactic="Privilege Escalation", severity="HIGH", confidence="HIGH"
+| table _time, host, SubjectUserName, PrivilegeList, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-109035 | T1055.011 | PrivEsc: Extra Window Memory injection — SetWindowLong/GetWindowLong | Severity: HIGH | Confidence: MEDIUM")`
+index=windows EventCode=4104
+(ScriptBlockText="*SetWindowLong*" OR ScriptBlockText="*GetWindowLong*" OR ScriptBlockText="*SendMessage*WM_USER*")
+ScriptBlockText="*inject*"
+| eval rule_id="SP-109035", mitre_technique="T1055.011", mitre_tactic="Privilege Escalation", severity="HIGH", confidence="MEDIUM"
+| table _time, host, user, ScriptBlockText, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-109036 | T1548.004 | PrivEsc: Elevated COM object — activate as admin without UAC | Severity: HIGH | Confidence: HIGH")`
+index=windows EventCode=4104
+(ScriptBlockText="*ICMLuaUtil*" OR ScriptBlockText="*IFileOperation*" OR ScriptBlockText="*CLSID_ShellLink*")
+ScriptBlockText="*CreateInstance*"
+| eval rule_id="SP-109036", mitre_technique="T1548.004", mitre_tactic="Privilege Escalation", severity="HIGH", confidence="HIGH"
+| table _time, host, user, ScriptBlockText, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-109037 | T1068 | PrivEsc: Kernel exploit — driver loaded from Temp | Severity: CRITICAL | Confidence: HIGH")`
+index=windows EventCode=7
+(ImageLoaded="*\\Temp\\*.sys" OR ImageLoaded="*\\AppData\\*.sys" OR ImageLoaded="*\\Users\\Public\\*.sys")
+| eval rule_id="SP-109037", mitre_technique="T1068", mitre_tactic="Privilege Escalation", severity="CRITICAL", confidence="HIGH"
+| table _time, host, Image, ImageLoaded, Signed, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-109038 | T1548.002 | PrivEsc: UAC bypass — bypassuac empire module PowerShell | Severity: CRITICAL | Confidence: HIGH")`
+index=windows EventCode=4104
+(ScriptBlockText="*bypassuac*" OR ScriptBlockText="*Bypass-UAC*" OR ScriptBlockText="*Invoke-BypassUAC*" OR ScriptBlockText="*UACBypass*")
+| eval rule_id="SP-109038", mitre_technique="T1548.002", mitre_tactic="Privilege Escalation", severity="CRITICAL", confidence="HIGH"
+| table _time, host, user, ScriptBlockText, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-109039 | T1134.001 | PrivEsc: NT AUTHORITY\\SYSTEM spawned from non-system parent | Severity: CRITICAL | Confidence: HIGH")`
+index=windows EventCode=1
+(User="NT AUTHORITY\\SYSTEM" OR User="*\\SYSTEM")
+NOT (ParentImage="*\\services.exe" OR ParentImage="*\\wininit.exe" OR ParentImage="*\\winlogon.exe" OR ParentImage="*\\svchost.exe" OR ParentImage="*\\smss.exe" OR ParentImage="*\\csrss.exe" OR ParentImage="*\\System")
+| eval rule_id="SP-109039", mitre_technique="T1134.001", mitre_tactic="Privilege Escalation", severity="CRITICAL", confidence="HIGH"
+| table _time, host, User, ParentImage, Image, CommandLine, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-109040 | T1548.002 | PrivEsc: High-frequency UAC bypass attempts — >3 in 5 minutes | Severity: HIGH | Confidence: HIGH")`
+index=windows EventCode=13
+(TargetObject="*\\ms-settings\\shell\\open\\command*" OR TargetObject="*\\mscfile\\shell\\open\\command*" OR TargetObject="*\\SilentCleanup*")
+| bin _time span=5m
+| stats count as AttemptCount by _time, host
+| where AttemptCount > 3
+| eval rule_id="SP-109040", mitre_technique="T1548.002", mitre_tactic="Privilege Escalation", severity="HIGH", confidence="HIGH"
+| table _time, host, AttemptCount, rule_id, severity
+| sort -_time

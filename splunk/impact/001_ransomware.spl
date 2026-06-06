@@ -1,0 +1,261 @@
+`comment("
+============================================================
+HuntingThreats — Splunk SPL Hunt Rules
+Category  : Impact — Ransomware Precursors & Execution (T1486, T1490, T1489)
+Batch     : 12 / Impact
+Rules     : SP-108001 – SP-108030
+Platform  : Splunk Enterprise 8.0+ / Splunk Cloud
+Sources   : Sysmon Event 1/11, Windows Event 4688/7036
+============================================================
+")`
+
+`comment("SP-108001 | T1490 | Ransomware: vssadmin delete shadows — shadow copy destruction | Severity: CRITICAL | Confidence: HIGH")`
+index=windows (EventCode=1 OR EventCode=4688)
+(Image="*\\vssadmin.exe" OR NewProcessName="*\\vssadmin.exe")
+(CommandLine="*delete shadows*" OR CommandLine="*delete shadow*" OR CommandLine="*Resize ShadowStorage*")
+| eval rule_id="SP-108001", mitre_technique="T1490", mitre_tactic="Impact", severity="CRITICAL", confidence="HIGH"
+| table _time, host, user, Image, CommandLine, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-108002 | T1490 | Ransomware: wbadmin delete backup — Windows backup destruction | Severity: CRITICAL | Confidence: HIGH")`
+index=windows (EventCode=1 OR EventCode=4688)
+(Image="*\\wbadmin.exe" OR NewProcessName="*\\wbadmin.exe")
+(CommandLine="*delete*" AND (CommandLine="*backup*" OR CommandLine="*catalog*"))
+| eval rule_id="SP-108002", mitre_technique="T1490", mitre_tactic="Impact", severity="CRITICAL", confidence="HIGH"
+| table _time, host, user, Image, CommandLine, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-108003 | T1490 | Ransomware: bcdedit recovery disable — boot recovery sabotage | Severity: CRITICAL | Confidence: HIGH")`
+index=windows (EventCode=1 OR EventCode=4688)
+(Image="*\\bcdedit.exe" OR NewProcessName="*\\bcdedit.exe")
+(CommandLine="*recoveryenabled no*" OR CommandLine="*bootstatuspolicy ignoreallfailures*")
+| eval rule_id="SP-108003", mitre_technique="T1490", mitre_tactic="Impact", severity="CRITICAL", confidence="HIGH"
+| table _time, host, user, Image, CommandLine, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-108004 | T1490 | Ransomware: wmic shadowcopy delete — shadow copy removal via WMI | Severity: CRITICAL | Confidence: HIGH")`
+index=windows (EventCode=1 OR EventCode=4688)
+(Image="*\\wmic.exe" OR NewProcessName="*\\wmic.exe")
+CommandLine="*shadowcopy*" CommandLine="*delete*"
+| eval rule_id="SP-108004", mitre_technique="T1490", mitre_tactic="Impact", severity="CRITICAL", confidence="HIGH"
+| table _time, host, user, Image, CommandLine, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-108005 | T1490 | Ransomware: PowerShell shadow copy deletion via WMI | Severity: CRITICAL | Confidence: HIGH")`
+index=windows EventCode=4104
+(ScriptBlockText="*Get-WmiObject*Win32_ShadowCopy*" OR ScriptBlockText="*Win32_ShadowCopy*Delete*" OR ScriptBlockText="*gwmi*shadowcopy*")
+ScriptBlockText="*Delete*"
+| eval rule_id="SP-108005", mitre_technique="T1490", mitre_tactic="Impact", severity="CRITICAL", confidence="HIGH"
+| table _time, host, user, ScriptBlockText, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-108006 | T1486 | Ransomware: Mass file rename — thousands of file renames in 1 minute | Severity: CRITICAL | Confidence: HIGH")`
+index=windows EventCode=2
+| bin _time span=1m
+| stats count as RenameCount by _time, host, Image
+| where RenameCount > 100
+| eval rule_id="SP-108006", mitre_technique="T1486", mitre_tactic="Impact", severity="CRITICAL", confidence="HIGH"
+| table _time, host, Image, RenameCount, rule_id, severity
+| sort -_time
+
+`comment("SP-108007 | T1486 | Ransomware: Known ransomware extension written to files | Severity: CRITICAL | Confidence: HIGH")`
+index=windows EventCode=11
+(TargetFilename="*.locked" OR TargetFilename="*.encrypt" OR TargetFilename="*.crypted" OR TargetFilename="*.crypt" OR TargetFilename="*.WNCRY" OR TargetFilename="*.ryuk" OR TargetFilename="*.conti" OR TargetFilename="*.lockbit" OR TargetFilename="*.blackcat" OR TargetFilename="*.hive")
+| eval rule_id="SP-108007", mitre_technique="T1486", mitre_tactic="Impact", severity="CRITICAL", confidence="HIGH"
+| table _time, host, Image, TargetFilename, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-108008 | T1486 | Ransomware: Ransom note file created — README/DECRYPT/HOW_TO | Severity: CRITICAL | Confidence: HIGH")`
+index=windows EventCode=11
+(TargetFilename="*README*" OR TargetFilename="*DECRYPT*" OR TargetFilename="*HOW_TO*" OR TargetFilename="*RECOVER*" OR TargetFilename="*YOUR_FILES*")
+(TargetFilename="*.txt" OR TargetFilename="*.html" OR TargetFilename="*.hta")
+| eval rule_id="SP-108008", mitre_technique="T1486", mitre_tactic="Impact", severity="CRITICAL", confidence="HIGH"
+| table _time, host, Image, TargetFilename, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-108009 | T1489 | Ransomware: Service stop — critical services terminated | Severity: HIGH | Confidence: HIGH")`
+index=windows (EventCode=1 OR EventCode=4688)
+(Image="*\\net.exe" OR Image="*\\net1.exe" OR Image="*\\sc.exe")
+CommandLine="*stop*"
+(CommandLine="*vss*" OR CommandLine="*backup*" OR CommandLine="*MSSQL*" OR CommandLine="*sqlagent*" OR CommandLine="*mysql*" OR CommandLine="*Sophos*" OR CommandLine="*MBAMService*")
+| eval rule_id="SP-108009", mitre_technique="T1489", mitre_tactic="Impact", severity="HIGH", confidence="HIGH"
+| table _time, host, user, Image, CommandLine, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-108010 | T1490 | Ransomware: Diskshadow exec — shadow copy via diskshadow.exe | Severity: CRITICAL | Confidence: HIGH")`
+index=windows (EventCode=1 OR EventCode=4688)
+(Image="*\\diskshadow.exe" OR NewProcessName="*\\diskshadow.exe")
+CommandLine="*delete*" CommandLine="*shadows*"
+| eval rule_id="SP-108010", mitre_technique="T1490", mitre_tactic="Impact", severity="CRITICAL", confidence="HIGH"
+| table _time, host, user, Image, CommandLine, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-108011 | T1486 | Ransomware: High file modification rate — >200 in 30 seconds | Severity: CRITICAL | Confidence: HIGH")`
+index=windows EventCode=11
+| bin _time span=30s
+| stats count as WriteCount by _time, host, Image
+| where WriteCount > 200
+NOT Image IN ("*\\SearchIndexer.exe", "*\\svchost.exe", "*\\winlogon.exe")
+| eval rule_id="SP-108011", mitre_technique="T1486", mitre_tactic="Impact", severity="CRITICAL", confidence="HIGH"
+| table _time, host, Image, WriteCount, rule_id, severity
+| sort -_time
+
+`comment("SP-108012 | T1490 | Ransomware: Combo kill — vssadmin + bcdedit in same session | Severity: CRITICAL | Confidence: HIGH")`
+index=windows (EventCode=1 OR EventCode=4688)
+(Image="*\\vssadmin.exe" OR Image="*\\bcdedit.exe" OR Image="*\\wbadmin.exe")
+| transaction host maxspan=5m
+| where eventcount >= 2
+| eval rule_id="SP-108012", mitre_technique="T1490", mitre_tactic="Impact", severity="CRITICAL", confidence="HIGH"
+| table _time, host, rule_id, severity
+| sort -_time
+
+`comment("SP-108013 | T1486 | Ransomware: Cipher /w — wiping free space post-encryption | Severity: HIGH | Confidence: HIGH")`
+index=windows (EventCode=1 OR EventCode=4688)
+(Image="*\\cipher.exe" OR NewProcessName="*\\cipher.exe")
+CommandLine="*/w:*"
+| eval rule_id="SP-108013", mitre_technique="T1486", mitre_tactic="Impact", severity="HIGH", confidence="HIGH"
+| table _time, host, user, Image, CommandLine, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-108014 | T1489 | Ransomware: PowerShell mass service stop | Severity: CRITICAL | Confidence: HIGH")`
+index=windows EventCode=4104
+(ScriptBlockText="*Stop-Service*" OR ScriptBlockText="*Set-Service*Status*Stopped*")
+ScriptBlockText="*-Force*"
+| bin _time span=1m
+| stats count as StopCount by _time, host
+| where StopCount > 5
+| eval rule_id="SP-108014", mitre_technique="T1489", mitre_tactic="Impact", severity="CRITICAL", confidence="HIGH"
+| table _time, host, StopCount, rule_id, severity
+| sort -_time
+
+`comment("SP-108015 | T1490 | Ransomware: cmd.exe running multiple backup destruction commands | Severity: CRITICAL | Confidence: HIGH")`
+index=windows (EventCode=1 OR EventCode=4688)
+Image="*\\cmd.exe"
+(CommandLine="*vssadmin*delete*" OR CommandLine="*bcdedit*recovery*" OR CommandLine="*wbadmin*delete*")
+| eval rule_id="SP-108015", mitre_technique="T1490", mitre_tactic="Impact", severity="CRITICAL", confidence="HIGH"
+| table _time, host, user, Image, CommandLine, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-108016 | T1486 | Ransomware: Process opening >500 unique files in 1 minute | Severity: CRITICAL | Confidence: HIGH")`
+index=windows EventCode=11
+| bin _time span=1m
+| stats dc(TargetFilename) as UniqueFiles by _time, host, Image
+| where UniqueFiles > 500
+NOT Image IN ("*\\SearchIndexer.exe", "*\\MsMpEng.exe", "*\\svchost.exe")
+| eval rule_id="SP-108016", mitre_technique="T1486", mitre_tactic="Impact", severity="CRITICAL", confidence="HIGH"
+| table _time, host, Image, UniqueFiles, rule_id, severity
+| sort -_time
+
+`comment("SP-108017 | T1490 | Ransomware: Firewall disabled and shadows deleted in sequence | Severity: CRITICAL | Confidence: HIGH")`
+index=windows
+((EventCode=13 TargetObject="*EnableFirewall*" Details="0") OR (EventCode=1 Image="*\\vssadmin.exe" CommandLine="*delete*"))
+| transaction host maxspan=10m
+| where eventcount >= 2
+| eval rule_id="SP-108017", mitre_technique="T1490", mitre_tactic="Impact", severity="CRITICAL", confidence="HIGH"
+| table _time, host, rule_id, severity
+| sort -_time
+
+`comment("SP-108018 | T1561.001 | Ransomware: Disk wiper pattern — writing to raw disk | Severity: CRITICAL | Confidence: HIGH")`
+index=windows (EventCode=1 OR EventCode=4688 OR EventCode=4104)
+(CommandLine="*\\\\.\\PhysicalDrive*" OR ScriptBlockText="*\\\\.\\PhysicalDrive*" OR CommandLine="*dd if=/dev/zero*")
+| eval rule_id="SP-108018", mitre_technique="T1561.001", mitre_tactic="Impact", severity="CRITICAL", confidence="HIGH"
+| table _time, host, user, Image, CommandLine, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-108019 | T1486 | Ransomware: Ransom note dropped in multiple directories | Severity: CRITICAL | Confidence: HIGH")`
+index=windows EventCode=11
+(TargetFilename="*HELP_DECRYPT*" OR TargetFilename="*HOW_TO_DECRYPT*" OR TargetFilename="*_RESTORE_*" OR TargetFilename="*UNLOCK_FILES*")
+| bin _time span=5m
+| stats count as NoteCount dc(TargetFilename) as UniqueNotes by _time, host, Image
+| where NoteCount > 5
+| eval rule_id="SP-108019", mitre_technique="T1486", mitre_tactic="Impact", severity="CRITICAL", confidence="HIGH"
+| table _time, host, Image, NoteCount, UniqueNotes, rule_id, severity
+| sort -_time
+
+`comment("SP-108020 | T1489 | Ransomware: MSSQL/MySQL/Oracle service stopped — DB targeted | Severity: HIGH | Confidence: HIGH")`
+index=windows EventCode=7036
+(Message="*SQL Server*" OR Message="*MySQL*" OR Message="*Oracle*") Message="*stopped*"
+| eval rule_id="SP-108020", mitre_technique="T1489", mitre_tactic="Impact", severity="HIGH", confidence="HIGH"
+| table _time, host, Message, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-108021 | T1490 | Ransomware: PowerShell resize shadow storage to minimum | Severity: CRITICAL | Confidence: HIGH")`
+index=windows (EventCode=1 OR EventCode=4688 OR EventCode=4104)
+(CommandLine="*Resize ShadowStorage*" OR ScriptBlockText="*Resize ShadowStorage*")
+(CommandLine="*MaxSize=401MB*" OR CommandLine="*MaxSize=1%*")
+| eval rule_id="SP-108021", mitre_technique="T1490", mitre_tactic="Impact", severity="CRITICAL", confidence="HIGH"
+| table _time, host, user, Image, CommandLine, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-108022 | T1486 | Ransomware: Attrib +H +S — hiding encrypted files | Severity: HIGH | Confidence: HIGH")`
+index=windows (EventCode=1 OR EventCode=4688)
+(Image="*\\attrib.exe" OR NewProcessName="*\\attrib.exe")
+(CommandLine="*+H*" AND CommandLine="*+S*")
+| eval rule_id="SP-108022", mitre_technique="T1486", mitre_tactic="Impact", severity="HIGH", confidence="HIGH"
+| table _time, host, user, Image, CommandLine, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-108023 | T1490 | Ransomware: Task scheduler deletes all tasks — pre-ransom cleanup | Severity: HIGH | Confidence: HIGH")`
+index=windows (EventCode=1 OR EventCode=4688)
+(Image="*\\schtasks.exe" OR NewProcessName="*\\schtasks.exe")
+CommandLine="*/delete*" CommandLine="*/f*" CommandLine="*/tn \\*"
+| eval rule_id="SP-108023", mitre_technique="T1490", mitre_tactic="Impact", severity="HIGH", confidence="HIGH"
+| table _time, host, user, Image, CommandLine, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-108024 | T1489 | Ransomware: AV/security service killed — MsMpEng stop | Severity: CRITICAL | Confidence: HIGH")`
+index=windows (EventCode=1 OR EventCode=4688)
+(Image="*\\taskkill.exe" OR Image="*\\sc.exe")
+(CommandLine="*MsMpEng*" OR CommandLine="*MBAMService*" OR CommandLine="*SentinelAgent*" OR CommandLine="*CarbonBlack*" OR CommandLine="*Sophos*")
+| eval rule_id="SP-108024", mitre_technique="T1489", mitre_tactic="Impact", severity="CRITICAL", confidence="HIGH"
+| table _time, host, user, Image, CommandLine, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-108025 | T1486 | Ransomware: CryptoAPI usage from non-system process — encryption engine | Severity: HIGH | Confidence: MEDIUM")`
+index=windows EventCode=7
+(ImageLoaded="*\\cryptdll.dll*" OR ImageLoaded="*\\bcrypt.dll*" OR ImageLoaded="*\\dpapi.dll*")
+NOT (Image="*\\svchost.exe" OR Image="*\\lsass.exe" OR Image="*\\chrome.exe" OR Image="*\\msedge.exe" OR Image="*\\System32\\*")
+| eval rule_id="SP-108025", mitre_technique="T1486", mitre_tactic="Impact", severity="HIGH", confidence="MEDIUM"
+| table _time, host, Image, ImageLoaded, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-108026 | T1490 | Ransomware: Event log cleared before ransom — evidence wipe | Severity: CRITICAL | Confidence: HIGH")`
+index=windows (EventCode=1102 OR EventCode=104)
+| eval rule_id="SP-108026", mitre_technique="T1490", mitre_tactic="Defense Evasion", severity="CRITICAL", confidence="HIGH"
+| table _time, host, SubjectUserName, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-108027 | T1490 | Ransomware: System restore disable via PS | Severity: CRITICAL | Confidence: HIGH")`
+index=windows EventCode=4104
+(ScriptBlockText="*Disable-ComputerRestore*" OR ScriptBlockText="*vssadmin*Delete*" OR ScriptBlockText="*shadowstorage*")
+| eval rule_id="SP-108027", mitre_technique="T1490", mitre_tactic="Impact", severity="CRITICAL", confidence="HIGH"
+| table _time, host, user, ScriptBlockText, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-108028 | T1486 | Ransomware: Dropper deletes itself after encryption — self-delete pattern | Severity: CRITICAL | Confidence: HIGH")`
+index=windows (EventCode=1 OR EventCode=4688)
+(CommandLine="*cmd /c del*" OR CommandLine="*/c del /f*")
+(CommandLine="*%0*" OR CommandLine="*%~f0*" OR CommandLine="*self*")
+| eval rule_id="SP-108028", mitre_technique="T1486", mitre_tactic="Defense Evasion", severity="CRITICAL", confidence="HIGH"
+| table _time, host, user, Image, CommandLine, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-108029 | T1490 | Ransomware: Full impact chain — vss + bcdedit + service stop in 10 min | Severity: CRITICAL | Confidence: HIGH")`
+index=windows (EventCode=1 OR EventCode=4688)
+(Image="*\\vssadmin.exe" OR Image="*\\bcdedit.exe" OR (Image="*\\net.exe" AND CommandLine="*stop*") OR Image="*\\wbadmin.exe")
+| bin _time span=10m
+| stats dc(Image) as UniqueTools by _time, host
+| where UniqueTools >= 3
+| eval rule_id="SP-108029", mitre_technique="T1490", mitre_tactic="Impact", severity="CRITICAL", confidence="HIGH"
+| table _time, host, UniqueTools, rule_id, severity
+| sort -_time
+
+`comment("SP-108030 | T1486 | Ransomware: Locker ransom note + encryption combo — full compromise indicator | Severity: CRITICAL | Confidence: HIGH")`
+index=windows
+((EventCode=11 (TargetFilename="*.locked" OR TargetFilename="*README*" OR TargetFilename="*DECRYPT*")) OR
+ (EventCode=1 (Image="*\\vssadmin.exe" OR Image="*\\bcdedit.exe")))
+| transaction host maxspan=30m
+| where eventcount >= 3
+| eval rule_id="SP-108030", mitre_technique="T1486", mitre_tactic="Impact", severity="CRITICAL", confidence="HIGH"
+| table _time, host, rule_id, severity
+| sort -_time

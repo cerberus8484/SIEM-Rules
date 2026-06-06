@@ -1,0 +1,337 @@
+`comment("
+============================================================
+HuntingThreats — Splunk SPL Hunt Rules
+Category  : Execution — WMI & Office Macros (T1047, T1059.005)
+Batch     : 3 / Execution
+Rules     : SP-100061 – SP-100100
+Platform  : Splunk Enterprise 8.0+ / Splunk Cloud
+Sources   : Sysmon Event 1/11/13/19-22, Windows Event 4688
+============================================================
+")`
+
+`comment("SP-100061 | T1047 | WMI: Process creation via wmiprvse.exe parent — lateral exec | Severity: HIGH | Confidence: HIGH")`
+index=windows EventCode=1
+ParentImage="*\\WmiPrvSE.exe"
+(Image="*\\cmd.exe" OR Image="*\\powershell.exe" OR Image="*\\wscript.exe" OR Image="*\\cscript.exe" OR Image="*\\mshta.exe")
+| eval rule_id="SP-100061", mitre_technique="T1047", mitre_tactic="Execution", severity="HIGH", confidence="HIGH"
+| table _time, host, user, ParentImage, Image, CommandLine, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-100062 | T1546.003 | WMI: Event subscription creation — persistent backdoor | Severity: CRITICAL | Confidence: HIGH")`
+index=windows EventCode=19 OR EventCode=20 OR EventCode=21
+| eval rule_id="SP-100062", mitre_technique="T1546.003", mitre_tactic="Persistence", severity="CRITICAL", confidence="HIGH"
+| table _time, host, user, Name, Query, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-100063 | T1047 | WMI: /node: remote process execution — lateral movement | Severity: HIGH | Confidence: HIGH")`
+index=windows (EventCode=1 OR EventCode=4688)
+(Image="*\\wmic.exe" OR NewProcessName="*\\wmic.exe")
+CommandLine="*/node:*"
+(CommandLine="*process call create*" OR CommandLine="*os get*" OR CommandLine="*computersystem*")
+NOT CommandLine="*/node:localhost*"
+| eval rule_id="SP-100063", mitre_technique="T1047", mitre_tactic="Lateral Movement", severity="HIGH", confidence="HIGH"
+| table _time, host, user, ParentImage, Image, CommandLine, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-100064 | T1047 | WMI: PowerShell Invoke-WmiMethod Win32_Process — remote exec | Severity: HIGH | Confidence: HIGH")`
+index=windows EventCode=4104
+(ScriptBlockText="*Invoke-WmiMethod*" OR ScriptBlockText="*Get-WmiObject*" OR ScriptBlockText="*[wmi]*")
+(ScriptBlockText="*Win32_Process*" OR ScriptBlockText="*Create*")
+| eval rule_id="SP-100064", mitre_technique="T1047", mitre_tactic="Execution", severity="HIGH", confidence="HIGH"
+| table _time, host, user, ScriptBlockText, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-100065 | T1546.003 | WMI: scrcons.exe spawning child process — consumer script exec | Severity: CRITICAL | Confidence: HIGH")`
+index=windows EventCode=1
+ParentImage="*\\scrcons.exe"
+| eval rule_id="SP-100065", mitre_technique="T1546.003", mitre_tactic="Persistence", severity="CRITICAL", confidence="HIGH"
+| table _time, host, user, ParentImage, Image, CommandLine, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-100066 | T1566.001 | Office: Spawning cmd.exe — macro execution indicator | Severity: HIGH | Confidence: HIGH")`
+index=windows EventCode=1
+(ParentImage="*\\winword.exe" OR ParentImage="*\\excel.exe" OR ParentImage="*\\powerpnt.exe" OR ParentImage="*\\onenote.exe")
+Image="*\\cmd.exe"
+| eval rule_id="SP-100066", mitre_technique="T1566.001", mitre_tactic="Execution", severity="HIGH", confidence="HIGH"
+| table _time, host, user, ParentImage, Image, CommandLine, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-100067 | T1566.001 | Office: Spawning wscript.exe — VBA Shell macro execution | Severity: HIGH | Confidence: HIGH")`
+index=windows EventCode=1
+(ParentImage="*\\winword.exe" OR ParentImage="*\\excel.exe" OR ParentImage="*\\powerpnt.exe")
+(Image="*\\wscript.exe" OR Image="*\\cscript.exe")
+| eval rule_id="SP-100067", mitre_technique="T1566.001", mitre_tactic="Execution", severity="HIGH", confidence="HIGH"
+| table _time, host, user, ParentImage, Image, CommandLine, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-100068 | T1566.001 | Office: Spawning mshta.exe — macro to HTA execution | Severity: HIGH | Confidence: HIGH")`
+index=windows EventCode=1
+(ParentImage="*\\winword.exe" OR ParentImage="*\\excel.exe" OR ParentImage="*\\powerpnt.exe")
+Image="*\\mshta.exe"
+| eval rule_id="SP-100068", mitre_technique="T1566.001", mitre_tactic="Execution", severity="HIGH", confidence="HIGH"
+| table _time, host, user, ParentImage, Image, CommandLine, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-100069 | T1105 | Office: Writing EXE/DLL to disk — dropper behavior | Severity: HIGH | Confidence: HIGH")`
+index=windows EventCode=11
+(Image="*\\winword.exe" OR Image="*\\excel.exe" OR Image="*\\powerpnt.exe" OR Image="*\\onenote.exe")
+(TargetFilename="*.exe" OR TargetFilename="*.dll" OR TargetFilename="*.bat" OR TargetFilename="*.ps1")
+| eval rule_id="SP-100069", mitre_technique="T1105", mitre_tactic="Command and Control", severity="HIGH", confidence="HIGH"
+| table _time, host, Image, TargetFilename, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-100070 | T1059.005 | Excel: XLM Macro 4.0 execution via xlsm/xlm file | Severity: HIGH | Confidence: HIGH")`
+index=windows EventCode=1
+ParentImage="*\\excel.exe"
+(CommandLine="*xlm*" OR CommandLine="*auto_open*" OR Image="*\\cmd.exe" OR Image="*\\powershell.exe")
+| eval rule_id="SP-100070", mitre_technique="T1059.005", mitre_tactic="Execution", severity="HIGH", confidence="HIGH"
+| table _time, host, user, ParentImage, Image, CommandLine, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-100071 | T1566.001 | OneNote: Attachment execute — embedded file dropper | Severity: HIGH | Confidence: HIGH")`
+index=windows EventCode=1
+ParentImage="*\\onenote.exe"
+(Image="*\\cmd.exe" OR Image="*\\powershell.exe" OR Image="*\\wscript.exe" OR Image="*\\mshta.exe")
+| eval rule_id="SP-100071", mitre_technique="T1566.001", mitre_tactic="Execution", severity="HIGH", confidence="HIGH"
+| table _time, host, user, ParentImage, Image, CommandLine, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-100072 | T1059.005 | Office: DDE field execution — Dynamic Data Exchange code injection | Severity: HIGH | Confidence: HIGH")`
+index=windows EventCode=1
+(ParentImage="*\\winword.exe" OR ParentImage="*\\excel.exe")
+Image="*\\cmd.exe"
+CommandLine="*/c *" NOT CommandLine="*PerfMon*"
+| eval rule_id="SP-100072", mitre_technique="T1059.005", mitre_tactic="Execution", severity="HIGH", confidence="HIGH"
+| table _time, host, user, ParentImage, Image, CommandLine, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-100073 | T1059.005 | VBA: Shell() function call — macro executes system command | Severity: HIGH | Confidence: HIGH")`
+index=windows EventCode=1
+(ParentImage="*\\winword.exe" OR ParentImage="*\\excel.exe" OR ParentImage="*\\powerpnt.exe")
+(Image="*\\cmd.exe" OR Image="*\\powershell.exe" OR Image="*\\wscript.exe")
+| eval rule_id="SP-100073", mitre_technique="T1059.005", mitre_tactic="Execution", severity="HIGH", confidence="HIGH"
+| table _time, host, user, ParentImage, Image, CommandLine, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-100074 | T1137.006 | Excel: XLL add-in from Downloads — add-in dropper | Severity: HIGH | Confidence: HIGH")`
+index=windows EventCode=11
+Image="*\\excel.exe"
+(TargetFilename="*.xll" OR TargetFilename="*.xlam")
+(TargetFilename="*\\Downloads\\*" OR TargetFilename="*\\Temp\\*")
+| eval rule_id="SP-100074", mitre_technique="T1137.006", mitre_tactic="Persistence", severity="HIGH", confidence="HIGH"
+| table _time, host, Image, TargetFilename, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-100075 | T1559.001 | COM: Object abuse via Shell.Application/MMC20 — proxy execution | Severity: HIGH | Confidence: MEDIUM")`
+index=windows EventCode=4104
+(ScriptBlockText="*Shell.Application*" OR ScriptBlockText="*MMC20.Application*" OR ScriptBlockText="*ShellWindows*")
+ScriptBlockText="*ShellExecute*"
+| eval rule_id="SP-100075", mitre_technique="T1559.001", mitre_tactic="Execution", severity="HIGH", confidence="MEDIUM"
+| table _time, host, user, ScriptBlockText, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-100076 | T1047 | WMI: mofcomp.exe MOF file compilation — persistence via MOF | Severity: HIGH | Confidence: HIGH")`
+index=windows (EventCode=1 OR EventCode=4688)
+(Image="*\\mofcomp.exe" OR NewProcessName="*\\mofcomp.exe")
+(CommandLine="*\\Temp\\*" OR CommandLine="*\\AppData\\*" OR CommandLine="*\\Public\\*")
+| eval rule_id="SP-100076", mitre_technique="T1047", mitre_tactic="Persistence", severity="HIGH", confidence="HIGH"
+| table _time, host, user, ParentImage, Image, CommandLine, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-100077 | T1047 | WMI: PowerShell New-CimInstance for process creation | Severity: HIGH | Confidence: HIGH")`
+index=windows EventCode=4104
+(ScriptBlockText="*New-CimInstance*" OR ScriptBlockText="*Invoke-CimMethod*")
+ScriptBlockText="*Win32_Process*"
+| eval rule_id="SP-100077", mitre_technique="T1047", mitre_tactic="Execution", severity="HIGH", confidence="HIGH"
+| table _time, host, user, ScriptBlockText, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-100078 | T1547.001 | Office: Writing file to Startup folder — macro persistence | Severity: HIGH | Confidence: HIGH")`
+index=windows EventCode=11
+(Image="*\\winword.exe" OR Image="*\\excel.exe" OR Image="*\\powerpnt.exe")
+(TargetFilename="*\\Startup\\*" OR TargetFilename="*\\Start Menu\\Programs\\Startup\\*")
+| eval rule_id="SP-100078", mitre_technique="T1547.001", mitre_tactic="Persistence", severity="HIGH", confidence="HIGH"
+| table _time, host, Image, TargetFilename, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-100079 | T1490 | WMIC: shadowcopy delete — ransomware precursor via WMI | Severity: CRITICAL | Confidence: HIGH")`
+index=windows (EventCode=1 OR EventCode=4688)
+(Image="*\\wmic.exe" OR NewProcessName="*\\wmic.exe")
+(CommandLine="*shadowcopy*delete*" OR CommandLine="*shadowcopy delete*" OR CommandLine="*Shadow*delete*")
+| eval rule_id="SP-100079", mitre_technique="T1490", mitre_tactic="Impact", severity="CRITICAL", confidence="HIGH"
+| table _time, host, user, ParentImage, Image, CommandLine, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-100080 | T1566.001 | Outlook: Spawning shell — phishing email with payload | Severity: HIGH | Confidence: HIGH")`
+index=windows EventCode=1
+ParentImage="*\\OUTLOOK.EXE"
+(Image="*\\cmd.exe" OR Image="*\\powershell.exe" OR Image="*\\wscript.exe" OR Image="*\\mshta.exe")
+| eval rule_id="SP-100080", mitre_technique="T1566.001", mitre_tactic="Initial Access", severity="HIGH", confidence="HIGH"
+| table _time, host, user, ParentImage, Image, CommandLine, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-100081 | T1047 | WMI: OS/BIOS enumeration — system reconnaissance | Severity: LOW | Confidence: MEDIUM")`
+index=windows (EventCode=1 OR EventCode=4688)
+(Image="*\\wmic.exe" OR NewProcessName="*\\wmic.exe")
+(CommandLine="*os get*" OR CommandLine="*bios get*" OR CommandLine="*computersystem get*" OR CommandLine="*cpu get*")
+| eval rule_id="SP-100081", mitre_technique="T1047", mitre_tactic="Discovery", severity="LOW", confidence="MEDIUM"
+| table _time, host, user, ParentImage, Image, CommandLine, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-100082 | T1137.001 | Office: Macro writing registry key — add-in persistence | Severity: HIGH | Confidence: HIGH")`
+index=windows EventCode=13
+(Image="*\\winword.exe" OR Image="*\\excel.exe" OR Image="*\\powerpnt.exe")
+(TargetObject="*\\CurrentVersion\\Run*" OR TargetObject="*\\CurrentVersion\\RunOnce*" OR TargetObject="*Add-in*")
+| eval rule_id="SP-100082", mitre_technique="T1137.001", mitre_tactic="Persistence", severity="HIGH", confidence="HIGH"
+| table _time, host, Image, TargetObject, Details, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-100083 | T1047 | WMI: AntiVirus product query — EDR/AV detection | Severity: MEDIUM | Confidence: MEDIUM")`
+index=windows (EventCode=1 OR EventCode=4688)
+(Image="*\\wmic.exe" OR NewProcessName="*\\wmic.exe")
+(CommandLine="*AntiVirusProduct*" OR CommandLine="*SecurityCenter*" OR CommandLine="*FirewallProduct*")
+| eval rule_id="SP-100083", mitre_technique="T1047", mitre_tactic="Discovery", severity="MEDIUM", confidence="MEDIUM"
+| table _time, host, user, ParentImage, Image, CommandLine, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-100084 | T1105 | Office: Macro downloading from internet — net download in macro | Severity: HIGH | Confidence: HIGH")`
+index=windows EventCode=22
+(Image="*\\winword.exe" OR Image="*\\excel.exe" OR Image="*\\powerpnt.exe" OR Image="*\\onenote.exe")
+NOT (QueryName="*microsoft.com*" OR QueryName="*office.com*" OR QueryName="*live.com*" OR QueryName="*office365.com*")
+| eval rule_id="SP-100084", mitre_technique="T1105", mitre_tactic="Command and Control", severity="HIGH", confidence="HIGH"
+| table _time, host, Image, QueryName, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-100085 | T1047 | WMI: StopService via wmiprvse — service disabling | Severity: HIGH | Confidence: HIGH")`
+index=windows (EventCode=1 OR EventCode=4688)
+(Image="*\\wmic.exe" OR NewProcessName="*\\wmic.exe")
+(CommandLine="*call StopService*" OR CommandLine="*Win32_Service*" OR CommandLine="*call DisableService*")
+| eval rule_id="SP-100085", mitre_technique="T1047", mitre_tactic="Impact", severity="HIGH", confidence="HIGH"
+| table _time, host, user, ParentImage, Image, CommandLine, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-100086 | T1547.001 | Office: Registry write via VBA — persistence backdoor | Severity: HIGH | Confidence: HIGH")`
+index=windows EventCode=13
+(Image="*\\winword.exe" OR Image="*\\excel.exe" OR Image="*\\OUTLOOK.EXE")
+(TargetObject="*\\Run\\*" OR TargetObject="*\\RunOnce\\*")
+| eval rule_id="SP-100086", mitre_technique="T1547.001", mitre_tactic="Persistence", severity="HIGH", confidence="HIGH"
+| table _time, host, Image, TargetObject, Details, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-100087 | T1546.003 | WMI: __EventFilter persistence subscription creation | Severity: CRITICAL | Confidence: HIGH")`
+index=windows EventCode=4104
+(ScriptBlockText="*__EventFilter*" OR ScriptBlockText="*__EventConsumer*" OR ScriptBlockText="*__FilterToConsumerBinding*")
+| eval rule_id="SP-100087", mitre_technique="T1546.003", mitre_tactic="Persistence", severity="CRITICAL", confidence="HIGH"
+| table _time, host, user, ScriptBlockText, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-100088 | T1566.001 | Office: Document opened from Temp/Content.Outlook — phishing | Severity: MEDIUM | Confidence: HIGH")`
+index=windows EventCode=1
+(ParentImage="*\\winword.exe" OR ParentImage="*\\excel.exe")
+(Image="*\\cmd.exe" OR Image="*\\powershell.exe")
+(ParentCommandLine="*\\Temp\\*" OR ParentCommandLine="*Content.Outlook*" OR ParentCommandLine="*\\AppData\\Local\\Temp\\*")
+| eval rule_id="SP-100088", mitre_technique="T1566.001", mitre_tactic="Initial Access", severity="MEDIUM", confidence="HIGH"
+| table _time, host, user, ParentImage, Image, CommandLine, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-100089 | T1562.001 | WMI: Disable Defender via wmiprvse — AV evasion | Severity: CRITICAL | Confidence: HIGH")`
+index=windows EventCode=1
+ParentImage="*\\WmiPrvSE.exe"
+(Image="*\\powershell.exe" OR Image="*\\cmd.exe")
+(CommandLine="*DisableRealtimeMonitoring*" OR CommandLine="*DisableAntiSpyware*" OR CommandLine="*Set-MpPreference*")
+| eval rule_id="SP-100089", mitre_technique="T1562.001", mitre_tactic="Defense Evasion", severity="CRITICAL", confidence="HIGH"
+| table _time, host, user, ParentImage, Image, CommandLine, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-100090 | T1047 | WMI: Remote subscription with /node — lateral persistence | Severity: CRITICAL | Confidence: HIGH")`
+index=windows (EventCode=1 OR EventCode=4688)
+(Image="*\\wmic.exe" OR NewProcessName="*\\wmic.exe")
+CommandLine="*/node:*"
+(CommandLine="*__EventFilter*" OR CommandLine="*__EventConsumer*" OR CommandLine="*subscription*")
+| eval rule_id="SP-100090", mitre_technique="T1047", mitre_tactic="Persistence", severity="CRITICAL", confidence="HIGH"
+| table _time, host, user, ParentImage, Image, CommandLine, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-100091 | T1566.001 | Office: Spawning msdt.exe — Follina exploit (CVE-2022-30190) | Severity: CRITICAL | Confidence: HIGH")`
+index=windows EventCode=1
+(ParentImage="*\\winword.exe" OR ParentImage="*\\excel.exe" OR ParentImage="*\\OUTLOOK.EXE")
+Image="*\\msdt.exe"
+| eval rule_id="SP-100091", mitre_technique="T1566.001", mitre_tactic="Execution", severity="CRITICAL", confidence="HIGH"
+| table _time, host, user, ParentImage, Image, CommandLine, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-100092 | T1047 | WMI: High-frequency process creation threshold — >10 in 5 minutes | Severity: HIGH | Confidence: MEDIUM")`
+index=windows EventCode=1
+ParentImage="*\\WmiPrvSE.exe"
+| bin _time span=5m
+| stats count as WmiProcs by _time, host
+| where WmiProcs > 10
+| eval rule_id="SP-100092", mitre_technique="T1047", mitre_tactic="Execution", severity="HIGH", confidence="MEDIUM"
+| table _time, host, WmiProcs, rule_id, severity
+| sort -_time
+
+`comment("SP-100093 | T1566.001 | PowerPoint: Spawning shell — macro-enabled presentation | Severity: HIGH | Confidence: HIGH")`
+index=windows EventCode=1
+ParentImage="*\\powerpnt.exe"
+(Image="*\\cmd.exe" OR Image="*\\powershell.exe" OR Image="*\\wscript.exe" OR Image="*\\mshta.exe" OR Image="*\\rundll32.exe")
+| eval rule_id="SP-100093", mitre_technique="T1566.001", mitre_tactic="Execution", severity="HIGH", confidence="HIGH"
+| table _time, host, user, ParentImage, Image, CommandLine, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-100094 | T1087.002 | WMIC: Win32_UserAccount enumeration — AD user recon | Severity: LOW | Confidence: MEDIUM")`
+index=windows (EventCode=1 OR EventCode=4688)
+(Image="*\\wmic.exe" OR NewProcessName="*\\wmic.exe")
+CommandLine="*Win32_UserAccount*"
+| eval rule_id="SP-100094", mitre_technique="T1087.002", mitre_tactic="Discovery", severity="LOW", confidence="MEDIUM"
+| table _time, host, user, ParentImage, Image, CommandLine, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-100095 | T1218.011 | Office: Macro spawning rundll32 from Temp — DLL dropper | Severity: HIGH | Confidence: HIGH")`
+index=windows EventCode=1
+(ParentImage="*\\winword.exe" OR ParentImage="*\\excel.exe" OR ParentImage="*\\powerpnt.exe")
+Image="*\\rundll32.exe"
+(CommandLine="*\\Temp\\*" OR CommandLine="*\\AppData\\*")
+| eval rule_id="SP-100095", mitre_technique="T1218.011", mitre_tactic="Execution", severity="HIGH", confidence="HIGH"
+| table _time, host, user, ParentImage, Image, CommandLine, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-100096 | T1047 | WMI: StartService via wmiprvse — service manipulation | Severity: MEDIUM | Confidence: MEDIUM")`
+index=windows (EventCode=1 OR EventCode=4688)
+(Image="*\\wmic.exe" OR NewProcessName="*\\wmic.exe")
+CommandLine="*call StartService*"
+| eval rule_id="SP-100096", mitre_technique="T1047", mitre_tactic="Execution", severity="MEDIUM", confidence="MEDIUM"
+| table _time, host, user, ParentImage, Image, CommandLine, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-100097 | T1546.003 | WMI: Logon trigger event subscription — user-based persistence | Severity: CRITICAL | Confidence: HIGH")`
+index=windows EventCode=4104
+(ScriptBlockText="*Win32_LogonSession*" OR ScriptBlockText="*__InstanceCreationEvent*")
+(ScriptBlockText="*__EventFilter*" OR ScriptBlockText="*ActiveScriptEventConsumer*")
+| eval rule_id="SP-100097", mitre_technique="T1546.003", mitre_tactic="Persistence", severity="CRITICAL", confidence="HIGH"
+| table _time, host, user, ScriptBlockText, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-100098 | T1566.001 | Office: Spawning net.exe — macro reconnaissance | Severity: HIGH | Confidence: HIGH")`
+index=windows EventCode=1
+(ParentImage="*\\winword.exe" OR ParentImage="*\\excel.exe" OR ParentImage="*\\powerpnt.exe")
+(Image="*\\net.exe" OR Image="*\\net1.exe" OR Image="*\\ipconfig.exe" OR Image="*\\whoami.exe")
+| eval rule_id="SP-100098", mitre_technique="T1566.001", mitre_tactic="Discovery", severity="HIGH", confidence="HIGH"
+| table _time, host, user, ParentImage, Image, CommandLine, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-100099 | T1059.001 | Office: Macro to PowerShell -enc chain — obfuscated payload | Severity: CRITICAL | Confidence: HIGH")`
+index=windows EventCode=1
+(ParentImage="*\\winword.exe" OR ParentImage="*\\excel.exe" OR ParentImage="*\\powerpnt.exe")
+Image="*\\cmd.exe"
+CommandLine="*powershell*" CommandLine="*-enc*"
+| eval rule_id="SP-100099", mitre_technique="T1059.001", mitre_tactic="Execution", severity="CRITICAL", confidence="HIGH"
+| table _time, host, user, ParentImage, Image, CommandLine, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-100100 | T1546.003 | WMI: PowerShell EventFilter with embedded script — subscription | Severity: CRITICAL | Confidence: HIGH")`
+index=windows EventCode=4104
+(ScriptBlockText="*ActiveScriptEventConsumer*" OR ScriptBlockText="*CommandLineEventConsumer*")
+(ScriptBlockText="*__EventFilter*" OR ScriptBlockText="*Set-WmiInstance*")
+| eval rule_id="SP-100100", mitre_technique="T1546.003", mitre_tactic="Persistence", severity="CRITICAL", confidence="HIGH"
+| table _time, host, user, ScriptBlockText, rule_id, mitre_technique, severity
+| sort -_time

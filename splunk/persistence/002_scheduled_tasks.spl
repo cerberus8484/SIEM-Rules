@@ -1,0 +1,256 @@
+`comment("
+============================================================
+HuntingThreats — Splunk SPL Hunt Rules
+Category  : Persistence — Scheduled Tasks (T1053.005)
+Batch     : 5 / Persistence
+Rules     : SP-101026 – SP-101055
+Platform  : Splunk Enterprise 8.0+ / Splunk Cloud
+Sources   : Sysmon Event 1/11, Windows Event 4698/4702
+============================================================
+")`
+
+`comment("SP-101026 | T1053.005 | Schtasks: Creating task with PowerShell action | Severity: HIGH | Confidence: HIGH")`
+index=windows (EventCode=1 OR EventCode=4688 OR EventCode=4698)
+(Image="*\\schtasks.exe" OR NewProcessName="*\\schtasks.exe" OR TaskContent="*powershell*")
+CommandLine="*/create*" CommandLine="*powershell*"
+| eval rule_id="SP-101026", mitre_technique="T1053.005", mitre_tactic="Persistence", severity="HIGH", confidence="HIGH"
+| table _time, host, user, Image, CommandLine, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-101027 | T1053.005 | Schtasks: Task action from Temp/AppData path | Severity: HIGH | Confidence: HIGH")`
+index=windows (EventCode=1 OR EventCode=4688)
+(Image="*\\schtasks.exe" OR NewProcessName="*\\schtasks.exe")
+CommandLine="*/create*"
+(CommandLine="*\\Temp\\*" OR CommandLine="*\\AppData\\*" OR CommandLine="*\\Users\\Public\\*")
+| eval rule_id="SP-101027", mitre_technique="T1053.005", mitre_tactic="Persistence", severity="HIGH", confidence="HIGH"
+| table _time, host, user, Image, CommandLine, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-101028 | T1053.005 | Schtasks: XML task import /xml flag — file-based task creation | Severity: HIGH | Confidence: MEDIUM")`
+index=windows (EventCode=1 OR EventCode=4688)
+(Image="*\\schtasks.exe" OR NewProcessName="*\\schtasks.exe")
+CommandLine="*/xml*"
+| eval rule_id="SP-101028", mitre_technique="T1053.005", mitre_tactic="Persistence", severity="HIGH", confidence="MEDIUM"
+| table _time, host, user, Image, CommandLine, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-101029 | T1053.005 | Schtasks: Task running as SYSTEM (/ru SYSTEM) | Severity: HIGH | Confidence: HIGH")`
+index=windows (EventCode=1 OR EventCode=4688)
+(Image="*\\schtasks.exe" OR NewProcessName="*\\schtasks.exe")
+CommandLine="*/create*" (CommandLine="*/ru SYSTEM*" OR CommandLine="*/ru system*")
+| eval rule_id="SP-101029", mitre_technique="T1053.005", mitre_tactic="Persistence", severity="HIGH", confidence="HIGH"
+| table _time, host, user, Image, CommandLine, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-101030 | T1053.005 | Schtasks: Delete /f after execution — self-cleaning task | Severity: HIGH | Confidence: HIGH")`
+index=windows (EventCode=1 OR EventCode=4688)
+(Image="*\\schtasks.exe" OR NewProcessName="*\\schtasks.exe")
+(CommandLine="*/delete*" AND CommandLine="*/f*")
+| eval rule_id="SP-101030", mitre_technique="T1053.005", mitre_tactic="Defense Evasion", severity="HIGH", confidence="HIGH"
+| table _time, host, user, Image, CommandLine, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-101031 | T1053.005 | PowerShell: Register-ScheduledTask with encoded action | Severity: HIGH | Confidence: HIGH")`
+index=windows EventCode=4104
+(ScriptBlockText="*Register-ScheduledTask*" OR ScriptBlockText="*New-ScheduledTaskAction*")
+(ScriptBlockText="*-EncodedCommand*" OR ScriptBlockText="*-enc*" OR ScriptBlockText="*powershell*")
+| eval rule_id="SP-101031", mitre_technique="T1053.005", mitre_tactic="Persistence", severity="HIGH", confidence="HIGH"
+| table _time, host, user, ScriptBlockText, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-101032 | T1053.005 | PowerShell: New-JobTrigger with scheduled action — PS job persistence | Severity: MEDIUM | Confidence: MEDIUM")`
+index=windows EventCode=4104
+(ScriptBlockText="*New-JobTrigger*" OR ScriptBlockText="*Register-ScheduledJob*")
+| eval rule_id="SP-101032", mitre_technique="T1053.005", mitre_tactic="Persistence", severity="MEDIUM", confidence="MEDIUM"
+| table _time, host, user, ScriptBlockText, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-101033 | T1053.005 | Schtasks: Created by Office application parent — macro task | Severity: HIGH | Confidence: HIGH")`
+index=windows EventCode=1
+(ParentImage="*\\winword.exe" OR ParentImage="*\\excel.exe" OR ParentImage="*\\powerpnt.exe" OR ParentImage="*\\outlook.exe")
+Image="*\\schtasks.exe"
+| eval rule_id="SP-101033", mitre_technique="T1053.005", mitre_tactic="Persistence", severity="HIGH", confidence="HIGH"
+| table _time, host, user, ParentImage, Image, CommandLine, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-101034 | T1053.005 | Schtasks: /sc minute — high-frequency scheduled trigger | Severity: MEDIUM | Confidence: MEDIUM")`
+index=windows (EventCode=1 OR EventCode=4688)
+(Image="*\\schtasks.exe" OR NewProcessName="*\\schtasks.exe")
+CommandLine="*/sc MINUTE*" CommandLine="*/create*"
+| eval rule_id="SP-101034", mitre_technique="T1053.005", mitre_tactic="Persistence", severity="MEDIUM", confidence="MEDIUM"
+| table _time, host, user, Image, CommandLine, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-101035 | T1053.005 | Schtasks: /change /tr — existing task action hijack | Severity: HIGH | Confidence: HIGH")`
+index=windows (EventCode=1 OR EventCode=4688)
+(Image="*\\schtasks.exe" OR NewProcessName="*\\schtasks.exe")
+CommandLine="*/change*" CommandLine="*/tr*"
+| eval rule_id="SP-101035", mitre_technique="T1053.005", mitre_tactic="Persistence", severity="HIGH", confidence="HIGH"
+| table _time, host, user, Image, CommandLine, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-101036 | T1053.005 | Schtasks: ONLOGON + suspicious binary in action | Severity: HIGH | Confidence: HIGH")`
+index=windows (EventCode=1 OR EventCode=4698)
+(Image="*\\schtasks.exe" OR TaskContent="*ONLOGON*")
+(CommandLine="*/sc ONLOGON*" OR TaskContent="*ONLOGON*")
+(CommandLine="*\\Temp\\*" OR CommandLine="*\\AppData\\*" OR CommandLine="*mshta*" OR CommandLine="*wscript*")
+| eval rule_id="SP-101036", mitre_technique="T1053.005", mitre_tactic="Persistence", severity="HIGH", confidence="HIGH"
+| table _time, host, user, Image, CommandLine, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-101037 | T1053.005 | Schtasks: Task created via wmiprvse parent — WMI task creation | Severity: HIGH | Confidence: HIGH")`
+index=windows EventCode=1
+ParentImage="*\\WmiPrvSE.exe"
+Image="*\\schtasks.exe"
+| eval rule_id="SP-101037", mitre_technique="T1053.005", mitre_tactic="Persistence", severity="HIGH", confidence="HIGH"
+| table _time, host, user, ParentImage, Image, CommandLine, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-101038 | T1053.005 | Schtasks: /tr mshta — task launches HTA script | Severity: HIGH | Confidence: HIGH")`
+index=windows (EventCode=1 OR EventCode=4688)
+(Image="*\\schtasks.exe" OR NewProcessName="*\\schtasks.exe")
+(CommandLine="*/tr*mshta*" OR CommandLine="*mshta*" AND CommandLine="*/create*")
+| eval rule_id="SP-101038", mitre_technique="T1053.005", mitre_tactic="Persistence", severity="HIGH", confidence="HIGH"
+| table _time, host, user, Image, CommandLine, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-101039 | T1053.005 | Schtasks: /tr regsvr32 — task launches regsvr32 | Severity: HIGH | Confidence: HIGH")`
+index=windows (EventCode=1 OR EventCode=4688)
+(Image="*\\schtasks.exe" OR NewProcessName="*\\schtasks.exe")
+(CommandLine="*/tr*regsvr32*" OR (CommandLine="*regsvr32*" AND CommandLine="*/create*"))
+| eval rule_id="SP-101039", mitre_technique="T1053.005", mitre_tactic="Persistence", severity="HIGH", confidence="HIGH"
+| table _time, host, user, Image, CommandLine, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-101040 | T1053.005 | Schtasks: /tr wscript/cscript — task launches script engine | Severity: HIGH | Confidence: HIGH")`
+index=windows (EventCode=1 OR EventCode=4688)
+(Image="*\\schtasks.exe" OR NewProcessName="*\\schtasks.exe")
+CommandLine="*/create*"
+(CommandLine="*wscript*" OR CommandLine="*cscript*")
+| eval rule_id="SP-101040", mitre_technique="T1053.005", mitre_tactic="Persistence", severity="HIGH", confidence="HIGH"
+| table _time, host, user, Image, CommandLine, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-101041 | T1053.005 | File: Created in System32\\Tasks — task XML written to disk | Severity: MEDIUM | Confidence: HIGH")`
+index=windows EventCode=11
+TargetFilename="*\\System32\\Tasks\\*"
+NOT (Image="*\\schtasks.exe" OR Image="*\\taskschd.dll" OR Image="*\\taskeng.exe" OR Image="*\\msiexec.exe")
+| eval rule_id="SP-101041", mitre_technique="T1053.005", mitre_tactic="Persistence", severity="MEDIUM", confidence="HIGH"
+| table _time, host, Image, TargetFilename, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-101042 | T1053.005 | Schtasks: High-frequency creation threshold — >5 in 5 minutes | Severity: HIGH | Confidence: MEDIUM")`
+index=windows (EventCode=1 OR EventCode=4688)
+(Image="*\\schtasks.exe" OR NewProcessName="*\\schtasks.exe")
+CommandLine="*/create*"
+| bin _time span=5m
+| stats count as TaskCount by _time, host
+| where TaskCount > 5
+| eval rule_id="SP-101042", mitre_technique="T1053.005", mitre_tactic="Persistence", severity="HIGH", confidence="MEDIUM"
+| table _time, host, TaskCount, rule_id, severity
+| sort -_time
+
+`comment("SP-101043 | T1053.005 | Multi-event: Run key + schtasks combo — dual persistence chain | Severity: CRITICAL | Confidence: HIGH")`
+index=windows
+((EventCode=13 (TargetObject="*\\CurrentVersion\\Run\\*"))
+OR (EventCode=1 Image="*\\schtasks.exe" CommandLine="*/create*"))
+| transaction host maxspan=30m
+| where eventcount >= 2
+| eval rule_id="SP-101043", mitre_technique="T1053.005", mitre_tactic="Persistence", severity="CRITICAL", confidence="HIGH"
+| table _time, host, rule_id, severity
+| sort -_time
+
+`comment("SP-101044 | T1053.005 | Schtasks: /tr named pipe — named pipe execution via task | Severity: HIGH | Confidence: HIGH")`
+index=windows (EventCode=1 OR EventCode=4688)
+(Image="*\\schtasks.exe" OR NewProcessName="*\\schtasks.exe")
+(CommandLine="*\\\\.\\pipe\\*" OR CommandLine="*named pipe*")
+| eval rule_id="SP-101044", mitre_technique="T1053.005", mitre_tactic="Execution", severity="HIGH", confidence="HIGH"
+| table _time, host, user, Image, CommandLine, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-101045 | T1053.005 | Schtasks: /ru everyone — task running as all users | Severity: HIGH | Confidence: HIGH")`
+index=windows (EventCode=1 OR EventCode=4688)
+(Image="*\\schtasks.exe" OR NewProcessName="*\\schtasks.exe")
+(CommandLine="*/ru everyone*" OR CommandLine="*/ru Everyone*")
+| eval rule_id="SP-101045", mitre_technique="T1053.005", mitre_tactic="Persistence", severity="HIGH", confidence="HIGH"
+| table _time, host, user, Image, CommandLine, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-101046 | T1547.001 | File: Created in Startup folder by non-standard process | Severity: HIGH | Confidence: HIGH")`
+index=windows EventCode=11
+(TargetFilename="*\\Microsoft\\Windows\\Start Menu\\Programs\\Startup\\*" OR TargetFilename="*\\AppData\\Roaming\\Microsoft\\Windows\\Start Menu\\Programs\\Startup\\*")
+NOT (Image="*\\msiexec.exe" OR Image="*\\setup.exe" OR Image="*\\install*.exe")
+| eval rule_id="SP-101046", mitre_technique="T1547.001", mitre_tactic="Persistence", severity="HIGH", confidence="HIGH"
+| table _time, host, Image, TargetFilename, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-101047 | T1053.005 | Schtasks: Task action launches PowerShell with -Encoded | Severity: HIGH | Confidence: HIGH")`
+index=windows EventCode=4698
+TaskContent="*powershell*" (TaskContent="*-enc*" OR TaskContent="*EncodedCommand*")
+| eval rule_id="SP-101047", mitre_technique="T1053.005", mitre_tactic="Persistence", severity="HIGH", confidence="HIGH"
+| table _time, host, user, TaskName, TaskContent, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-101048 | T1053.005 | Schtasks: Task action launches IEX+WebClient — download cradle | Severity: CRITICAL | Confidence: HIGH")`
+index=windows EventCode=4698
+(TaskContent="*IEX*" OR TaskContent="*Invoke-Expression*")
+(TaskContent="*DownloadString*" OR TaskContent="*WebClient*")
+| eval rule_id="SP-101048", mitre_technique="T1053.005", mitre_tactic="Persistence", severity="CRITICAL", confidence="HIGH"
+| table _time, host, user, TaskName, TaskContent, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-101049 | T1547.001 | Registry: Active Setup StubPath — per-user persistence | Severity: HIGH | Confidence: HIGH")`
+index=windows EventCode=13
+TargetObject="*\\Active Setup\\Installed Components\\*\\StubPath*"
+NOT (Details="*\\Windows\\*" OR Details="*regsvr32*" OR Details="*rundll32 advpack*")
+| eval rule_id="SP-101049", mitre_technique="T1547.001", mitre_tactic="Persistence", severity="HIGH", confidence="HIGH"
+| table _time, host, Image, TargetObject, Details, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-101050 | T1547.001 | Registry: RunOnce self-delete cmd — one-shot installer persistence | Severity: MEDIUM | Confidence: MEDIUM")`
+index=windows EventCode=13
+TargetObject="*\\CurrentVersion\\RunOnce\\*"
+(Details="*cmd*" OR Details="*powershell*") Details="*delete*"
+| eval rule_id="SP-101050", mitre_technique="T1547.001", mitre_tactic="Persistence", severity="MEDIUM", confidence="MEDIUM"
+| table _time, host, Image, TargetObject, Details, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-101051 | T1053.005 | File: Task XML created by non-schtasks process | Severity: HIGH | Confidence: HIGH")`
+index=windows EventCode=11
+TargetFilename="*\\Tasks\\*" TargetFilename="*.xml"
+NOT (Image="*\\schtasks.exe" OR Image="*\\msiexec.exe" OR Image="*\\taskschd.dll")
+| eval rule_id="SP-101051", mitre_technique="T1053.005", mitre_tactic="Persistence", severity="HIGH", confidence="HIGH"
+| table _time, host, Image, TargetFilename, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-101052 | T1053.005 | Schtasks: Empire/Cobalt stager pattern in task action | Severity: CRITICAL | Confidence: HIGH")`
+index=windows EventCode=4698
+(TaskContent="*http://*" OR TaskContent="*https://*")
+(TaskContent="*powershell*" OR TaskContent="*wscript*" OR TaskContent="*mshta*")
+| eval rule_id="SP-101052", mitre_technique="T1053.005", mitre_tactic="Persistence", severity="CRITICAL", confidence="HIGH"
+| table _time, host, user, TaskName, TaskContent, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-101053 | T1053.005 | Schtasks: wscript from Temp as task action | Severity: HIGH | Confidence: HIGH")`
+index=windows EventCode=4698
+TaskContent="*wscript*"
+(TaskContent="*\\Temp\\*" OR TaskContent="*\\AppData\\*" OR TaskContent="*\\Public\\*")
+| eval rule_id="SP-101053", mitre_technique="T1053.005", mitre_tactic="Persistence", severity="HIGH", confidence="HIGH"
+| table _time, host, user, TaskName, TaskContent, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-101054 | T1053.005 | Schtasks: Logon-triggered mshta task | Severity: HIGH | Confidence: HIGH")`
+index=windows EventCode=4698
+TaskContent="*mshta*" TaskContent="*ONLOGON*"
+| eval rule_id="SP-101054", mitre_technique="T1053.005", mitre_tactic="Persistence", severity="HIGH", confidence="HIGH"
+| table _time, host, user, TaskName, TaskContent, rule_id, mitre_technique, severity
+| sort -_time
+
+`comment("SP-101055 | T1053.005 | Schtasks: Mass creation threshold — >10 tasks in 10 minutes | Severity: HIGH | Confidence: HIGH")`
+index=windows EventCode=4698
+| bin _time span=10m
+| stats count as TaskCount by _time, host
+| where TaskCount > 10
+| eval rule_id="SP-101055", mitre_technique="T1053.005", mitre_tactic="Persistence", severity="HIGH", confidence="HIGH"
+| table _time, host, TaskCount, rule_id, severity
+| sort -_time
