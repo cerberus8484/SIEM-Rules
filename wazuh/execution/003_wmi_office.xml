@@ -1,0 +1,496 @@
+<!--
+  HuntingThreats — Wazuh Hunt Rules
+  Category:  Execution — WMI, Office Macros & Script-based Execution
+  Batch:     3 / Execution
+  Rules:     100061 – 100100
+  Platform:  Wazuh 4.x
+  Sources:   Sysmon Event 1 (Process Creation)
+             Windows Event 4688 (Process Creation)
+             PowerShell Script Block Logging (4103/4104)
+             Windows Event 4697 (WMI activity)
+             Sysmon Event 20 (WmiEvent)
+
+  T1047  — Windows Management Instrumentation
+  T1546.003 — WMI Event Subscription
+  T1059.005 — Visual Basic (VBA macros)
+  T1059.007 — JavaScript
+  T1204.002 — User Execution: Malicious File
+  T1566.001 — Phishing: Spearphishing Attachment
+-->
+
+<group name="hunt_execution,wmi,office,windows,">
+
+  <!-- ── WMI process creation (wmic.exe) ───────────────────────────────────── -->
+
+  <rule id="100061" level="10">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$|^4688$</field>
+    <field name="win.eventdata.image|win.eventdata.newProcessName" type="pcre2">(?i)\\wmic\.exe$</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?i)process\s+call\s+create</field>
+    <description>wmic.exe: process created via WMI — WMI-based execution (T1047)</description>
+    <mitre><id>T1047</id></mitre>
+    <group>execution,wmi,process_create,high_confidence,</group>
+  </rule>
+
+  <!-- ── WMI spawn from Office ─────────────────────────────────────────────── -->
+
+  <rule id="100062" level="14">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$</field>
+    <field name="win.eventdata.image" type="pcre2">(?i)\\wmic\.exe$</field>
+    <field name="win.eventdata.parentImage" type="pcre2">(?i)\\(WINWORD|EXCEL|POWERPNT|OUTLOOK|ONENOTE)\.exe$</field>
+    <description>Sysmon: wmic.exe spawned by Office application — macro-initiated WMI process creation (T1047)</description>
+    <mitre><id>T1047</id></mitre>
+    <group>execution,wmi,office_macro,critical,</group>
+  </rule>
+
+  <!-- ── WMI subscription — __EventFilter creation ─────────────────────────── -->
+
+  <rule id="100063" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^19$</field>
+    <description>Sysmon WmiEvent: WMI event filter created (Event 19) — WMI subscription persistence (T1546.003)</description>
+    <mitre><id>T1546.003</id></mitre>
+    <group>execution,wmi,subscription,high_confidence,</group>
+  </rule>
+
+  <!-- ── WMI subscription — __EventConsumer creation ──────────────────────── -->
+
+  <rule id="100064" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^20$</field>
+    <description>Sysmon WmiEvent: WMI event consumer created (Event 20) — persistent command via WMI (T1546.003)</description>
+    <mitre><id>T1546.003</id></mitre>
+    <group>execution,wmi,subscription,high_confidence,</group>
+  </rule>
+
+  <!-- ── WMI subscription — FilterToConsumerBinding ────────────────────────── -->
+
+  <rule id="100065" level="14">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^21$</field>
+    <description>Sysmon WmiEvent: FilterToConsumerBinding created (Event 21) — WMI subscription activated (T1546.003)</description>
+    <mitre><id>T1546.003</id></mitre>
+    <group>execution,wmi,subscription,critical,</group>
+  </rule>
+
+  <!-- ── WMI CommandLineEventConsumer with script ───────────────────────────── -->
+
+  <rule id="100066" level="14">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^20$</field>
+    <field name="win.eventdata.consumer" type="pcre2">(?i)(powershell|cmd\.exe|wscript|cscript|mshta|regsvr32)</field>
+    <description>Sysmon WmiEvent: WMI consumer references scripting engine — script executed via WMI subscription (T1546.003)</description>
+    <mitre><id>T1546.003</id></mitre>
+    <group>execution,wmi,subscription,interpreter,critical,</group>
+  </rule>
+
+  <!-- ── WMI process spawning script interpreter ───────────────────────────── -->
+
+  <rule id="100067" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$</field>
+    <field name="win.eventdata.image" type="pcre2">(?i)\\(powershell|cmd|wscript|cscript|mshta)\.exe$</field>
+    <field name="win.eventdata.parentImage" type="pcre2">(?i)\\WmiPrvSE\.exe$</field>
+    <description>Sysmon: script interpreter spawned by WmiPrvSE — WMI-executed command (T1047)</description>
+    <mitre><id>T1047</id></mitre>
+    <group>execution,wmi,wmiprvse,high_confidence,</group>
+  </rule>
+
+  <!-- ── Office macro spawning scripting engine ────────────────────────────── -->
+
+  <rule id="100068" level="14">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$</field>
+    <field name="win.eventdata.image" type="pcre2">(?i)\\(powershell|cmd|wscript|cscript|mshta|rundll32|regsvr32)\.exe$</field>
+    <field name="win.eventdata.parentImage" type="pcre2">(?i)\\(WINWORD|EXCEL|POWERPNT|OUTLOOK|ONENOTE|VISIO|msaccess)\.exe$</field>
+    <description>Sysmon: script engine spawned by Office application — Office macro executing payload (T1059.005)</description>
+    <mitre><id>T1059.005</id></mitre>
+    <group>execution,office_macro,critical,</group>
+  </rule>
+
+  <!-- ── Office spawning cmd + downloading ────────────────────────────────── -->
+
+  <rule id="100069" level="14">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$</field>
+    <field name="win.eventdata.image" type="pcre2">(?i)\\cmd\.exe$</field>
+    <field name="win.eventdata.parentImage" type="pcre2">(?i)\\(WINWORD|EXCEL|POWERPNT|OUTLOOK)\.exe$</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?i)(http[s]?://|downloadfile|downloadstring|curl|wget|certutil|bitsadmin)</field>
+    <description>Sysmon: Office spawning cmd with download command — macro-initiated payload download (T1566.001)</description>
+    <mitre><id>T1566.001</id></mitre>
+    <group>execution,office_macro,download,critical,</group>
+  </rule>
+
+  <!-- ── Office creating file in temp ─────────────────────────────────────── -->
+
+  <rule id="100070" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^11$</field>
+    <field name="win.eventdata.image" type="pcre2">(?i)\\(WINWORD|EXCEL|POWERPNT|OUTLOOK)\.exe$</field>
+    <field name="win.eventdata.targetFilename" type="pcre2">(?i)(\\temp\\|\\appdata\\).*\.(exe|dll|ps1|bat|vbs|hta|js)$</field>
+    <description>Sysmon: Office app writing executable to temp — macro dropping payload (T1204.002)</description>
+    <mitre><id>T1204.002</id></mitre>
+    <group>execution,office_macro,payload_drop,critical,</group>
+  </rule>
+
+  <!-- ── Office connecting to external URL (via network) ───────────────────── -->
+
+  <rule id="100071" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^3$</field>
+    <field name="win.eventdata.image" type="pcre2">(?i)\\(WINWORD|EXCEL|POWERPNT|OUTLOOK)\.exe$</field>
+    <field name="win.eventdata.initiated" type="pcre2">^true$</field>
+    <field name="win.eventdata.destinationIp" type="pcre2">(?!^10\.|^192\.168\.|^172\.(1[6-9]|2[0-9]|3[0-1])\.|^127\.)</field>
+    <description>Sysmon Network: Office application connecting to external IP — macro-initiated network connection (T1059.005)</description>
+    <mitre><id>T1059.005</id></mitre>
+    <group>execution,office_macro,network,high_confidence,</group>
+  </rule>
+
+  <!-- ── DDE (Dynamic Data Exchange) execution ─────────────────────────────── -->
+
+  <rule id="100072" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$</field>
+    <field name="win.eventdata.image" type="pcre2">(?i)\\(cmd|powershell)\.exe$</field>
+    <field name="win.eventdata.parentImage" type="pcre2">(?i)\\(WINWORD|EXCEL)\.exe$</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?i)\/c\s+(powershell|mshta|wscript|cmd)</field>
+    <description>Sysmon: cmd.exe spawned by Office with nested command — DDE or macro injection (T1559.002)</description>
+    <mitre><id>T1559.002</id></mitre>
+    <group>execution,dde,office,critical,</group>
+  </rule>
+
+  <!-- ── VBA Macro execution with suspicious function ──────────────────────── -->
+
+  <rule id="100073" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^4103$|^4104$</field>
+    <field name="win.eventdata.scriptBlockText" type="pcre2">(?i)(Shell\s*\(|CreateObject\s*\(.*Wscript|CreateObject\s*\(.*ADODB|WScript\.Shell|InternetExplorer\.Application)</field>
+    <description>VBScript/PowerShell: COM object creation for command execution — scripted shell execution (T1059.005)</description>
+    <mitre><id>T1059.005</id></mitre>
+    <group>execution,vbscript,com_object,high_confidence,</group>
+  </rule>
+
+  <!-- ── WSF (Windows Script File) execution ──────────────────────────────── -->
+
+  <rule id="100074" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$|^4688$</field>
+    <field name="win.eventdata.image|win.eventdata.newProcessName" type="pcre2">(?i)\\(wscript|cscript)\.exe$</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?i)\.(wsf|wsh)(\s|$)</field>
+    <description>wscript/cscript: WSF/WSH file executed — Windows Script File execution (T1059.005)</description>
+    <mitre><id>T1059.005</id></mitre>
+    <group>execution,wsf,wsh,high_confidence,</group>
+  </rule>
+
+  <!-- ── JavaScript via wscript ─────────────────────────────────────────────── -->
+
+  <rule id="100075" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$|^4688$</field>
+    <field name="win.eventdata.image|win.eventdata.newProcessName" type="pcre2">(?i)\\(wscript|cscript)\.exe$</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?i)\.(js|jse|vbs|vbe)(\s|$)</field>
+    <description>wscript.exe: JavaScript or VBScript file executed — script-based payload execution (T1059.007)</description>
+    <mitre><id>T1059.007</id></mitre>
+    <group>execution,js_vbs,wscript,high_confidence,</group>
+  </rule>
+
+  <!-- ── HTA file execution ──────────────────────────────────────────────────── -->
+
+  <rule id="100076" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$|^4688$</field>
+    <field name="win.eventdata.image|win.eventdata.newProcessName" type="pcre2">(?i)\\mshta\.exe$</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?i)\.(hta)(\s|$)|javascript:|vbscript:</field>
+    <description>mshta.exe: HTA file or inline script executed — HTML application execution (T1218.005)</description>
+    <mitre><id>T1218.005</id></mitre>
+    <group>execution,hta,mshta,high_confidence,</group>
+  </rule>
+
+  <!-- ── PowerShell from Office temp file ──────────────────────────────────── -->
+
+  <rule id="100077" level="14">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$</field>
+    <field name="win.eventdata.image" type="pcre2">(?i)\\powershell\.exe$</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?i)(\\AppData\\Local\\Temp\\.*\.ps1|\\AppData\\Roaming\\Microsoft\\Word)</field>
+    <description>Sysmon: PowerShell executing script from Office temp path — macro dropping PS payload (T1204.002)</description>
+    <mitre><id>T1204.002</id></mitre>
+    <group>execution,office_macro,ps_temp,critical,</group>
+  </rule>
+
+  <!-- ── OneNote attachment execution ──────────────────────────────────────── -->
+
+  <rule id="100078" level="14">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$</field>
+    <field name="win.eventdata.parentImage" type="pcre2">(?i)\\ONENOTE\.exe$</field>
+    <field name="win.eventdata.image" type="pcre2">(?i)\\(cmd|powershell|wscript|cscript|mshta|rundll32|certutil)\.exe$</field>
+    <description>Sysmon: scripting engine spawned by OneNote — OneNote embedded attachment execution (T1204.002)</description>
+    <mitre><id>T1204.002</id></mitre>
+    <group>execution,onenote,office_macro,critical,</group>
+  </rule>
+
+  <!-- ── XLL add-in execution (Excel) ──────────────────────────────────────── -->
+
+  <rule id="100079" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^7$</field>
+    <field name="win.eventdata.image" type="pcre2">(?i)\\EXCEL\.exe$</field>
+    <field name="win.eventdata.imageLoaded" type="pcre2">(?i)\\(temp|downloads|appdata)\\.*\.xll$</field>
+    <description>Sysmon: Excel loading XLL add-in from staging path — malicious XLL execution (T1204.002)</description>
+    <mitre><id>T1204.002</id></mitre>
+    <group>execution,xll,excel_addin,high_confidence,</group>
+  </rule>
+
+  <!-- ── XLM macros (Excel 4.0) execution ─────────────────────────────────── -->
+
+  <rule id="100080" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$</field>
+    <field name="win.eventdata.parentImage" type="pcre2">(?i)\\EXCEL\.exe$</field>
+    <field name="win.eventdata.image" type="pcre2">(?i)\\(cmd|powershell|mshta|wscript)\.exe$</field>
+    <description>Sysmon: cmd/script spawned by Excel — possible XLM Excel 4.0 macro or VBA execution (T1059.005)</description>
+    <mitre><id>T1059.005</id></mitre>
+    <group>execution,xlm_macro,excel,critical,</group>
+  </rule>
+
+  <!-- ── Python executing arbitrary code ───────────────────────────────────── -->
+
+  <rule id="100081" level="10">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$|^4688$</field>
+    <field name="win.eventdata.image|win.eventdata.newProcessName" type="pcre2">(?i)\\python(3|w)?\.exe$</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?i)(-c\s+["']|exec\(|eval\(|__import__|subprocess|socket\.connect)</field>
+    <description>python.exe: inline code execution or socket connection — Python-based payload (T1059.006)</description>
+    <mitre><id>T1059.006</id></mitre>
+    <group>execution,python,inline_code,high_confidence,</group>
+  </rule>
+
+  <!-- ── Perl / Ruby execution (unusual on Windows) ────────────────────────── -->
+
+  <rule id="100082" level="10">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$|^4688$</field>
+    <field name="win.eventdata.image|win.eventdata.newProcessName" type="pcre2">(?i)\\(perl|ruby|rubyw)\.exe$</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?i)(-e\s+['"]|socket|exec|system\()</field>
+    <description>perl/ruby.exe: unusual scripting language with inline code — cross-language execution for evasion (T1059)</description>
+    <mitre><id>T1059</id></mitre>
+    <group>execution,perl_ruby,unusual_lang,</group>
+  </rule>
+
+  <!-- ── Java spawning process ──────────────────────────────────────────────── -->
+
+  <rule id="100083" level="10">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$</field>
+    <field name="win.eventdata.image" type="pcre2">(?i)\\(cmd|powershell|wscript)\.exe$</field>
+    <field name="win.eventdata.parentImage" type="pcre2">(?i)\\(java|javaw)\.exe$</field>
+    <description>Sysmon: cmd/PS spawned by Java — Java deserialisation or malicious JAR execution (T1059)</description>
+    <mitre><id>T1059</id></mitre>
+    <group>execution,java,suspicious_child,high_confidence,</group>
+  </rule>
+
+  <!-- ── Node.js execution with inline code ────────────────────────────────── -->
+
+  <rule id="100084" level="10">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$|^4688$</field>
+    <field name="win.eventdata.image|win.eventdata.newProcessName" type="pcre2">(?i)\\node\.exe$</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?i)(-e\s+["']|require\('child_process'\)|exec\(|spawn\(|net\.connect)</field>
+    <description>node.exe: inline code or network code in args — Node.js-based payload execution (T1059)</description>
+    <mitre><id>T1059</id></mitre>
+    <group>execution,nodejs,inline_code,high_confidence,</group>
+  </rule>
+
+  <!-- ── InstallUtil bypass AppLocker ──────────────────────────────────────── -->
+
+  <rule id="100085" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$|^4688$</field>
+    <field name="win.eventdata.image|win.eventdata.newProcessName" type="pcre2">(?i)\\InstallUtil\.exe$</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?i)(\/logfile=|\/LogToConsole|\.dll$|\.exe$)</field>
+    <description>InstallUtil.exe: .NET binary executed — AppLocker bypass via .NET installer (T1218.004)</description>
+    <mitre><id>T1218.004</id></mitre>
+    <group>execution,installutil,applocker_bypass,high_confidence,</group>
+  </rule>
+
+  <!-- ── MSBuild executing inline task ─────────────────────────────────────── -->
+
+  <rule id="100086" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$|^4688$</field>
+    <field name="win.eventdata.image|win.eventdata.newProcessName" type="pcre2">(?i)\\MSBuild\.exe$</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?i)(\.csproj|\.vbproj|\.targets|\/t:).*http|inline.*Task</field>
+    <description>MSBuild.exe: build project with inline task — AppLocker/SRP bypass via MSBuild (T1127.001)</description>
+    <mitre><id>T1127.001</id></mitre>
+    <group>execution,msbuild,applocker_bypass,high_confidence,</group>
+  </rule>
+
+  <!-- ── Regasm / Regsvcs AppLocker bypass ─────────────────────────────────── -->
+
+  <rule id="100087" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$|^4688$</field>
+    <field name="win.eventdata.image|win.eventdata.newProcessName" type="pcre2">(?i)\\(regasm|regsvcs)\.exe$</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?i)(\/U\s+|\/unregister|\.(dll|exe)$)</field>
+    <description>Regasm/Regsvcs: .NET COM registration tool — AppLocker bypass executing COM code (T1218.009)</description>
+    <mitre><id>T1218.009</id></mitre>
+    <group>execution,regasm,applocker_bypass,high_confidence,</group>
+  </rule>
+
+  <!-- ── WMIC spawning from Office ─────────────────────────────────────────── -->
+
+  <rule id="100088" level="14">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$</field>
+    <field name="win.eventdata.image" type="pcre2">(?i)\\(wscript|cscript)\.exe$</field>
+    <field name="win.eventdata.parentImage" type="pcre2">(?i)\\(WINWORD|EXCEL|POWERPNT|OUTLOOK)\.exe$</field>
+    <description>Sysmon: wscript/cscript spawned by Office — VBA macro launching script host (T1059.005)</description>
+    <mitre><id>T1059.005</id></mitre>
+    <group>execution,vba_macro,script_host,critical,</group>
+  </rule>
+
+  <!-- ── PowerShell from PDF reader ────────────────────────────────────────── -->
+
+  <rule id="100089" level="14">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$</field>
+    <field name="win.eventdata.image" type="pcre2">(?i)\\(cmd|powershell|wscript)\.exe$</field>
+    <field name="win.eventdata.parentImage" type="pcre2">(?i)\\(AcroRd32|Acrobat|FoxitReader|SumatraPDF|PDFXEdit|okular)\.exe$</field>
+    <description>Sysmon: script spawned by PDF reader — embedded JavaScript or PDF exploit (T1204.002)</description>
+    <mitre><id>T1204.002</id></mitre>
+    <group>execution,pdf_exploit,critical,</group>
+  </rule>
+
+  <!-- ── Signed script execution (csc.exe compiler) ────────────────────────── -->
+
+  <rule id="100090" level="10">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$|^4688$</field>
+    <field name="win.eventdata.image|win.eventdata.newProcessName" type="pcre2">(?i)\\csc\.exe$</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?i)(\\temp\\|\\appdata\\|\\public\\).*\.cs</field>
+    <description>csc.exe: C# code compiled from staging path — .NET code compilation for execution (T1127)</description>
+    <mitre><id>T1127</id></mitre>
+    <group>execution,csc_compile,staging_path,high_confidence,</group>
+  </rule>
+
+  <!-- ── Compiled PS to exe (PS2EXE / Invoke-PS2EXE) ──────────────────────── -->
+
+  <rule id="100091" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^4103$|^4104$</field>
+    <field name="win.eventdata.scriptBlockText" type="pcre2">(?i)(Invoke-PS2EXE|PS2EXE|ps2exe|ConvertTo-Exe|psExe)</field>
+    <description>PowerShell: PS-to-EXE compiler invoked — PS script converted to binary for AV evasion (T1027.004)</description>
+    <mitre><id>T1027.004</id></mitre>
+    <group>execution,ps2exe,compile_for_evasion,high_confidence,</group>
+  </rule>
+
+  <!-- ── VBA macro downloading via URLDownloadToFile ───────────────────────── -->
+
+  <rule id="100092" level="14">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^4103$|^4104$</field>
+    <field name="win.eventdata.scriptBlockText" type="pcre2">(?i)(URLDownloadToFile|URLDownloadToCacheFile|IWinInetInfo|InternetOpen|InternetOpenUrl)</field>
+    <description>Script: URLDownloadToFile/IWinInet called — VBA/PS file download via Windows URL API (T1105)</description>
+    <mitre><id>T1105</id></mitre>
+    <group>execution,url_download,vba,critical,</group>
+  </rule>
+
+  <!-- ── Remote template injection (Word template) ────────────────────────── -->
+
+  <rule id="100093" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^3$</field>
+    <field name="win.eventdata.image" type="pcre2">(?i)\\(WINWORD|EXCEL|POWERPNT)\.exe$</field>
+    <field name="win.eventdata.destinationPort" type="pcre2">^80$|^443$|^445$</field>
+    <field name="win.eventdata.initiated" type="pcre2">^true$</field>
+    <description>Sysmon Network: Office app making network connection on open — remote template injection (T1221)</description>
+    <mitre><id>T1221</id></mitre>
+    <group>execution,remote_template,office,high_confidence,</group>
+  </rule>
+
+  <!-- ── Excel spawning wmic for anti-sandbox ──────────────────────────────── -->
+
+  <rule id="100094" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$</field>
+    <field name="win.eventdata.image" type="pcre2">(?i)\\wmic\.exe$</field>
+    <field name="win.eventdata.parentImage" type="pcre2">(?i)\\EXCEL\.exe$</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?i)(os|computersystem|baseboard|csproduct)\s+get</field>
+    <description>Sysmon: Excel spawning wmic for system info — sandbox/VM detection from macro (T1497)</description>
+    <mitre><id>T1497</id></mitre>
+    <group>execution,excel_macro,sandbox_check,high_confidence,</group>
+  </rule>
+
+  <!-- ── Outlook VBA spawn shell (phishing payload) ───────────────────────── -->
+
+  <rule id="100095" level="14">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$</field>
+    <field name="win.eventdata.parentImage" type="pcre2">(?i)\\OUTLOOK\.exe$</field>
+    <field name="win.eventdata.image" type="pcre2">(?i)\\(powershell|cmd|wscript|mshta|rundll32|regsvr32)\.exe$</field>
+    <description>Sysmon: Outlook spawning script/shell — phishing email macro or attachment execution (T1566.001)</description>
+    <mitre><id>T1566.001</id></mitre>
+    <group>execution,outlook_macro,phishing,critical,</group>
+  </rule>
+
+  <!-- ── Scriptlet (SCT) execution via regsvr32 ───────────────────────────── -->
+
+  <rule id="100096" level="14">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$|^4688$</field>
+    <field name="win.eventdata.image|win.eventdata.newProcessName" type="pcre2">(?i)\\regsvr32\.exe$</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?i)(\/[sSuU]\s*|/s).*(http[s]?://|\\\\[0-9a-zA-Z]|\.sct$)</field>
+    <description>regsvr32.exe: Squiblydoo technique — remote SCT scriptlet execution (T1218.010)</description>
+    <mitre><id>T1218.010</id></mitre>
+    <group>execution,squiblydoo,regsvr32,critical,</group>
+  </rule>
+
+  <!-- ── Verclsid COM execution (LOLBin) ───────────────────────────────────── -->
+
+  <rule id="100097" level="10">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$|^4688$</field>
+    <field name="win.eventdata.image|win.eventdata.newProcessName" type="pcre2">(?i)\\verclsid\.exe$</field>
+    <description>verclsid.exe: COM object loader executed — proxy execution via CLSID (T1218)</description>
+    <mitre><id>T1218</id></mitre>
+    <group>execution,verclsid,lolbin,</group>
+  </rule>
+
+  <!-- ── Microsoft HTML Help (CHM) execution ───────────────────────────────── -->
+
+  <rule id="100098" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$|^4688$</field>
+    <field name="win.eventdata.image|win.eventdata.newProcessName" type="pcre2">(?i)\\hh\.exe$</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?i)(http[s]?://|\\\\[0-9]|\.chm$)</field>
+    <description>hh.exe: CHM help file executed from network/internet — malicious CHM payload (T1218.001)</description>
+    <mitre><id>T1218.001</id></mitre>
+    <group>execution,chm,hh_exe,high_confidence,</group>
+  </rule>
+
+  <!-- ── ITSM tools spawning shells (Kaseya/LabTech) ──────────────────────── -->
+
+  <rule id="100099" level="10">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$</field>
+    <field name="win.eventdata.image" type="pcre2">(?i)\\(cmd|powershell|wscript)\.exe$</field>
+    <field name="win.eventdata.parentImage" type="pcre2">(?i)\\(LTSvc|Kaseya|LabTech|ConnectWise|SolarWinds|NinjaRMM|N-central).*\.exe$</field>
+    <description>Sysmon: shell spawned by RMM/ITSM agent — possible supply chain or tool abuse (T1072)</description>
+    <mitre><id>T1072</id></mitre>
+    <group>execution,rmm_tool,supply_chain,high_confidence,</group>
+  </rule>
+
+  <!-- ── COMPlus_ReadDecompiledIL (CLR hooking evasion) ────────────────────── -->
+
+  <rule id="100100" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?i)(COMPlus_ETWEnabled=0|COMPlus_ReadDecompiledIL|DOTNET_GCConserveMemory)</field>
+    <description>Process: CLR environment variable set to disable ETW/debugging — .NET evasion technique (T1562.006)</description>
+    <mitre><id>T1562.006</id></mitre>
+    <group>defense_evasion,clr_evasion,high_confidence,</group>
+  </rule>
+
+</group>

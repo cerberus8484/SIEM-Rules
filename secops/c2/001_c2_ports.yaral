@@ -1,0 +1,687 @@
+// ============================================================
+// HuntingThreats — Google SecOps YARA-L 2.0 Hunt Rules
+// Category : Command & Control — C2 Beaconing / Tunneling / RATs (T1071, T1095, T1571)
+// Batch    : 08 / C2
+// Rules    : GS-104001 – GS-104035
+// Platform : Google SecOps / Chronicle SIEM
+// ============================================================
+
+rule ht_gs_104001_c2_non_standard_high_port {
+  meta:
+    rule_id         = "GS-104001"
+    author          = "HuntingThreats"
+    description     = "Outbound connection to non-standard high port (8443/4443/8080) from workstation"
+    mitre_tactic    = "Command and Control"
+    mitre_technique = "T1571"
+    severity        = "MEDIUM"
+    confidence      = "MEDIUM"
+
+  events:
+    $e.metadata.event_type = "NETWORK_CONNECTION"
+    $e.target.port in [4443, 8443, 8080, 9001, 9090, 1337, 31337]
+    NOT $e.target.ip in cidr "10.0.0.0/8"
+    NOT $e.target.ip in cidr "192.168.0.0/16"
+    NOT $e.target.ip in cidr "172.16.0.0/12"
+
+  condition:
+    $e
+}
+
+rule ht_gs_104002_c2_cobalt_strike_default_port {
+  meta:
+    rule_id         = "GS-104002"
+    author          = "HuntingThreats"
+    description     = "Outbound TCP 50050 — Cobalt Strike default Team Server port"
+    mitre_tactic    = "Command and Control"
+    mitre_technique = "T1071.001"
+    severity        = "CRITICAL"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "NETWORK_CONNECTION"
+    $e.target.port = 50050
+    NOT $e.target.ip in cidr "10.0.0.0/8"
+    NOT $e.target.ip in cidr "192.168.0.0/16"
+
+  condition:
+    $e
+}
+
+rule ht_gs_104003_c2_metasploit_port {
+  meta:
+    rule_id         = "GS-104003"
+    author          = "HuntingThreats"
+    description     = "Outbound TCP 4444 to external IP — Metasploit default reverse shell port"
+    mitre_tactic    = "Command and Control"
+    mitre_technique = "T1095"
+    severity        = "CRITICAL"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "NETWORK_CONNECTION"
+    $e.target.port = 4444
+    NOT $e.target.ip in cidr "10.0.0.0/8"
+    NOT $e.target.ip in cidr "192.168.0.0/16"
+    NOT $e.target.ip in cidr "172.16.0.0/12"
+
+  condition:
+    $e
+}
+
+rule ht_gs_104004_c2_beacon_regular_interval {
+  meta:
+    rule_id         = "GS-104004"
+    author          = "HuntingThreats"
+    description     = "Regular outbound connections from one host to one external IP — beaconing pattern"
+    mitre_tactic    = "Command and Control"
+    mitre_technique = "T1071.001"
+    severity        = "HIGH"
+    confidence      = "MEDIUM"
+
+  events:
+    $e.metadata.event_type = "NETWORK_CONNECTION"
+    NOT $e.target.ip in cidr "10.0.0.0/8"
+    NOT $e.target.ip in cidr "192.168.0.0/16"
+    NOT $e.target.ip in cidr "172.16.0.0/12"
+    NOT $e.target.ip in cidr "127.0.0.0/8"
+
+  match:
+    $e.principal.hostname, $e.target.ip over 60m
+
+  condition:
+    #e > 20
+}
+
+rule ht_gs_104005_c2_dns_long_subdomain {
+  meta:
+    rule_id         = "GS-104005"
+    author          = "HuntingThreats"
+    description     = "DNS query with subdomain > 50 chars — DNS tunneling data exfil"
+    mitre_tactic    = "Command and Control"
+    mitre_technique = "T1071.004"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "NETWORK_DNS"
+    re.regex($e.network.dns.questions.name, `.{50,}\..+\..+`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_104006_c2_dns_many_queries_same_domain {
+  meta:
+    rule_id         = "GS-104006"
+    author          = "HuntingThreats"
+    description     = "High-frequency DNS queries to same domain — DNS tunnel data stream"
+    mitre_tactic    = "Command and Control"
+    mitre_technique = "T1071.004"
+    severity        = "HIGH"
+    confidence      = "MEDIUM"
+
+  events:
+    $e.metadata.event_type = "NETWORK_DNS"
+
+  match:
+    $e.principal.hostname, $e.network.dns.questions.name over 10m
+
+  condition:
+    #e > 100
+}
+
+rule ht_gs_104007_c2_iodine_dns_tool {
+  meta:
+    rule_id         = "GS-104007"
+    author          = "HuntingThreats"
+    description     = "Iodine or dnscat DNS tunnel tool execution"
+    mitre_tactic    = "Command and Control"
+    mitre_technique = "T1071.004"
+    severity        = "CRITICAL"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.command_line, `(?i)(iodine|dnscat|dns2tcp)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_104008_c2_tor_exit_node_port {
+  meta:
+    rule_id         = "GS-104008"
+    author          = "HuntingThreats"
+    description     = "Outbound TCP 9050/9150/9001 — Tor SOCKS proxy or relay port"
+    mitre_tactic    = "Command and Control"
+    mitre_technique = "T1090.003"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "NETWORK_CONNECTION"
+    $e.target.port in [9050, 9150, 9001, 9030]
+    NOT $e.target.ip in cidr "10.0.0.0/8"
+    NOT $e.target.ip in cidr "192.168.0.0/16"
+
+  condition:
+    $e
+}
+
+rule ht_gs_104009_c2_empire_http_ua {
+  meta:
+    rule_id         = "GS-104009"
+    author          = "HuntingThreats"
+    description     = "Empire C2 user agent pattern in HTTP — Mozilla/5.0 (Windows; .*rv:) PowerShell"
+    mitre_tactic    = "Command and Control"
+    mitre_technique = "T1071.001"
+    severity        = "CRITICAL"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "NETWORK_CONNECTION"
+    re.regex($e.network.http.user_agent, `(?i)(PowerShell\/|MSHTA\/|invoke-webrequest)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_104010_c2_named_pipe_cobalt {
+  meta:
+    rule_id         = "GS-104010"
+    author          = "HuntingThreats"
+    description     = "Cobalt Strike default named pipe pattern — \\postex_ssh_ or \\msagent_ pipes"
+    mitre_tactic    = "Command and Control"
+    mitre_technique = "T1090.001"
+    severity        = "CRITICAL"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.command_line, `(?i)(\\\\\.\\pipe\\(postex_ssh_|msagent_|mojo\.|chrome\.|status_|MSSE-|spoolss|\\ntsvcs|\\scerpc))`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_104011_c2_process_unusual_outbound {
+  meta:
+    rule_id         = "GS-104011"
+    author          = "HuntingThreats"
+    description     = "Unusual process making outbound connection — non-browser making HTTPS on 443"
+    mitre_tactic    = "Command and Control"
+    mitre_technique = "T1071.001"
+    severity        = "MEDIUM"
+    confidence      = "MEDIUM"
+
+  events:
+    $e.metadata.event_type = "NETWORK_CONNECTION"
+    $e.target.port in [80, 443]
+    re.regex($e.principal.process.file.full_path, `(?i)\\(cmd|powershell|rundll32|regsvr32|mshta|wscript|cscript)\.exe$`)
+    NOT $e.target.ip in cidr "10.0.0.0/8"
+    NOT $e.target.ip in cidr "192.168.0.0/16"
+
+  condition:
+    $e
+}
+
+rule ht_gs_104012_c2_sliver_default_port {
+  meta:
+    rule_id         = "GS-104012"
+    author          = "HuntingThreats"
+    description     = "Outbound TCP 31337 or 8888 — Sliver C2 default ports"
+    mitre_tactic    = "Command and Control"
+    mitre_technique = "T1071.001"
+    severity        = "HIGH"
+    confidence      = "MEDIUM"
+
+  events:
+    $e.metadata.event_type = "NETWORK_CONNECTION"
+    $e.target.port in [31337, 8888]
+    NOT $e.target.ip in cidr "10.0.0.0/8"
+    NOT $e.target.ip in cidr "192.168.0.0/16"
+
+  condition:
+    $e
+}
+
+rule ht_gs_104013_c2_brute_ratel_port {
+  meta:
+    rule_id         = "GS-104013"
+    author          = "HuntingThreats"
+    description     = "Brute Ratel C4 default port 443 with Brute-Ratel HTTP header patterns"
+    mitre_tactic    = "Command and Control"
+    mitre_technique = "T1071.001"
+    severity        = "CRITICAL"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "NETWORK_CONNECTION"
+    re.regex($e.network.http.user_agent, `(?i)(Brute\s*Ratel|BRC4)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_104014_c2_havoc_c2_framework {
+  meta:
+    rule_id         = "GS-104014"
+    author          = "HuntingThreats"
+    description     = "Havoc C2 Demon agent process or port pattern detected"
+    mitre_tactic    = "Command and Control"
+    mitre_technique = "T1071.001"
+    severity        = "CRITICAL"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.command_line, `(?i)(havoc|demon\.exe|havocui)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_104015_c2_ngrok_tunnel {
+  meta:
+    rule_id         = "GS-104015"
+    author          = "HuntingThreats"
+    description     = "Ngrok or similar tunnel tool — exposing internal service to internet"
+    mitre_tactic    = "Command and Control"
+    mitre_technique = "T1572"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.file.full_path, `(?i)\\(ngrok|frp|chisel|ligolo)\.exe$`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_104016_c2_ssh_tunnel_spawn {
+  meta:
+    rule_id         = "GS-104016"
+    author          = "HuntingThreats"
+    description     = "SSH with -R or -L tunnel flags — reverse or local port forwarding for C2"
+    mitre_tactic    = "Command and Control"
+    mitre_technique = "T1572"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.file.full_path, `(?i)\\ssh\.exe$`)
+    re.regex($e.target.process.command_line, `(?i)(\s-R\s|\s-L\s|-D\s)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_104017_c2_plink_tunnel {
+  meta:
+    rule_id         = "GS-104017"
+    author          = "HuntingThreats"
+    description     = "Plink.exe with -R or -L — PuTTY link tunnel for C2 pivoting"
+    mitre_tactic    = "Command and Control"
+    mitre_technique = "T1572"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.file.full_path, `(?i)\\plink\.exe$`)
+    re.regex($e.target.process.command_line, `(?i)(-R|-L|-N)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_104018_c2_cloudflare_bypass_domain {
+  meta:
+    rule_id         = "GS-104018"
+    author          = "HuntingThreats"
+    description     = "Connection via known C2-hosting Cloudflare workers domain pattern"
+    mitre_tactic    = "Command and Control"
+    mitre_technique = "T1102"
+    severity        = "MEDIUM"
+    confidence      = "MEDIUM"
+
+  events:
+    $e.metadata.event_type = "NETWORK_DNS"
+    re.regex($e.network.dns.questions.name, `(?i)(\.workers\.dev|\.pages\.dev|\.trycloudflare\.com)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_104019_c2_discord_webhook_abuse {
+  meta:
+    rule_id         = "GS-104019"
+    author          = "HuntingThreats"
+    description     = "Non-browser process connecting to Discord webhook — Discord C2 channel"
+    mitre_tactic    = "Command and Control"
+    mitre_technique = "T1102"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "NETWORK_DNS"
+    re.regex($e.network.dns.questions.name, `(?i)discord(app)?\.com`)
+    re.regex($e.principal.process.file.full_path, `(?i)\\(powershell|cmd|wscript|rundll32|mshta)\.exe$`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_104020_c2_telegram_bot_api {
+  meta:
+    rule_id         = "GS-104020"
+    author          = "HuntingThreats"
+    description     = "Non-browser calling Telegram Bot API — Telegram C2 command channel"
+    mitre_tactic    = "Command and Control"
+    mitre_technique = "T1102"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "NETWORK_DNS"
+    re.regex($e.network.dns.questions.name, `(?i)api\.telegram\.org`)
+    re.regex($e.principal.process.file.full_path, `(?i)\\(powershell|python|cmd|wscript)\.exe$`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_104021_c2_pastebin_retrieval {
+  meta:
+    rule_id         = "GS-104021"
+    author          = "HuntingThreats"
+    description     = "Process downloading from pastebin.com or similar paste site — C2 payload retrieval"
+    mitre_tactic    = "Command and Control"
+    mitre_technique = "T1102.002"
+    severity        = "HIGH"
+    confidence      = "MEDIUM"
+
+  events:
+    $e.metadata.event_type = "NETWORK_DNS"
+    re.regex($e.network.dns.questions.name, `(?i)(pastebin\.com|paste\.ee|hastebin\.com|ghostbin\.co)`)
+    re.regex($e.principal.process.file.full_path, `(?i)\\(powershell|cmd|wscript|cscript|mshta)\.exe$`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_104022_c2_icmp_tunneling {
+  meta:
+    rule_id         = "GS-104022"
+    author          = "HuntingThreats"
+    description     = "ICMP tunneling tool — ptunnel or icmptunnel process detected"
+    mitre_tactic    = "Command and Control"
+    mitre_technique = "T1095"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.command_line, `(?i)(ptunnel|icmptunnel|icmp-tunnel|ping-tunnel)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_104023_c2_rdp_over_non_standard_port {
+  meta:
+    rule_id         = "GS-104023"
+    author          = "HuntingThreats"
+    description     = "RDP connection on non-standard port (not 3389) — RDP port change for evasion"
+    mitre_tactic    = "Command and Control"
+    mitre_technique = "T1571"
+    severity        = "MEDIUM"
+    confidence      = "MEDIUM"
+
+  events:
+    $e.metadata.event_type = "NETWORK_CONNECTION"
+    $e.network.application_protocol = "RDP"
+    NOT $e.target.port = 3389
+
+  condition:
+    $e
+}
+
+rule ht_gs_104024_c2_lolbin_outbound_curl {
+  meta:
+    rule_id         = "GS-104024"
+    author          = "HuntingThreats"
+    description     = "Curl.exe outbound POST to non-corporate domain — payload upload or C2 check-in"
+    mitre_tactic    = "Command and Control"
+    mitre_technique = "T1071.001"
+    severity        = "HIGH"
+    confidence      = "MEDIUM"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.file.full_path, `(?i)\\curl\.exe$`)
+    re.regex($e.target.process.command_line, `(?i)(-X\s+POST|-d\s+|-F\s+)`)
+    NOT $e.target.process.command_line = /localhost|127\.0\.0\.1|10\.|192\.168\./
+
+  condition:
+    $e
+}
+
+rule ht_gs_104025_c2_certutil_download {
+  meta:
+    rule_id         = "GS-104025"
+    author          = "HuntingThreats"
+    description     = "Certutil -urlcache downloading from internet — C2 stage download"
+    mitre_tactic    = "Command and Control"
+    mitre_technique = "T1105"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.file.full_path, `(?i)\\certutil\.exe$`)
+    re.regex($e.target.process.command_line, `(?i)-urlcache`)
+    re.regex($e.target.process.command_line, `(?i)http`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_104026_c2_bitsadmin_callback {
+  meta:
+    rule_id         = "GS-104026"
+    author          = "HuntingThreats"
+    description     = "BITSAdmin job downloading from external URL — BITS C2 callback"
+    mitre_tactic    = "Command and Control"
+    mitre_technique = "T1197"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.file.full_path, `(?i)\\bitsadmin\.exe$`)
+    re.regex($e.target.process.command_line, `(?i)(/transfer|/download)`)
+    re.regex($e.target.process.command_line, `(?i)https?://`)
+    NOT $e.target.process.command_line = /192\.168\.|10\.|172\.1[6-9]\.|172\.2[0-9]\.|172\.3[01]\./
+
+  condition:
+    $e
+}
+
+rule ht_gs_104027_c2_gh0st_rat_port {
+  meta:
+    rule_id         = "GS-104027"
+    author          = "HuntingThreats"
+    description     = "Outbound TCP to port 9090 or 1234 — Gh0st RAT or common RAT ports"
+    mitre_tactic    = "Command and Control"
+    mitre_technique = "T1095"
+    severity        = "HIGH"
+    confidence      = "MEDIUM"
+
+  events:
+    $e.metadata.event_type = "NETWORK_CONNECTION"
+    $e.target.port in [9090, 1234, 1604]
+    NOT $e.target.ip in cidr "10.0.0.0/8"
+    NOT $e.target.ip in cidr "192.168.0.0/16"
+    NOT $e.target.ip in cidr "172.16.0.0/12"
+
+  condition:
+    $e
+}
+
+rule ht_gs_104028_c2_teamviewer_anydesk_unusual {
+  meta:
+    rule_id         = "GS-104028"
+    author          = "HuntingThreats"
+    description     = "Remote access tool (TeamViewer/AnyDesk) spawned by Office or scripting host — malicious install"
+    mitre_tactic    = "Command and Control"
+    mitre_technique = "T1219"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.file.full_path, `(?i)\\(teamviewer|anydesk|screenconnect|zoho_assist|logmein|ultraviewer)`)
+    re.regex($e.principal.process.file.full_path, `(?i)\\(winword|excel|powerpnt|cmd|powershell|wscript)\.exe$`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_104029_c2_websocket_tool {
+  meta:
+    rule_id         = "GS-104029"
+    author          = "HuntingThreats"
+    description     = "WebSocket-based C2 tool — wssh or websocket-tunnel process"
+    mitre_tactic    = "Command and Control"
+    mitre_technique = "T1095"
+    severity        = "HIGH"
+    confidence      = "MEDIUM"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.command_line, `(?i)(wssh|websocket|ws://)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_104030_c2_github_raw_download {
+  meta:
+    rule_id         = "GS-104030"
+    author          = "HuntingThreats"
+    description     = "Script downloading from raw.githubusercontent.com — C2 payload from GitHub"
+    mitre_tactic    = "Command and Control"
+    mitre_technique = "T1102.002"
+    severity        = "HIGH"
+    confidence      = "MEDIUM"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.command_line, `(?i)raw\.githubusercontent\.com`)
+    re.regex($e.target.process.file.full_path, `(?i)\\(powershell|cmd|curl|wscript|mshta)\.exe$`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_104031_c2_powershell_web_beacon {
+  meta:
+    rule_id         = "GS-104031"
+    author          = "HuntingThreats"
+    description     = "PowerShell periodic web request in loop — PS C2 beacon pattern"
+    mitre_tactic    = "Command and Control"
+    mitre_technique = "T1071.001"
+    severity        = "HIGH"
+    confidence      = "MEDIUM"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.command_line, `(?i)(while.*invoke-webrequest|start-sleep.*invoke-webrequest|webclient.*downloadstring.*while)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_104032_c2_unusually_large_dns_txt {
+  meta:
+    rule_id         = "GS-104032"
+    author          = "HuntingThreats"
+    description     = "Large DNS TXT record response — DNS TXT record C2 channel"
+    mitre_tactic    = "Command and Control"
+    mitre_technique = "T1071.004"
+    severity        = "HIGH"
+    confidence      = "MEDIUM"
+
+  events:
+    $e.metadata.event_type = "NETWORK_DNS"
+    $e.network.dns.response_code = 0
+    re.regex($e.network.dns.questions.name, `(?i)\.`)
+
+  match:
+    $e.principal.hostname over 1m
+
+  condition:
+    #e > 50
+}
+
+rule ht_gs_104033_c2_empire_checkin_uri {
+  meta:
+    rule_id         = "GS-104033"
+    author          = "HuntingThreats"
+    description     = "Empire C2 default check-in URI patterns — /index.asp /login/process.php"
+    mitre_tactic    = "Command and Control"
+    mitre_technique = "T1071.001"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "NETWORK_CONNECTION"
+    re.regex($e.network.http.url, `(?i)(/index\.asp|/login/process\.php|/admin/get\.php|/news\.php|/admin/view\.php)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_104034_c2_lateral_smb_external {
+  meta:
+    rule_id         = "GS-104034"
+    author          = "HuntingThreats"
+    description     = "SMB (TCP 445) outbound to external IP — C2 via SMB or exfil via file share"
+    mitre_tactic    = "Command and Control"
+    mitre_technique = "T1095"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "NETWORK_CONNECTION"
+    $e.target.port = 445
+    NOT $e.target.ip in cidr "10.0.0.0/8"
+    NOT $e.target.ip in cidr "192.168.0.0/16"
+    NOT $e.target.ip in cidr "172.16.0.0/12"
+    NOT $e.target.ip in cidr "127.0.0.0/8"
+
+  condition:
+    $e
+}
+
+rule ht_gs_104035_c2_abnormal_tls_sni {
+  meta:
+    rule_id         = "GS-104035"
+    author          = "HuntingThreats"
+    description     = "TLS SNI with IP address instead of hostname — TLS fingerprint evasion"
+    mitre_tactic    = "Command and Control"
+    mitre_technique = "T1071.001"
+    severity        = "MEDIUM"
+    confidence      = "MEDIUM"
+
+  events:
+    $e.metadata.event_type = "NETWORK_CONNECTION"
+    $e.target.port in [443, 8443]
+    re.regex($e.network.tls.client.server_name, `^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$`)
+
+  condition:
+    $e
+}

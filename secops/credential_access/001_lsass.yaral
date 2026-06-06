@@ -1,0 +1,661 @@
+// ============================================================
+// HuntingThreats — Google SecOps YARA-L 2.0 Hunt Rules
+// Category : Credential Access — LSASS / Kerberos / Token Theft (T1003, T1558, T1550)
+// Batch    : 07 / Credential Access
+// Rules    : GS-103001 – GS-103035
+// Platform : Google SecOps / Chronicle SIEM
+// ============================================================
+
+rule ht_gs_103001_lsass_procdump_access {
+  meta:
+    rule_id         = "GS-103001"
+    author          = "HuntingThreats"
+    description     = "Procdump targeting lsass.exe — credential dump via Sysinternals tool"
+    mitre_tactic    = "Credential Access"
+    mitre_technique = "T1003.001"
+    severity        = "CRITICAL"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.file.full_path, `(?i)\\procdump(64)?\.exe$`)
+    re.regex($e.target.process.command_line, `(?i)lsass`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_103002_lsass_mimikatz_sekurlsa {
+  meta:
+    rule_id         = "GS-103002"
+    author          = "HuntingThreats"
+    description     = "Mimikatz sekurlsa or lsadump keyword in command line — credential tool"
+    mitre_tactic    = "Credential Access"
+    mitre_technique = "T1003.001"
+    severity        = "CRITICAL"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.command_line, `(?i)(sekurlsa|lsadump|privilege::debug|token::elevate)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_103003_lsass_task_manager_dump {
+  meta:
+    rule_id         = "GS-103003"
+    author          = "HuntingThreats"
+    description     = "Task Manager creating lsass dump — manual LSASS dump via UI"
+    mitre_tactic    = "Credential Access"
+    mitre_technique = "T1003.001"
+    severity        = "CRITICAL"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "FILE_CREATION"
+    re.regex($e.principal.process.file.full_path, `(?i)\\taskmgr\.exe$`)
+    re.regex($e.target.file.full_path, `(?i)lsass.*\.dmp$`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_103004_lsass_dump_file_creation {
+  meta:
+    rule_id         = "GS-103004"
+    author          = "HuntingThreats"
+    description     = "LSASS dump file created on disk — any process writing lsass.dmp"
+    mitre_tactic    = "Credential Access"
+    mitre_technique = "T1003.001"
+    severity        = "CRITICAL"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "FILE_CREATION"
+    re.regex($e.target.file.full_path, `(?i)(lsass.*\.dmp|lsass.*\.zip|lsass.*\.bin)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_103005_lsass_comsvcs_minidump {
+  meta:
+    rule_id         = "GS-103005"
+    author          = "HuntingThreats"
+    description     = "Comsvcs.dll MiniDump via rundll32 — LOLBin LSASS dump technique"
+    mitre_tactic    = "Credential Access"
+    mitre_technique = "T1003.001"
+    severity        = "CRITICAL"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.file.full_path, `(?i)\\rundll32\.exe$`)
+    re.regex($e.target.process.command_line, `(?i)comsvcs`)
+    re.regex($e.target.process.command_line, `(?i)(minidump|MiniDump)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_103006_sam_hive_access {
+  meta:
+    rule_id         = "GS-103006"
+    author          = "HuntingThreats"
+    description     = "SAM hive file read by non-system process — local credential dump"
+    mitre_tactic    = "Credential Access"
+    mitre_technique = "T1003.002"
+    severity        = "CRITICAL"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "FILE_CREATION"
+    re.regex($e.target.file.full_path, `(?i)\\Windows\\System32\\config\\(SAM|SYSTEM|SECURITY)`)
+    NOT re.regex($e.principal.process.file.full_path, `(?i)\\(System|lsass|smss|winlogon)\.exe$`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_103007_ntds_dit_access {
+  meta:
+    rule_id         = "GS-103007"
+    author          = "HuntingThreats"
+    description     = "NTDS.dit file accessed or copied — Active Directory credential dump"
+    mitre_tactic    = "Credential Access"
+    mitre_technique = "T1003.003"
+    severity        = "CRITICAL"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "FILE_CREATION"
+    re.regex($e.target.file.full_path, `(?i)ntds\.dit`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_103008_kerberoasting_spn_enum {
+  meta:
+    rule_id         = "GS-103008"
+    author          = "HuntingThreats"
+    description     = "Kerberoasting SPN enumeration — GetUserSpns.py or setspn pattern"
+    mitre_tactic    = "Credential Access"
+    mitre_technique = "T1558.003"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.command_line, `(?i)(getuserspns|setspn\s+-q|rubeus\.exe\s+kerberoast|invoke-kerberoast)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_103009_as_rep_roasting {
+  meta:
+    rule_id         = "GS-103009"
+    author          = "HuntingThreats"
+    description     = "AS-REP Roasting — GetNPUsers or Rubeus asreproast pattern"
+    mitre_tactic    = "Credential Access"
+    mitre_technique = "T1558.004"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.command_line, `(?i)(getnpusers|asreproast|rubeus.*asreproast)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_103010_pass_the_hash_impacket {
+  meta:
+    rule_id         = "GS-103010"
+    author          = "HuntingThreats"
+    description     = "Pass-the-Hash via Impacket tools — wmiexec/smbexec with -hashes flag"
+    mitre_tactic    = "Lateral Movement"
+    mitre_technique = "T1550.002"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.command_line, `(?i)(wmiexec|smbexec|psexec\.py)`)
+    re.regex($e.target.process.command_line, `(?i)-hashes`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_103011_rubeus_all_commands {
+  meta:
+    rule_id         = "GS-103011"
+    author          = "HuntingThreats"
+    description     = "Rubeus.exe executing any Kerberos attack command"
+    mitre_tactic    = "Credential Access"
+    mitre_technique = "T1558"
+    severity        = "CRITICAL"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.file.full_path, `(?i)\\rubeus\.exe$`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_103012_kerbrute_wordlist {
+  meta:
+    rule_id         = "GS-103012"
+    author          = "HuntingThreats"
+    description     = "Kerbrute password spray or brute force against Kerberos"
+    mitre_tactic    = "Credential Access"
+    mitre_technique = "T1110.003"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.file.full_path, `(?i)\\kerbrute`)
+    re.regex($e.target.process.command_line, `(?i)(userenum|bruteuser|passwordspray|bruteforce)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_103013_credential_file_access_chrome {
+  meta:
+    rule_id         = "GS-103013"
+    author          = "HuntingThreats"
+    description     = "Chrome Login Data or Cookies accessed by non-browser process — browser credential theft"
+    mitre_tactic    = "Credential Access"
+    mitre_technique = "T1555.003"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "FILE_CREATION"
+    re.regex($e.target.file.full_path, `(?i)\\Google\\Chrome\\User Data\\.*\\(Login Data|Cookies)`)
+    NOT re.regex($e.principal.process.file.full_path, `(?i)\\(chrome|chromium|brave)\.exe$`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_103014_credential_file_access_firefox {
+  meta:
+    rule_id         = "GS-103014"
+    author          = "HuntingThreats"
+    description     = "Firefox logins.json or key4.db accessed by non-browser process — Firefox credential theft"
+    mitre_tactic    = "Credential Access"
+    mitre_technique = "T1555.003"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "FILE_CREATION"
+    re.regex($e.target.file.full_path, `(?i)\\Mozilla\\Firefox\\.*\\(logins\.json|key4\.db|signons\.sqlite)`)
+    NOT re.regex($e.principal.process.file.full_path, `(?i)\\firefox\.exe$`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_103015_windows_credential_manager {
+  meta:
+    rule_id         = "GS-103015"
+    author          = "HuntingThreats"
+    description     = "Credential Manager vault accessed by non-system tool — vault credential dump"
+    mitre_tactic    = "Credential Access"
+    mitre_technique = "T1555.004"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.command_line, `(?i)(cmdkey|vaultcmd|credential manager|dpapi)`)
+    re.regex($e.target.process.command_line, `(?i)(\/list|\/delete|\/export|unprotect)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_103016_dpapi_masterkey_access {
+  meta:
+    rule_id         = "GS-103016"
+    author          = "HuntingThreats"
+    description     = "DPAPI MasterKey file accessed by non-system process — DPAPI secret theft"
+    mitre_tactic    = "Credential Access"
+    mitre_technique = "T1555"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "FILE_CREATION"
+    re.regex($e.target.file.full_path, `(?i)\\Microsoft\\Protect\\`)
+    NOT re.regex($e.principal.process.file.full_path, `(?i)\\(lsass|svchost|System)\.exe$`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_103017_keylogger_file_output {
+  meta:
+    rule_id         = "GS-103017"
+    author          = "HuntingThreats"
+    description     = "File write with keylog-style name in Temp path — keylogger output staging"
+    mitre_tactic    = "Collection"
+    mitre_technique = "T1056.001"
+    severity        = "HIGH"
+    confidence      = "MEDIUM"
+
+  events:
+    $e.metadata.event_type = "FILE_CREATION"
+    re.regex($e.target.file.full_path, `(?i)(keylog|kl_|keystroke|keystrk)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_103018_lsass_read_handle_sysmon {
+  meta:
+    rule_id         = "GS-103018"
+    author          = "HuntingThreats"
+    description     = "Process opened handle to lsass.exe (Sysmon EID 10) — LSASS access for credential dump"
+    mitre_tactic    = "Credential Access"
+    mitre_technique = "T1003.001"
+    severity        = "CRITICAL"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.command_line, `(?i)lsass`)
+    re.regex($e.target.process.command_line, `(?i)(0x1fffff|0x1010|GrantedAccess)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_103019_shadow_credentials_key_add {
+  meta:
+    rule_id         = "GS-103019"
+    author          = "HuntingThreats"
+    description     = "Shadow Credentials — msDS-KeyCredentialLink attribute modified"
+    mitre_tactic    = "Persistence"
+    mitre_technique = "T1556.006"
+    severity        = "CRITICAL"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.command_line, `(?i)(msDS-KeyCredentialLink|shadow\s+credentials|whisker\.exe)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_103020_bloodhound_sharphound {
+  meta:
+    rule_id         = "GS-103020"
+    author          = "HuntingThreats"
+    description     = "SharpHound or BloodHound collector executing — AD recon for attack path"
+    mitre_tactic    = "Discovery"
+    mitre_technique = "T1087.002"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.command_line, `(?i)(sharphound|bloodhound|invoke-bloodhound|-collectionmethod)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_103021_secretsdump_remote {
+  meta:
+    rule_id         = "GS-103021"
+    author          = "HuntingThreats"
+    description     = "Impacket secretsdump or similar remote credential dump tool"
+    mitre_tactic    = "Credential Access"
+    mitre_technique = "T1003.002"
+    severity        = "CRITICAL"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.command_line, `(?i)(secretsdump|cme\s+smb.*-sam|cme\s+smb.*-lsa|crackmapexec.*dump)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_103022_password_spray_threshold {
+  meta:
+    rule_id         = "GS-103022"
+    author          = "HuntingThreats"
+    description     = "Password spray — 10+ failed logins from single source in 5 minutes"
+    mitre_tactic    = "Credential Access"
+    mitre_technique = "T1110.003"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "USER_LOGIN"
+    $e.extensions.auth.auth_details = "FAILED"
+
+  match:
+    $e.principal.ip over 5m
+
+  condition:
+    #e > 10
+}
+
+rule ht_gs_103023_brute_force_success_after_failures {
+  meta:
+    rule_id         = "GS-103023"
+    author          = "HuntingThreats"
+    description     = "Successful login after 5+ failures from same IP — brute force success"
+    mitre_tactic    = "Credential Access"
+    mitre_technique = "T1110.001"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e1.metadata.event_type = "USER_LOGIN"
+    $e1.extensions.auth.auth_details = "FAILED"
+    $e2.metadata.event_type = "USER_LOGIN"
+    $e2.extensions.auth.auth_details = "SUCCESS"
+    $e1.principal.ip = $e2.principal.ip
+
+  match:
+    $e1.principal.ip over 10m
+
+  condition:
+    #e1 > 5 and $e2
+}
+
+rule ht_gs_103024_wce_tool_detected {
+  meta:
+    rule_id         = "GS-103024"
+    author          = "HuntingThreats"
+    description     = "WCE (Windows Credential Editor) binary or parameters detected"
+    mitre_tactic    = "Credential Access"
+    mitre_technique = "T1003.001"
+    severity        = "CRITICAL"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.command_line, `(?i)(wce\.exe|wce64\.exe|-w\s+-o|wce\s+-l)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_103025_fgdump_tool_detected {
+  meta:
+    rule_id         = "GS-103025"
+    author          = "HuntingThreats"
+    description     = "fgdump credential dumper binary detected — legacy credential dump tool"
+    mitre_tactic    = "Credential Access"
+    mitre_technique = "T1003.001"
+    severity        = "CRITICAL"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.file.full_path, `(?i)fgdump`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_103026_credential_access_lazeagne {
+  meta:
+    rule_id         = "GS-103026"
+    author          = "HuntingThreats"
+    description     = "LaZagne credential recovery tool executed — multi-source password harvester"
+    mitre_tactic    = "Credential Access"
+    mitre_technique = "T1555"
+    severity        = "CRITICAL"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.command_line, `(?i)(lazagne|laZagne)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_103027_lsaprotect_patch {
+  meta:
+    rule_id         = "GS-103027"
+    author          = "HuntingThreats"
+    description     = "LSA RunAsPPL registry disabled — LSASS protection removal"
+    mitre_tactic    = "Defense Evasion"
+    mitre_technique = "T1562.010"
+    severity        = "CRITICAL"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "REGISTRY_MODIFICATION"
+    re.regex($e.target.registry.registry_key, `(?i)\\lsa\\RunAsPPL`)
+    $e.target.registry.registry_value_data = "0"
+
+  condition:
+    $e
+}
+
+rule ht_gs_103028_vault_enumerate_ps {
+  meta:
+    rule_id         = "GS-103028"
+    author          = "HuntingThreats"
+    description     = "PowerShell enumerating Windows Credential Vault — Get-StoredCredential or CredEnumerate"
+    mitre_tactic    = "Credential Access"
+    mitre_technique = "T1555.004"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.command_line, `(?i)(get-storedcredential|credenumerate|credRead)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_103029_enpass_bitwarden_db_access {
+  meta:
+    rule_id         = "GS-103029"
+    author          = "HuntingThreats"
+    description     = "Password manager database file accessed by non-manager process — vault theft"
+    mitre_tactic    = "Credential Access"
+    mitre_technique = "T1555"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "FILE_CREATION"
+    re.regex($e.target.file.full_path, `(?i)(keepass.*\.kdbx|bitwarden.*\.db|enpass.*\.enpassdb|1password.*\.agilekeychain)`)
+    NOT re.regex($e.principal.process.file.full_path, `(?i)(keepass|bitwarden|enpass|1password|dashlane)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_103030_dcsync_attack {
+  meta:
+    rule_id         = "GS-103030"
+    author          = "HuntingThreats"
+    description     = "DCSync — lsadump::dcsync or DS-Replication-Get-Changes privilege abuse"
+    mitre_tactic    = "Credential Access"
+    mitre_technique = "T1003.006"
+    severity        = "CRITICAL"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.command_line, `(?i)(dcsync|lsadump::dcs|drsuapi|DS-Replication-Get-Changes)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_103031_golden_ticket_creation {
+  meta:
+    rule_id         = "GS-103031"
+    author          = "HuntingThreats"
+    description     = "Mimikatz kerberos::golden or Rubeus golden — Golden Ticket creation"
+    mitre_tactic    = "Credential Access"
+    mitre_technique = "T1558.001"
+    severity        = "CRITICAL"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.command_line, `(?i)(kerberos::golden|kerberos::silver|rubeus.*golden|rubeus.*silver)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_103032_overpass_the_hash {
+  meta:
+    rule_id         = "GS-103032"
+    author          = "HuntingThreats"
+    description     = "Overpass-the-Hash — Invoke-Mimikatz or Rubeus with /rc4 flag for TGT request"
+    mitre_tactic    = "Lateral Movement"
+    mitre_technique = "T1550.002"
+    severity        = "CRITICAL"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.command_line, `(?i)(rubeus.*asktgt.*\/rc4|rubeus.*asktgt.*\/aes256|overpass.*hash)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_103033_cloudflare_warp_cred {
+  meta:
+    rule_id         = "GS-103033"
+    author          = "HuntingThreats"
+    description     = "Cloud credential config file accessed by unexpected process — cloud cred theft"
+    mitre_tactic    = "Credential Access"
+    mitre_technique = "T1552.005"
+    severity        = "HIGH"
+    confidence      = "MEDIUM"
+
+  events:
+    $e.metadata.event_type = "FILE_CREATION"
+    re.regex($e.target.file.full_path, `(?i)(\.aws\\credentials|\.azure\\.*tokens|gcloud\\.*credentials)`)
+    NOT re.regex($e.principal.process.file.full_path, `(?i)(aws|az|gcloud)\.exe$`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_103034_credential_access_seatbelt {
+  meta:
+    rule_id         = "GS-103034"
+    author          = "HuntingThreats"
+    description     = "Seatbelt.exe post-exploitation enumeration tool detected"
+    mitre_tactic    = "Discovery"
+    mitre_technique = "T1082"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.file.full_path, `(?i)\\seatbelt\.exe$`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_103035_ntml_relay_responder {
+  meta:
+    rule_id         = "GS-103035"
+    author          = "HuntingThreats"
+    description     = "NTLM relay tool process detected — Responder or ntlmrelayx pattern"
+    mitre_tactic    = "Credential Access"
+    mitre_technique = "T1557.001"
+    severity        = "CRITICAL"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.command_line, `(?i)(responder\.py|ntlmrelayx|ntlm-relay|inveigh)`)
+
+  condition:
+    $e
+}

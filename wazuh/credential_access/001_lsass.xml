@@ -1,0 +1,426 @@
+<!--
+  HuntingThreats — Wazuh Hunt Rules
+  Category:  Credential Access — LSASS & Credential Dumping (T1003)
+  Batch:     1 / Credential Access
+  Rules:     103001 – 103035
+  Platform:  Wazuh 4.x
+  Sources:   Sysmon Event 10 (Process Access — LSASS)
+             Sysmon Event 1 (Process Creation — dump tools)
+             Sysmon Event 7 (Image Load — credential harvesting DLLs)
+             Sysmon Event 11 (File Create — dump file)
+             Windows Event 4688 (Process Creation)
+             Windows Event 4656/4663 (Handle/Object Access to LSASS)
+
+  T1003.001 — OS Credential Dumping: LSASS Memory
+  T1003.002 — SAM Database
+  T1003.003 — NTDS
+  T1003.004 — LSA Secrets
+  T1550.002 — Use Alternate Auth: Pass the Hash
+  T1558     — Steal or Forge Kerberos Tickets
+-->
+
+<group name="hunt_credential_access,lsass,windows,">
+
+  <!-- ── Sysmon 10: Process access to LSASS ────────────────────────────────── -->
+
+  <rule id="103001" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^10$</field>
+    <field name="win.eventdata.targetImage" type="pcre2">(?i)\\lsass\.exe$</field>
+    <description>Sysmon: process opened handle to LSASS — potential credential dumping (T1003.001)</description>
+    <mitre><id>T1003.001</id></mitre>
+    <group>credential_access,lsass_access,</group>
+  </rule>
+
+  <!-- ── LSASS access with PROCESS_VM_READ permission ─────────────────────── -->
+
+  <rule id="103002" level="14">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^10$</field>
+    <field name="win.eventdata.targetImage" type="pcre2">(?i)\\lsass\.exe$</field>
+    <field name="win.eventdata.grantedAccess" type="pcre2">0x1010|0x1410|0x143a|0x1438|0x1f3fff|0x001f0fff</field>
+    <description>Sysmon: LSASS opened with PROCESS_VM_READ access rights — memory read for credential dumping (T1003.001)</description>
+    <mitre><id>T1003.001</id></mitre>
+    <group>credential_access,lsass_access,vm_read,critical,</group>
+  </rule>
+
+  <!-- ── LSASS access from non-system process ─────────────────────────────── -->
+
+  <rule id="103003" level="14">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^10$</field>
+    <field name="win.eventdata.targetImage" type="pcre2">(?i)\\lsass\.exe$</field>
+    <field name="win.eventdata.sourceImage" type="pcre2">(?i)(?!.*\\(lsass|svchost|werfault|taskmgr|csrss|smss|wininit|services|MsMpEng|NisSrv|SenseCncProxy)\.exe)</field>
+    <description>Sysmon: LSASS accessed by unexpected process — non-standard process reading LSASS (T1003.001)</description>
+    <mitre><id>T1003.001</id></mitre>
+    <group>credential_access,lsass_access,suspicious_source,critical,</group>
+  </rule>
+
+  <!-- ── ProcDump targeting LSASS ──────────────────────────────────────────── -->
+
+  <rule id="103004" level="14">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$|^4688$</field>
+    <field name="win.eventdata.image|win.eventdata.newProcessName" type="pcre2">(?i)\\procdump(64)?\.exe$</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?i)lsass</field>
+    <description>ProcDump: LSASS targeted for process dump — credential dumping tool detected (T1003.001)</description>
+    <mitre><id>T1003.001</id></mitre>
+    <group>credential_access,lsass_dump,procdump,critical,</group>
+  </rule>
+
+  <!-- ── rundll32 comsvcs.dll MiniDump (LSASS dump) ───────────────────────── -->
+
+  <rule id="103005" level="14">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$|^4688$</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?i)comsvcs(\.dll)?.*MiniDump|MiniDump.*lsass</field>
+    <description>rundll32: comsvcs.dll MiniDump called — built-in LSASS dump technique (T1003.001)</description>
+    <mitre><id>T1003.001</id></mitre>
+    <group>credential_access,lsass_dump,comsvcs,critical,</group>
+  </rule>
+
+  <!-- ── Mimikatz keywords in commandline ──────────────────────────────────── -->
+
+  <rule id="103006" level="14">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$|^4688$|^4103$|^4104$</field>
+    <field name="win.eventdata.commandLine|win.eventdata.scriptBlockText" type="pcre2">(?i)(sekurlsa::|lsadump::|kerberos::|crypto::|privilege::debug|mimikatz)</field>
+    <description>Mimikatz: credential dumping commands detected in process arguments or script (T1003)</description>
+    <mitre><id>T1003</id></mitre>
+    <group>credential_access,mimikatz,critical,</group>
+  </rule>
+
+  <!-- ── Mimikatz DLL load (wdigest / sspicli / sekurlsa) ─────────────────── -->
+
+  <rule id="103007" level="14">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^7$</field>
+    <field name="win.eventdata.imageLoaded" type="pcre2">(?i)(wdigest\.dll|sekurlsa\.dll|kerberos\.dll)</field>
+    <field name="win.eventdata.image" type="pcre2">(?i)(?!.*\\(lsass|svchost|MsMpEng|NisSrv)\.exe)</field>
+    <description>Sysmon: credential-related DLL loaded by non-LSASS process — possible credential harvesting (T1003.001)</description>
+    <mitre><id>T1003.001</id></mitre>
+    <group>credential_access,dll_load,critical,</group>
+  </rule>
+
+  <!-- ── SAM database access (reg.exe) ─────────────────────────────────────── -->
+
+  <rule id="103008" level="14">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$|^4688$</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?i)reg\s+save.*(hklm\\\\sam|hklm\\\\system|hklm\\\\security)</field>
+    <description>reg.exe: SAM/SYSTEM/SECURITY hive saved to file — credential extraction via registry hive dump (T1003.002)</description>
+    <mitre><id>T1003.002</id></mitre>
+    <group>credential_access,sam_dump,critical,</group>
+  </rule>
+
+  <!-- ── NTDS.dit access / copy ────────────────────────────────────────────── -->
+
+  <rule id="103009" level="14">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$|^4688$|^11$</field>
+    <field name="win.eventdata.commandLine|win.eventdata.targetFilename" type="pcre2">(?i)ntds\.dit</field>
+    <description>NTDS.dit accessed or copied — Active Directory credential database targeted (T1003.003)</description>
+    <mitre><id>T1003.003</id></mitre>
+    <group>credential_access,ntds,critical,</group>
+  </rule>
+
+  <!-- ── ntdsutil IFM (ntds extraction) ────────────────────────────────────── -->
+
+  <rule id="103010" level="14">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$|^4688$</field>
+    <field name="win.eventdata.image|win.eventdata.newProcessName" type="pcre2">(?i)\\ntdsutil\.exe$</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?i)(ifm|install from media|create full|activate instance ntds)</field>
+    <description>ntdsutil.exe: IFM snapshot creation — legitimate tool abused for NTDS credential extraction (T1003.003)</description>
+    <mitre><id>T1003.003</id></mitre>
+    <group>credential_access,ntds,ntdsutil,critical,</group>
+  </rule>
+
+  <!-- ── vssadmin / WMI shadow copy for NTDS access ───────────────────────── -->
+
+  <rule id="103011" level="14">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$|^4688$</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?i)(vssadmin|wmic.*shadowcopy|wbadmin).*(create|list|delete)</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?i)(ntds|system volume information)</field>
+    <description>Volume Shadow Copy operation targeting NTDS path — credential extraction via VSS (T1003.003)</description>
+    <mitre><id>T1003.003</id></mitre>
+    <group>credential_access,ntds,shadow_copy,critical,</group>
+  </rule>
+
+  <!-- ── LSA secrets access (reg.exe security) ─────────────────────────────── -->
+
+  <rule id="103012" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$|^4688$</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?i)reg\s+(save|export|query).*(hklm\\\\security|lsa\\\\secrets)</field>
+    <description>reg.exe: LSA Secrets hive queried or saved — cached credential extraction (T1003.004)</description>
+    <mitre><id>T1003.004</id></mitre>
+    <group>credential_access,lsa_secrets,high_confidence,</group>
+  </rule>
+
+  <!-- ── Credential dump file created (.dmp extension) ────────────────────── -->
+
+  <rule id="103013" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^11$</field>
+    <field name="win.eventdata.targetFilename" type="pcre2">(?i)lsass.*\.dmp|lsadump|creds\.dmp|memory\.dmp|process\.dmp</field>
+    <description>Sysmon: LSASS/credential dump file created — memory dump artifact on disk (T1003.001)</description>
+    <mitre><id>T1003.001</id></mitre>
+    <group>credential_access,dump_file,high_confidence,</group>
+  </rule>
+
+  <!-- ── Invoke-Mimikatz / Invoke-CredentialDump (PS) ──────────────────────── -->
+
+  <rule id="103014" level="14">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^4103$|^4104$</field>
+    <field name="win.eventdata.scriptBlockText" type="pcre2">(?i)(Invoke-Mimikatz|Invoke-CredentialDump|Get-GPPPassword|Invoke-DCSync|Get-PassHashes|Invoke-TokenManipulation)</field>
+    <description>PowerShell: known credential dumping function invoked via script block (T1003)</description>
+    <mitre><id>T1003</id></mitre>
+    <group>credential_access,powershell,mimikatz,critical,</group>
+  </rule>
+
+  <!-- ── DCSync via PowerShell (DRS replication request) ──────────────────── -->
+
+  <rule id="103015" level="14">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^4103$|^4104$</field>
+    <field name="win.eventdata.scriptBlockText" type="pcre2">(?i)(DCSync|drsuapi|GetNCChanges|DRSGetNCChanges|DS-Replication-Get-Changes)</field>
+    <description>PowerShell: DCSync replication API called — AD credential extraction without LSASS access (T1003.006)</description>
+    <mitre><id>T1003.006</id></mitre>
+    <group>credential_access,dcsync,critical,</group>
+  </rule>
+
+  <!-- ── Windows Security Event 4625 (failed logon, brute force) ───────────── -->
+
+  <rule id="103016" level="10">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^4625$</field>
+    <field name="win.eventdata.logonType" type="pcre2">^3$|^10$</field>
+    <description>Windows Security: network or remote logon failed (Event 4625) — possible brute force or password spray (T1110)</description>
+    <mitre><id>T1110</id></mitre>
+    <group>credential_access,brute_force,logon_failure,</group>
+  </rule>
+
+  <!-- ── Multiple 4625 (bulk detection — requires threshold correlation) ────── -->
+
+  <rule id="103017" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^4625$</field>
+    <field name="win.eventdata.logonType" type="pcre2">^3$</field>
+    <same_field>win.eventdata.workstationName</same_field>
+    <frequency>5</frequency>
+    <timeframe>60</timeframe>
+    <description>Windows Security: 5+ failed network logons from same source in 60s — brute force attack pattern (T1110.003)</description>
+    <mitre><id>T1110.003</id></mitre>
+    <group>credential_access,brute_force,threshold,high_confidence,</group>
+  </rule>
+
+  <!-- ── Kerberoasting (SPN ticket request) — Event 4769 ───────────────────── -->
+
+  <rule id="103018" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^4769$</field>
+    <field name="win.eventdata.ticketEncryptionType" type="pcre2">^0x17$|^0x18$</field>
+    <field name="win.eventdata.ticketOptions" type="pcre2">^0x40810000$|^0x40800000$</field>
+    <description>Windows Security: Kerberos TGS with RC4 encryption requested — Kerberoasting pattern (T1558.003)</description>
+    <mitre><id>T1558.003</id></mitre>
+    <group>credential_access,kerberoasting,high_confidence,</group>
+  </rule>
+
+  <!-- ── AS-REP Roasting — Event 4768 with no preauth ─────────────────────── -->
+
+  <rule id="103019" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^4768$</field>
+    <field name="win.eventdata.preAuthType" type="pcre2">^0$</field>
+    <description>Windows Security: Kerberos AS-REQ without preauthentication — AS-REP Roasting attack (T1558.004)</description>
+    <mitre><id>T1558.004</id></mitre>
+    <group>credential_access,asrep_roasting,high_confidence,</group>
+  </rule>
+
+  <!-- ── Golden Ticket: forged TGT used ───────────────────────────────────── -->
+
+  <rule id="103020" level="14">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^4769$</field>
+    <field name="win.eventdata.clientAddress" type="pcre2">^::1$|^127\.0\.0\.1$</field>
+    <field name="win.eventdata.serviceName" type="pcre2">(?i)krbtgt</field>
+    <description>Windows Security: TGS ticket requested for krbtgt from localhost — possible Golden Ticket usage (T1558.001)</description>
+    <mitre><id>T1558.001</id></mitre>
+    <group>credential_access,golden_ticket,critical,</group>
+  </rule>
+
+  <!-- ── PassTheHash — Event 4624 with LM/NTLM + anonymous ────────────────── -->
+
+  <rule id="103021" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^4624$</field>
+    <field name="win.eventdata.logonType" type="pcre2">^3$</field>
+    <field name="win.eventdata.authenticationPackageName" type="pcre2">(?i)NTLM</field>
+    <field name="win.eventdata.keyLength" type="pcre2">^0$</field>
+    <description>Windows Security: network logon with NTLM and keyLength=0 — Pass-the-Hash pattern (T1550.002)</description>
+    <mitre><id>T1550.002</id></mitre>
+    <group>credential_access,pass_the_hash,high_confidence,</group>
+  </rule>
+
+  <!-- ── LaZagne (credential recovery tool) ────────────────────────────────── -->
+
+  <rule id="103022" level="14">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$|^4688$</field>
+    <field name="win.eventdata.image|win.eventdata.newProcessName" type="pcre2">(?i)(lazagne|laZagne)\.exe$</field>
+    <description>LaZagne: credential recovery tool executed — harvests passwords from installed applications (T1555)</description>
+    <mitre><id>T1555</id></mitre>
+    <group>credential_access,lazagne,critical,</group>
+  </rule>
+
+  <!-- ── Browser credential theft (PowerShell reading SQLite) ─────────────── -->
+
+  <rule id="103023" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^4103$|^4104$</field>
+    <field name="win.eventdata.scriptBlockText" type="pcre2">(?i)(Login Data|cookies\.sqlite|signons\.sqlite|key4\.db|logins\.json).*password</field>
+    <description>PowerShell: browser credential database accessed — browser password theft (T1555.003)</description>
+    <mitre><id>T1555.003</id></mitre>
+    <group>credential_access,browser_credentials,high_confidence,</group>
+  </rule>
+
+  <!-- ── Windows Credential Manager dump ───────────────────────────────────── -->
+
+  <rule id="103024" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$|^4688$|^4103$|^4104$</field>
+    <field name="win.eventdata.commandLine|win.eventdata.scriptBlockText" type="pcre2">(?i)(cmdkey\s+/list|vaultcmd\s+/listcreds|Get-StoredCredential|CredEnumerate)</field>
+    <description>Command: Windows Credential Manager enumerated — credential vault read (T1555.004)</description>
+    <mitre><id>T1555.004</id></mitre>
+    <group>credential_access,credential_manager,high_confidence,</group>
+  </rule>
+
+  <!-- ── SAM copy via shadow volume ─────────────────────────────────────────── -->
+
+  <rule id="103025" level="14">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$|^4688$</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?i)(HarddiskVolumeShadowCopy|\\?\\.\\GLOBALROOT).*(SAM|SECURITY|SYSTEM|ntds)</field>
+    <description>Command: SAM/SECURITY/NTDS accessed via shadow volume path — VSS-based credential extraction (T1003.002)</description>
+    <mitre><id>T1003.002</id></mitre>
+    <group>credential_access,sam_dump,vss,critical,</group>
+  </rule>
+
+  <!-- ── LSASS PPL bypass tools ─────────────────────────────────────────────── -->
+
+  <rule id="103026" level="14">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$|^4688$</field>
+    <field name="win.eventdata.image|win.eventdata.newProcessName" type="pcre2">(?i)(PPLdump|mimidrv|lsassunhooker|lsass-shtinkering|PPLKiller)</field>
+    <description>Known LSASS Protection bypass tool executed — PPL protection disabled for credential access (T1003.001)</description>
+    <mitre><id>T1003.001</id></mitre>
+    <group>credential_access,ppl_bypass,critical,</group>
+  </rule>
+
+  <!-- ── WDigest re-enable (plaintext creds in LSASS) ─────────────────────── -->
+
+  <rule id="103027" level="14">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^13$</field>
+    <field name="win.eventdata.targetObject" type="pcre2">(?i)\\WDigest\\UseLogonCredential</field>
+    <field name="win.eventdata.details" type="pcre2">^1$|DWORD.*1</field>
+    <description>Sysmon: WDigest UseLogonCredential enabled — cleartext passwords stored in LSASS memory (T1003.001)</description>
+    <mitre><id>T1003.001</id></mitre>
+    <group>credential_access,wdigest,critical,</group>
+  </rule>
+
+  <!-- ── Kerbrute / Rubeus execution ───────────────────────────────────────── -->
+
+  <rule id="103028" level="14">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$|^4688$</field>
+    <field name="win.eventdata.image|win.eventdata.newProcessName" type="pcre2">(?i)(rubeus|kerbrute)\.exe$</field>
+    <description>Rubeus/Kerbrute: Kerberos attack tool executed — AS-REP/Kerberoasting/ticket manipulation (T1558)</description>
+    <mitre><id>T1558</id></mitre>
+    <group>credential_access,rubeus,kerbrute,critical,</group>
+  </rule>
+
+  <!-- ── Impacket secretsdump pattern ──────────────────────────────────────── -->
+
+  <rule id="103029" level="14">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^4103$|^4104$</field>
+    <field name="win.eventdata.scriptBlockText" type="pcre2">(?i)(secretsdump|RemoteOperations|SAMRDump|NTDSHashes|LSASecrets)</field>
+    <description>PowerShell: Impacket secretsdump-like pattern detected — remote credential dumping (T1003)</description>
+    <mitre><id>T1003</id></mitre>
+    <group>credential_access,impacket,critical,</group>
+  </rule>
+
+  <!-- ── SSH key theft ──────────────────────────────────────────────────────── -->
+
+  <rule id="103030" level="10">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^11$</field>
+    <field name="win.eventdata.targetFilename" type="pcre2">(?i)(id_rsa|id_ed25519|id_ecdsa|id_dsa|known_hosts|\.ppk|\.pem)$</field>
+    <field name="win.eventdata.image" type="pcre2">(?i)(?!.*\\(ssh|putty|pageant|winscp)\.exe)</field>
+    <description>Sysmon: SSH private key file accessed by non-SSH process — SSH credential theft (T1552.004)</description>
+    <mitre><id>T1552.004</id></mitre>
+    <group>credential_access,ssh_keys,high_confidence,</group>
+  </rule>
+
+  <!-- ── Cleartext passwords in environment / files ────────────────────────── -->
+
+  <rule id="103031" level="10">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^4103$|^4104$</field>
+    <field name="win.eventdata.scriptBlockText" type="pcre2">(?i)(ConvertTo-SecureString.*AsPlainText|[Pp]assword\s*=\s*['"][^'"]{8,}['"]|net\s+use.*password:)</field>
+    <description>PowerShell: plaintext password found in script block — credential exposure in code (T1552.001)</description>
+    <mitre><id>T1552.001</id></mitre>
+    <group>credential_access,cleartext_password,</group>
+  </rule>
+
+  <!-- ── Windows Event 4648 (explicit credential use) ─────────────────────── -->
+
+  <rule id="103032" level="8">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^4648$</field>
+    <field name="win.eventdata.processName" type="pcre2">(?i)(?!.*\\(svchost|lsass|winlogon|services)\.exe)</field>
+    <description>Windows Security: explicit credentials used (runas/Event 4648) by non-system process — lateral movement indicator (T1550)</description>
+    <mitre><id>T1550</id></mitre>
+    <group>credential_access,explicit_creds,</group>
+  </rule>
+
+  <!-- ── LSASS dump to network share ───────────────────────────────────────── -->
+
+  <rule id="103033" level="14">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^11$</field>
+    <field name="win.eventdata.targetFilename" type="pcre2">(?i)^\\\\[0-9a-zA-Z].*\.(dmp|bin|dat)$</field>
+    <field name="win.eventdata.image" type="pcre2">(?i)(procdump|rundll32|lsass)</field>
+    <description>Sysmon: process dump written to network share — credential dump exfiltration (T1003.001)</description>
+    <mitre><id>T1003.001</id></mitre>
+    <group>credential_access,lsass_dump,exfiltration,critical,</group>
+  </rule>
+
+  <!-- ── Accessing DPAPI master keys ───────────────────────────────────────── -->
+
+  <rule id="103034" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^11$|^4663$</field>
+    <field name="win.eventdata.targetFilename|win.eventdata.objectName" type="pcre2">(?i)\\Microsoft\\Protect\\S-1-5-21.*\\[0-9a-fA-F]{8}</field>
+    <description>Process accessed DPAPI master key file — DPAPI credential decryption attempt (T1555)</description>
+    <mitre><id>T1555</id></mitre>
+    <group>credential_access,dpapi,high_confidence,</group>
+  </rule>
+
+  <!-- ── Task Manager creating LSASS dump (UI method) ─────────────────────── -->
+
+  <rule id="103035" level="14">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^11$</field>
+    <field name="win.eventdata.image" type="pcre2">(?i)\\taskmgr\.exe$</field>
+    <field name="win.eventdata.targetFilename" type="pcre2">(?i)lsass\.dmp$</field>
+    <description>Sysmon: Task Manager created LSASS dump file — credential dump via Task Manager UI (T1003.001)</description>
+    <mitre><id>T1003.001</id></mitre>
+    <group>credential_access,lsass_dump,taskmgr,critical,</group>
+  </rule>
+
+</group>

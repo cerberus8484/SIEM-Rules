@@ -1,0 +1,676 @@
+-- ============================================================
+-- HuntingThreats — QRadar AQL Hunt Rules
+-- Category : Credential Access (T1003, T1558, T1555)
+-- Batch    : 7 / Credential Access
+-- Rules    : QR-103001 – QR-103035
+-- Platform : QRadar 7.4+ / AQL
+-- Sources  : Windows Security (4769/4768/4624/4648), Sysmon (10/7/11),
+--            PowerShell Operational (4104)
+-- ============================================================
+
+-- ==================================================
+-- QR-103001 | T1003.001 | LSASS Memory Access (Sysmon 10)
+-- Severity: Critical | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%'
+  AND UTF8(payload) ILIKE '%ProcessAccess%'
+  AND UTF8(payload) ILIKE '%lsass%'
+  AND NOT (UTF8(payload) ILIKE '%antimalware%'
+    OR UTF8(payload) ILIKE '%MsMpEng%'
+    OR UTF8(payload) ILIKE '%taskmgr%'
+    OR UTF8(payload) ILIKE '%csrss%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-103002 | T1003.001 | LSASS Access with PROCESS_VM_READ Rights
+-- Severity: Critical | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%'
+  AND UTF8(payload) ILIKE '%ProcessAccess%'
+  AND UTF8(payload) ILIKE '%lsass%'
+  AND (UTF8(payload) ILIKE '%0x1010%'
+    OR UTF8(payload) ILIKE '%0x1410%'
+    OR UTF8(payload) ILIKE '%0x143a%'
+    OR UTF8(payload) ILIKE '%0x1438%'
+    OR UTF8(payload) ILIKE '%0x1fffff%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-103003 | T1003.001 | ProcDump Targeting LSASS
+-- Severity: Critical | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE (LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+    OR LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%')
+  AND UTF8(payload) ILIKE '%procdump%'
+  AND (UTF8(payload) ILIKE '%lsass%'
+    OR UTF8(payload) ILIKE '%-ma%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-103004 | T1003.001 | Comsvcs MiniDump (Rundll32 LSASS Dump)
+-- Severity: Critical | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE (LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+    OR LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%')
+  AND UTF8(payload) ILIKE '%comsvcs%'
+  AND (UTF8(payload) ILIKE '%MiniDump%'
+    OR UTF8(payload) ILIKE '%minidump%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-103005 | T1003.001 | Mimikatz Keywords in Script Block
+-- Severity: Critical | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%PowerShell%'
+  AND (UTF8(payload) ILIKE '%sekurlsa%'
+    OR UTF8(payload) ILIKE '%lsadump%'
+    OR UTF8(payload) ILIKE '%privilege::debug%'
+    OR UTF8(payload) ILIKE '%token::elevate%'
+    OR UTF8(payload) ILIKE '%logonpasswords%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-103006 | T1003.002 | Reg Save SAM / SYSTEM / SECURITY Hive
+-- Severity: Critical | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE (LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+    OR LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%')
+  AND UTF8(payload) ILIKE '%reg%'
+  AND UTF8(payload) ILIKE '% save %'
+  AND (UTF8(payload) ILIKE '%\SAM%'
+    OR UTF8(payload) ILIKE '%\SYSTEM%'
+    OR UTF8(payload) ILIKE '%\SECURITY%'
+    OR UTF8(payload) ILIKE '%HKLM\SAM%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-103007 | T1003.003 | NTDS.dit Access (Domain Controller)
+-- Severity: Critical | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE (LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+    OR LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%')
+  AND UTF8(payload) ILIKE '%ntds.dit%'
+  AND NOT UTF8(payload) ILIKE '%lsass%'
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-103008 | T1003.003 | Ntdsutil IFM for NTDS Extraction
+-- Severity: Critical | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE (LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+    OR LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%')
+  AND UTF8(payload) ILIKE '%ntdsutil%'
+  AND (UTF8(payload) ILIKE '%ifm%'
+    OR UTF8(payload) ILIKE '%create full%'
+    OR UTF8(payload) ILIKE '%ac i ntds%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-103009 | T1003 | VSS Shadow Copy Used for NTDS Access
+-- Severity: Critical | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE (LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+    OR LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%')
+  AND UTF8(payload) ILIKE '%shadow%'
+  AND (UTF8(payload) ILIKE '%ntds%'
+    OR UTF8(payload) ILIKE '%\SAM%'
+    OR UTF8(payload) ILIKE '%\SYSTEM%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-103010 | T1558.003 | Kerberoasting — RC4 TGS (Event 4769)
+-- Severity: High | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  sourceip,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+  AND (UTF8(payload) ILIKE '%EventID>4769<%'
+    OR UTF8(payload) ILIKE '%EventID">"4769"%')
+  AND UTF8(payload) ILIKE '%0x17%'
+  AND NOT username ILIKE '%$%'
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-103011 | T1558.004 | AS-REP Roasting — Pre-Auth Disabled (Event 4768)
+-- Severity: High | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  sourceip,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+  AND (UTF8(payload) ILIKE '%EventID>4768<%'
+    OR UTF8(payload) ILIKE '%EventID">"4768"%')
+  AND UTF8(payload) ILIKE '%0x0%'
+  AND NOT username ILIKE '%$%'
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-103012 | T1550.003 | Pass-the-Hash — Event 4624 NTLM + KeyLength 0
+-- Severity: Critical | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  sourceip,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+  AND (UTF8(payload) ILIKE '%EventID>4624<%'
+    OR UTF8(payload) ILIKE '%EventID">"4624"%')
+  AND UTF8(payload) ILIKE '%NTLM%'
+  AND (UTF8(payload) ILIKE '%KeyLength>0<%'
+    OR UTF8(payload) ILIKE '%KeyLength: 0%')
+  AND NOT username ILIKE '%$%'
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-103013 | T1003.001 | LSASS Dump File Created in Staging Path
+-- Severity: Critical | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%'
+  AND UTF8(payload) ILIKE '%FileCreate%'
+  AND (UTF8(payload) ILIKE '%.dmp%'
+    OR UTF8(payload) ILIKE '%.mdmp%')
+  AND (UTF8(payload) ILIKE '%lsass%'
+    OR UTF8(payload) ILIKE '%\Temp\%'
+    OR UTF8(payload) ILIKE '%\AppData\%'
+    OR UTF8(payload) ILIKE '%\Public\%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-103014 | T1555.003 | Browser SQLite Credential DB Access
+-- Severity: High | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%'
+  AND UTF8(payload) ILIKE '%ProcessAccess%'
+  AND (UTF8(payload) ILIKE '%Login Data%'
+    OR UTF8(payload) ILIKE '%Cookies%'
+    OR UTF8(payload) ILIKE '%key4.db%'
+    OR UTF8(payload) ILIKE '%logins.json%')
+  AND NOT (UTF8(payload) ILIKE '%chrome.exe%'
+    OR UTF8(payload) ILIKE '%firefox.exe%'
+    OR UTF8(payload) ILIKE '%msedge.exe%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-103015 | T1555.004 | Windows Credential Manager Access
+-- Severity: High | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%PowerShell%'
+  AND (UTF8(payload) ILIKE '%credential%'
+    OR UTF8(payload) ILIKE '%CredentialManager%'
+    OR UTF8(payload) ILIKE '%Windows.Security.Credentials%'
+    OR UTF8(payload) ILIKE '%CredMan%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-103016 | T1003 | LaZagne Credential Harvester Executed
+-- Severity: Critical | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE (LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+    OR LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%')
+  AND (UTF8(payload) ILIKE '%lazagne%'
+    OR UTF8(payload) ILIKE '%LaZagne%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-103017 | T1558.001 | Golden Ticket — krbtgt TGS from Localhost
+-- Severity: Critical | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  sourceip,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+  AND (UTF8(payload) ILIKE '%EventID>4769<%'
+    OR UTF8(payload) ILIKE '%EventID">"4769"%')
+  AND UTF8(payload) ILIKE '%krbtgt%'
+  AND (sourceip = '127.0.0.1' OR sourceip = '::1')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-103018 | T1003 | Invoke-Mimikatz / DCSync via PowerShell
+-- Severity: Critical | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%PowerShell%'
+  AND (UTF8(payload) ILIKE '%Invoke-Mimikatz%'
+    OR UTF8(payload) ILIKE '%lsadump::dcsync%'
+    OR UTF8(payload) ILIKE '%DCSync%'
+    OR UTF8(payload) ILIKE '%DRS replication%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-103019 | T1003 | Rubeus / Kerbrute Kerberos Attack Tool
+-- Severity: Critical | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE (LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+    OR LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%'
+    OR LOGSOURCETYPENAME(logsourceid) ILIKE '%PowerShell%')
+  AND (UTF8(payload) ILIKE '%rubeus%'
+    OR UTF8(payload) ILIKE '%kerbrute%'
+    OR UTF8(payload) ILIKE '%Rubeus.exe%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-103020 | T1003 | Impacket Secretsdump Pattern
+-- Severity: Critical | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  sourceip,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+  AND (UTF8(payload) ILIKE '%ADMIN$%'
+    OR UTF8(payload) ILIKE '%IPC$%')
+  AND (UTF8(payload) ILIKE '%ATSVC%'
+    OR UTF8(payload) ILIKE '%smbexec%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-103021 | T1552.001 | Cleartext Password in PowerShell Script
+-- Severity: High | Confidence: Medium
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%PowerShell%'
+  AND (UTF8(payload) ILIKE '%password=%'
+    OR UTF8(payload) ILIKE '%-Password "%'
+    OR UTF8(payload) ILIKE '%-Password ''%'
+    OR UTF8(payload) ILIKE '%ConvertTo-SecureString%')
+  AND NOT UTF8(payload) ILIKE '%Get-Credential%'
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-103022 | T1552 | Searching Files for Passwords
+-- Severity: High | Confidence: Medium
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE (LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+    OR LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%')
+  AND (UTF8(payload) ILIKE '%findstr%'
+    OR UTF8(payload) ILIKE '%Select-String%')
+  AND (UTF8(payload) ILIKE '%password%'
+    OR UTF8(payload) ILIKE '%passwd%'
+    OR UTF8(payload) ILIKE '%credential%')
+  AND (UTF8(payload) ILIKE '% /s %'
+    OR UTF8(payload) ILIKE '%-Recurse%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-103023 | T1003.004 | DPAPI Master Key Access
+-- Severity: High | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%'
+  AND UTF8(payload) ILIKE '%ProcessAccess%'
+  AND (UTF8(payload) ILIKE '%Protect\MachineKeys%'
+    OR UTF8(payload) ILIKE '%dpapi%'
+    OR UTF8(payload) ILIKE '%MasterKey%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-103024 | T1003.001 | Task Manager LSASS Dump
+-- Severity: Critical | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%'
+  AND UTF8(payload) ILIKE '%FileCreate%'
+  AND UTF8(payload) ILIKE '%.dmp%'
+  AND UTF8(payload) ILIKE '%taskmgr%'
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-103025 | T1552.006 | GPP Password in SYSVOL (Get-GPPPassword)
+-- Severity: Critical | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%PowerShell%'
+  AND (UTF8(payload) ILIKE '%Get-GPPPassword%'
+    OR UTF8(payload) ILIKE '%Groups.xml%'
+    OR UTF8(payload) ILIKE '%cpassword%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-103026 | T1003 | Credential Dump to Network Share
+-- Severity: Critical | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%'
+  AND UTF8(payload) ILIKE '%FileCreate%'
+  AND (UTF8(payload) ILIKE '%.dmp%'
+    OR UTF8(payload) ILIKE '%lsass%')
+  AND UTF8(payload) ILIKE '%\\\\%'
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-103027 | T1110 | Brute Force Login Attempts (Threshold)
+-- Severity: High | Confidence: High
+-- Threshold: 10+ failures from same source IP in 60s
+-- ==================================================
+SELECT
+  sourceip,
+  COUNT(*) AS FailureCount
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+  AND (UTF8(payload) ILIKE '%EventID>4625<%'
+    OR UTF8(payload) ILIKE '%EventID">"4625"%')
+GROUP BY sourceip
+HAVING COUNT(*) >= 10
+LAST 60 MINUTES;
+
+
+-- ==================================================
+-- QR-103028 | T1558 | Multiple Kerberoasting Requests (Threshold)
+-- Severity: High | Confidence: High
+-- Threshold: 5+ TGS-REQ with RC4 encryption from same IP in 5 min
+-- ==================================================
+SELECT
+  sourceip,
+  COUNT(*) AS KerberoastCount
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+  AND (UTF8(payload) ILIKE '%EventID>4769<%'
+    OR UTF8(payload) ILIKE '%EventID">"4769"%')
+  AND UTF8(payload) ILIKE '%0x17%'
+GROUP BY sourceip
+HAVING COUNT(*) >= 5
+LAST 300 MINUTES;
+
+
+-- ==================================================
+-- QR-103029 | T1003 | PPL Bypass Tool Detected
+-- Severity: Critical | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE (LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+    OR LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%')
+  AND (UTF8(payload) ILIKE '%PPLdump%'
+    OR UTF8(payload) ILIKE '%mimidrv%'
+    OR UTF8(payload) ILIKE '%PPLKiller%'
+    OR UTF8(payload) ILIKE '%lsadump%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-103030 | T1003 | ShadowCopy Accessed for SAM / NTDS
+-- Severity: Critical | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE (LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+    OR LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%')
+  AND (UTF8(payload) ILIKE '%\Device\HarddiskVolumeShadowCopy%'
+    OR UTF8(payload) ILIKE '%\\?\GLOBALROOT\Device\%')
+  AND (UTF8(payload) ILIKE '%\SAM%'
+    OR UTF8(payload) ILIKE '%\SYSTEM%'
+    OR UTF8(payload) ILIKE '%ntds%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-103031 | T1003 | Reg.exe LSA Secrets Query
+-- Severity: Critical | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE (LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+    OR LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%')
+  AND UTF8(payload) ILIKE '%reg%'
+  AND UTF8(payload) ILIKE '%LSA%'
+  AND UTF8(payload) ILIKE '%Secrets%'
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-103032 | T1555 | SSH Private Key Access by Non-SSH Process
+-- Severity: High | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%'
+  AND UTF8(payload) ILIKE '%FileCreate%'
+  AND (UTF8(payload) ILIKE '%id_rsa%'
+    OR UTF8(payload) ILIKE '%id_ed25519%'
+    OR UTF8(payload) ILIKE '%.pem%'
+    OR UTF8(payload) ILIKE '%.ppk%')
+  AND NOT (UTF8(payload) ILIKE '%ssh%'
+    OR UTF8(payload) ILIKE '%putty%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-103033 | T1649 | Explicit Credentials Used (Event 4648)
+-- Severity: High | Confidence: Medium
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  sourceip,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+  AND (UTF8(payload) ILIKE '%EventID>4648<%'
+    OR UTF8(payload) ILIKE '%EventID">"4648"%')
+  AND NOT username ILIKE '%$%'
+  AND NOT (UTF8(payload) ILIKE '%svchost%'
+    OR UTF8(payload) ILIKE '%LSASS%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-103034 | T1003 | Credential Scanning with Impacket Workstation Name
+-- Severity: Critical | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  sourceip,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+  AND (UTF8(payload) ILIKE '%EventID>4624<%'
+    OR UTF8(payload) ILIKE '%EventID">"4624"%'
+    OR UTF8(payload) ILIKE '%EventID>4625<%')
+  AND (UTF8(payload) ILIKE '%DESKTOP-RANDOM%'
+    OR UTF8(payload) ILIKE '%WIN-RANDOM%'
+    OR UTF8(payload) ILIKE '%WORKGROUP%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-103035 | T1003.001 | Credential DLL Loaded by Non-LSASS Process
+-- Severity: Critical | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%'
+  AND UTF8(payload) ILIKE '%ImageLoad%'
+  AND (UTF8(payload) ILIKE '%wdigest%'
+    OR UTF8(payload) ILIKE '%msv1_0%'
+    OR UTF8(payload) ILIKE '%kerberos%')
+  AND NOT UTF8(payload) ILIKE '%lsass%'
+LAST 1440 MINUTES;

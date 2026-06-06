@@ -1,0 +1,450 @@
+<!--
+  HuntingThreats — Wazuh Hunt Rules
+  Category:  Command & Control — C2 Beaconing & Protocols (T1071, T1095, T1571)
+  Batch:     1 / C2
+  Rules:     104001 – 104035
+  Platform:  Wazuh 4.x
+  Sources:   Sysmon Event 3 (Network Connection)
+             Windows Firewall Event 5156 (connection allowed)
+             Windows Event 4688 / Sysmon 1 (process creating network connection)
+
+  T1071     — Application Layer Protocol (C2 over HTTP/HTTPS/DNS)
+  T1095     — Non-Application Layer Protocol
+  T1571     — Non-Standard Port
+  T1105     — Ingress Tool Transfer
+  T1219     — Remote Access Software
+  T1090     — Proxy
+  T1572     — Protocol Tunneling
+-->
+
+<group name="hunt_c2,network,windows,">
+
+  <!-- ── Outbound connection to known C2 default port ─────────────────────── -->
+
+  <rule id="104001" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^3$</field>
+    <field name="win.eventdata.destinationPort" type="pcre2">^(1234|1337|4242|4444|4445|4446|31337|65535)$</field>
+    <field name="win.eventdata.initiated" type="pcre2">^true$</field>
+    <description>Sysmon Network: outbound connection to known C2 default port — C2 framework callback (T1571)</description>
+    <mitre><id>T1571</id></mitre>
+    <group>c2,known_port,high_confidence,</group>
+  </rule>
+
+  <!-- ── Outbound C2 port from user-writable path process ─────────────────── -->
+
+  <rule id="104002" level="14">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^3$</field>
+    <field name="win.eventdata.destinationPort" type="pcre2">^(1234|1337|4242|4444|4445|4446|31337|65535)$</field>
+    <field name="win.eventdata.image" type="pcre2">(?i)(\\appdata\\|\\temp\\|\\downloads\\|\\public\\)</field>
+    <description>Sysmon Network: process from user-writable path connecting to C2 port — malware C2 callback (T1095, T1571)</description>
+    <mitre><id>T1095</id></mitre>
+    <group>c2,known_port,suspicious_path,critical,</group>
+  </rule>
+
+  <!-- ── DNS tunneling — high-frequency DNS queries ────────────────────────── -->
+
+  <rule id="104003" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^3$</field>
+    <field name="win.eventdata.destinationPort" type="pcre2">^53$</field>
+    <field name="win.eventdata.image" type="pcre2">(?i)(?!.*\\(svchost|dns|nslookup|ping|ipconfig)\.exe)</field>
+    <description>Sysmon Network: non-DNS process making DNS connection — potential DNS tunneling (T1071.004)</description>
+    <mitre><id>T1071.004</id></mitre>
+    <group>c2,dns_tunneling,high_confidence,</group>
+  </rule>
+
+  <!-- ── PowerShell making raw TCP connection (non-web) ───────────────────── -->
+
+  <rule id="104004" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^3$</field>
+    <field name="win.eventdata.image" type="pcre2">(?i)\\powershell(ise)?\.exe$</field>
+    <field name="win.eventdata.destinationPort" type="pcre2">^(?!80$|443$|8080$|8443$)[0-9]{1,5}$</field>
+    <field name="win.eventdata.initiated" type="pcre2">^true$</field>
+    <description>Sysmon Network: PowerShell initiating non-web outbound connection — raw TCP reverse shell (T1059.001, T1095)</description>
+    <mitre><id>T1095</id></mitre>
+    <group>c2,reverse_shell,powershell,high_confidence,</group>
+  </rule>
+
+  <!-- ── cmd.exe making outbound network connection ─────────────────────────── -->
+
+  <rule id="104005" level="14">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^3$</field>
+    <field name="win.eventdata.image" type="pcre2">(?i)\\cmd\.exe$</field>
+    <field name="win.eventdata.initiated" type="pcre2">^true$</field>
+    <description>Sysmon Network: cmd.exe initiating outbound connection — command shell reverse connection (T1095)</description>
+    <mitre><id>T1095</id></mitre>
+    <group>c2,reverse_shell,cmd,critical,</group>
+  </rule>
+
+  <!-- ── Common RAT ports ───────────────────────────────────────────────────── -->
+
+  <rule id="104006" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^3$</field>
+    <field name="win.eventdata.destinationPort" type="pcre2">^(5554|9999|6666|7777|8888|9001|9030|9050|9150)$</field>
+    <field name="win.eventdata.initiated" type="pcre2">^true$</field>
+    <description>Sysmon Network: connection to commonly used RAT/Tor port — remote access tool callback (T1219, T1090)</description>
+    <mitre><id>T1219</id></mitre>
+    <group>c2,rat_port,high_confidence,</group>
+  </rule>
+
+  <!-- ── Tor default ports (9001, 9030, 9050, 9150) ─────────────────────────── -->
+
+  <rule id="104007" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^3$</field>
+    <field name="win.eventdata.destinationPort" type="pcre2">^(9001|9030|9050|9051|9150|9151)$</field>
+    <description>Sysmon Network: connection to Tor relay port — anonymous C2 channel via Tor (T1090.003)</description>
+    <mitre><id>T1090.003</id></mitre>
+    <group>c2,tor,high_confidence,</group>
+  </rule>
+
+  <!-- ── Cobalt Strike default ports ───────────────────────────────────────── -->
+
+  <rule id="104008" level="14">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^3$</field>
+    <field name="win.eventdata.destinationPort" type="pcre2">^(50050|50051|50052|50053|2222|6379|8888|7443)$</field>
+    <field name="win.eventdata.initiated" type="pcre2">^true$</field>
+    <description>Sysmon Network: connection to default Cobalt Strike team server port — beacon callback (T1071, T1095)</description>
+    <mitre><id>T1071</id></mitre>
+    <group>c2,cobalt_strike,critical,</group>
+  </rule>
+
+  <!-- ── Metasploit default reverse shell ports ─────────────────────────────── -->
+
+  <rule id="104009" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^3$</field>
+    <field name="win.eventdata.destinationPort" type="pcre2">^(4444|4443|4445|5555|6200|7788)$</field>
+    <field name="win.eventdata.initiated" type="pcre2">^true$</field>
+    <description>Sysmon Network: connection to common Metasploit reverse shell port — MSF handler port (T1095)</description>
+    <mitre><id>T1095</id></mitre>
+    <group>c2,metasploit,high_confidence,</group>
+  </rule>
+
+  <!-- ── ICMP C2 (unusual ICMP to external IP) ─────────────────────────────── -->
+
+  <rule id="104010" level="10">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^3$</field>
+    <field name="win.eventdata.protocol" type="pcre2">(?i)icmp</field>
+    <field name="win.eventdata.image" type="pcre2">(?i)(?!.*\\(ping|tracert|pathping)\.exe)</field>
+    <description>Sysmon Network: ICMP connection from non-ping process — possible ICMP tunneling C2 (T1095)</description>
+    <mitre><id>T1095</id></mitre>
+    <group>c2,icmp_tunnel,</group>
+  </rule>
+
+  <!-- ── HTTP C2 on non-standard port ──────────────────────────────────────── -->
+
+  <rule id="104011" level="10">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^3$</field>
+    <field name="win.eventdata.destinationPort" type="pcre2">^(8080|8000|8888|8443|8444|8008|4443|9443)$</field>
+    <field name="win.eventdata.image" type="pcre2">(?i)(powershell|cmd|wscript|cscript|mshta|rundll32)</field>
+    <description>Sysmon Network: script interpreter connecting on alternate HTTP/HTTPS port — C2 over alternate port (T1571)</description>
+    <mitre><id>T1571</id></mitre>
+    <group>c2,alternate_port,interpreter,high_confidence,</group>
+  </rule>
+
+  <!-- ── Beacon-like regularity: process connecting every ~60s ────────────── -->
+  <!-- Note: Wazuh can detect this with frequency+timeframe correlation -->
+
+  <rule id="104012" level="10">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^3$</field>
+    <same_field>win.eventdata.image</same_field>
+    <same_field>win.eventdata.destinationIp</same_field>
+    <frequency>5</frequency>
+    <timeframe>360</timeframe>
+    <description>Sysmon Network: same process connecting to same external IP 5+ times in 6 minutes — beaconing pattern (T1071)</description>
+    <mitre><id>T1071</id></mitre>
+    <group>c2,beaconing,threshold,</group>
+  </rule>
+
+  <!-- ── process connecting to geo-blocked country (requires GeoIP) ─────────── -->
+
+  <rule id="104013" level="10">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^3$</field>
+    <field name="win.eventdata.initiated" type="pcre2">^true$</field>
+    <field name="geoip.country_code2" type="pcre2">^(KP|RU|CN|IR|SY|CU|VE)$</field>
+    <field name="win.eventdata.image" type="pcre2">(?i)(powershell|cmd|wscript|rundll32|mshta)</field>
+    <description>Sysmon Network: script process connecting to high-risk country — possible state-sponsored C2 (T1071)</description>
+    <mitre><id>T1071</id></mitre>
+    <group>c2,geo_suspicious,</group>
+  </rule>
+
+  <!-- ── FRP / Ngrok / Cloudflared reverse tunnel ──────────────────────────── -->
+
+  <rule id="104014" level="14">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$|^4688$</field>
+    <field name="win.eventdata.image|win.eventdata.newProcessName" type="pcre2">(?i)(\\ngrok\.exe|\\frpc\.exe|\\cloudflared\.exe|\\bore\.exe|\\chisel\.exe)</field>
+    <description>Tunnel tool: reverse tunneling software detected — C2 tunnel bypassing firewall (T1572)</description>
+    <mitre><id>T1572</id></mitre>
+    <group>c2,tunnel,critical,</group>
+  </rule>
+
+  <!-- ── Ngrok domain in commandline ───────────────────────────────────────── -->
+
+  <rule id="104015" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$|^4688$</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?i)(\.ngrok\.io|\.ngrok\.com|\.serveo\.net|\.localhost\.run|\.trycloudflare\.com)</field>
+    <description>Command: tunnel service domain in commandline — C2 relayed via tunnel service (T1572)</description>
+    <mitre><id>T1572</id></mitre>
+    <group>c2,tunnel,domain,high_confidence,</group>
+  </rule>
+
+  <!-- ── SSH reverse tunnel established ────────────────────────────────────── -->
+
+  <rule id="104016" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$|^4688$</field>
+    <field name="win.eventdata.image|win.eventdata.newProcessName" type="pcre2">(?i)\\ssh\.exe$|\\plink\.exe$</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?i)-R\s+[0-9]|RemoteForward|reverse.*tunnel</field>
+    <description>SSH: reverse tunnel flag detected (-R) — inbound C2 channel via SSH reverse port forward (T1572)</description>
+    <mitre><id>T1572</id></mitre>
+    <group>c2,ssh_tunnel,high_confidence,</group>
+  </rule>
+
+  <!-- ── Cobalt Strike malleable C2 — low User-Agent ───────────────────────── -->
+
+  <rule id="104017" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^3$</field>
+    <field name="win.eventdata.image" type="pcre2">(?i)\\(svchost|rundll32|dllhost|wuauclt|msiexec|regsvr32)\.exe$</field>
+    <field name="win.eventdata.destinationPort" type="pcre2">^80$|^443$</field>
+    <field name="win.eventdata.initiated" type="pcre2">^true$</field>
+    <description>Sysmon Network: system binary making HTTP/HTTPS connection — possible Cobalt Strike/hollow injection beacon (T1071.001)</description>
+    <mitre><id>T1071.001</id></mitre>
+    <group>c2,process_injection,http_beacon,high_confidence,</group>
+  </rule>
+
+  <!-- ── Empire / Covenant default port ────────────────────────────────────── -->
+
+  <rule id="104018" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^3$</field>
+    <field name="win.eventdata.destinationPort" type="pcre2">^(7443|8083|7080|9999|443)$</field>
+    <field name="win.eventdata.image" type="pcre2">(?i)(powershell|cmd|wscript)</field>
+    <field name="win.eventdata.initiated" type="pcre2">^true$</field>
+    <description>Sysmon Network: script process connecting on common PowerShell Empire/Covenant C2 port (T1071.001)</description>
+    <mitre><id>T1071.001</id></mitre>
+    <group>c2,empire,covenant,high_confidence,</group>
+  </rule>
+
+  <!-- ── Sliver / Havoc C2 ports ────────────────────────────────────────────── -->
+
+  <rule id="104019" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^3$</field>
+    <field name="win.eventdata.destinationPort" type="pcre2">^(31337|8888|4444|1337|13337)$</field>
+    <field name="win.eventdata.initiated" type="pcre2">^true$</field>
+    <description>Sysmon Network: connection to Sliver/Havoc C2 framework default port (T1095)</description>
+    <mitre><id>T1095</id></mitre>
+    <group>c2,sliver,havoc,high_confidence,</group>
+  </rule>
+
+  <!-- ── Reverse shell via netcat / nc ─────────────────────────────────────── -->
+
+  <rule id="104020" level="14">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$|^4688$</field>
+    <field name="win.eventdata.image|win.eventdata.newProcessName" type="pcre2">(?i)\\(nc|ncat|netcat|ncat64|nc64)\.exe$</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?i)(-e\s+|-c\s+|cmd\.exe|powershell|/bin/sh|/bin/bash)</field>
+    <description>Netcat: shell spawned over network connection — reverse shell via netcat (T1059, T1095)</description>
+    <mitre><id>T1095</id></mitre>
+    <group>c2,netcat,reverse_shell,critical,</group>
+  </rule>
+
+  <!-- ── socat reverse shell ────────────────────────────────────────────────── -->
+
+  <rule id="104021" level="14">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$|^4688$</field>
+    <field name="win.eventdata.image|win.eventdata.newProcessName" type="pcre2">(?i)\\socat\.exe$</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?i)(exec:|system:|pty|cmd|powershell)</field>
+    <description>socat: shell or system command over socket — socat reverse shell (T1095)</description>
+    <mitre><id>T1095</id></mitre>
+    <group>c2,socat,reverse_shell,critical,</group>
+  </rule>
+
+  <!-- ── C2 Implant: scheduled beacon from TEMP ────────────────────────────── -->
+
+  <rule id="104022" level="14">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^3$</field>
+    <field name="win.eventdata.image" type="pcre2">(?i)\\(temp|appdata|programdata)\\.*\.(exe|dll|ps1|bat|vbs)$</field>
+    <field name="win.eventdata.initiated" type="pcre2">^true$</field>
+    <description>Sysmon Network: executable in staging directory initiating outbound connection — dropped payload C2 (T1105, T1071)</description>
+    <mitre><id>T1105</id></mitre>
+    <group>c2,staged_payload,critical,</group>
+  </rule>
+
+  <!-- ── Remote management — TeamViewer / AnyDesk / Atera ─────────────────── -->
+
+  <rule id="104023" level="8">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$|^4688$</field>
+    <field name="win.eventdata.image|win.eventdata.newProcessName" type="pcre2">(?i)(TeamViewer|AnyDesk|LogMeIn|ScreenConnect|Atera|Splashtop|RemotePC|GoToMyPC)\.exe$</field>
+    <description>Remote tool: commercial remote access software executed — verify if authorized (T1219)</description>
+    <mitre><id>T1219</id></mitre>
+    <group>c2,remote_access_tool,</group>
+  </rule>
+
+  <!-- ── RDP over non-standard port ────────────────────────────────────────── -->
+
+  <rule id="104024" level="10">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^3$</field>
+    <field name="win.eventdata.destinationPort" type="pcre2">^(3388|3389|3390|3391|3392|33890|33899)$</field>
+    <field name="win.eventdata.image" type="pcre2">(?i)(?!.*\\svchost\.exe)</field>
+    <description>Sysmon Network: connection to RDP-adjacent port — RDP on non-standard port or scanner (T1021.001)</description>
+    <mitre><id>T1021.001</id></mitre>
+    <group>lateral_movement,rdp,alternate_port,</group>
+  </rule>
+
+  <!-- ── WinRM / PowerShell Remoting (port 5985/5986) ─────────────────────── -->
+
+  <rule id="104025" level="10">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^3$</field>
+    <field name="win.eventdata.destinationPort" type="pcre2">^5985$|^5986$</field>
+    <field name="win.eventdata.image" type="pcre2">(?i)(powershell|wsmprovhost|winrm)</field>
+    <description>Sysmon Network: WinRM/PowerShell Remoting connection — remote management lateral movement (T1021.006)</description>
+    <mitre><id>T1021.006</id></mitre>
+    <group>lateral_movement,winrm,</group>
+  </rule>
+
+  <!-- ── BITS transfer to external C2 ─────────────────────────────────────── -->
+
+  <rule id="104026" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$|^4688$</field>
+    <field name="win.eventdata.image|win.eventdata.newProcessName" type="pcre2">(?i)\\bitsadmin\.exe$</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?i)/transfer.*(http[s]?|ftp)://[0-9]|/transfer.*\.(exe|dll|ps1|bat|vbs)</field>
+    <description>bitsadmin.exe: BITS job downloading executable — C2 download via BITS (T1197)</description>
+    <mitre><id>T1197</id></mitre>
+    <group>c2,bits,download,high_confidence,</group>
+  </rule>
+
+  <!-- ── DNS over HTTPS (DoH) — C2 bypass ─────────────────────────────────── -->
+
+  <rule id="104027" level="10">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^3$</field>
+    <field name="win.eventdata.destinationIp" type="pcre2">^(8\.8\.8\.8|8\.8\.4\.4|1\.1\.1\.1|1\.0\.0\.1|9\.9\.9\.9|208\.67\.222\.222)$</field>
+    <field name="win.eventdata.destinationPort" type="pcre2">^443$</field>
+    <field name="win.eventdata.image" type="pcre2">(?i)(?!.*\\(chrome|firefox|msedge|iexplore|opera)\.exe)</field>
+    <description>Sysmon Network: non-browser process making HTTPS to public DNS resolver — DoH-based DNS tunneling (T1071.004)</description>
+    <mitre><id>T1071.004</id></mitre>
+    <group>c2,doh,dns_tunnel,</group>
+  </rule>
+
+  <!-- ── Pastebin / GitHub / transfer.sh download ──────────────────────────── -->
+
+  <rule id="104028" level="10">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^4103$|^4104$</field>
+    <field name="win.eventdata.scriptBlockText" type="pcre2">(?i)(pastebin\.com|raw\.githubusercontent\.com|transfer\.sh|gofile\.io|anonfiles\.com|0x0\.st)</field>
+    <description>PowerShell: payload retrieved from file-sharing or code-sharing site — living-off-the-internet C2 (T1105)</description>
+    <mitre><id>T1105</id></mitre>
+    <group>c2,download,file_sharing,high_confidence,</group>
+  </rule>
+
+  <!-- ── Covenant/Brute Ratel default mumble port ──────────────────────────── -->
+
+  <rule id="104029" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^3$</field>
+    <field name="win.eventdata.destinationPort" type="pcre2">^(8443|8080|8888|9090|7443|7080|4433)$</field>
+    <field name="win.eventdata.image" type="pcre2">(?i)(powershell|cmd|rundll32|dllhost|svchost|msiexec)</field>
+    <field name="win.eventdata.initiated" type="pcre2">^true$</field>
+    <description>Sysmon Network: system/scripting process connecting to alternate HTTPS port — Brute Ratel/Covenant callback (T1071.001)</description>
+    <mitre><id>T1071.001</id></mitre>
+    <group>c2,brute_ratel,high_confidence,</group>
+  </rule>
+
+  <!-- ── UDP on high port from script engine ───────────────────────────────── -->
+
+  <rule id="104030" level="10">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^3$</field>
+    <field name="win.eventdata.protocol" type="pcre2">(?i)udp</field>
+    <field name="win.eventdata.image" type="pcre2">(?i)(powershell|wscript|cscript|mshta|rundll32)</field>
+    <field name="win.eventdata.destinationPort" type="pcre2">^[4-9][0-9]{4}$</field>
+    <description>Sysmon Network: script engine sending UDP to high port — unusual UDP C2 channel (T1095)</description>
+    <mitre><id>T1095</id></mitre>
+    <group>c2,udp,high_port,</group>
+  </rule>
+
+  <!-- ── HTTP request with long URI / beaconing check-in ──────────────────── -->
+
+  <rule id="104031" level="10">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^3$</field>
+    <field name="win.eventdata.image" type="pcre2">(?i)(powershell|wscript|cscript|mshta)</field>
+    <field name="win.eventdata.destinationPort" type="pcre2">^80$|^443$</field>
+    <field name="win.eventdata.initiated" type="pcre2">^true$</field>
+    <description>Sysmon Network: script engine making HTTP/S web request — web-based C2 check-in (T1071.001)</description>
+    <mitre><id>T1071.001</id></mitre>
+    <group>c2,http_beacon,script_engine,</group>
+  </rule>
+
+  <!-- ── SMB C2 (port 445 from script engine) ──────────────────────────────── -->
+
+  <rule id="104032" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^3$</field>
+    <field name="win.eventdata.destinationPort" type="pcre2">^445$|^139$</field>
+    <field name="win.eventdata.image" type="pcre2">(?i)(powershell|cmd|wscript|cscript|mshta|python|ruby)</field>
+    <description>Sysmon Network: script engine connecting to SMB port — Cobalt Strike SMB C2 or lateral movement (T1021.002)</description>
+    <mitre><id>T1021.002</id></mitre>
+    <group>c2,smb,lateral_movement,high_confidence,</group>
+  </rule>
+
+  <!-- ── C2 over DNS TXT record (large payload in query) ───────────────────── -->
+
+  <rule id="104033" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^22$</field>
+    <field name="win.eventdata.queryType" type="pcre2">^16$|TXT</field>
+    <field name="win.eventdata.queryName" type="pcre2">(?i)[a-zA-Z0-9+/]{30,}\.</field>
+    <description>Sysmon DNS: TXT query with long base64-like subdomain — DNS TXT C2 or data exfiltration (T1071.004)</description>
+    <mitre><id>T1071.004</id></mitre>
+    <group>c2,dns_tunneling,txt_record,high_confidence,</group>
+  </rule>
+
+  <!-- ── C2 keep-alive: short-lived repeated connections ───────────────────── -->
+
+  <rule id="104034" level="10">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^3$</field>
+    <same_field>win.eventdata.destinationIp</same_field>
+    <same_field>win.eventdata.destinationPort</same_field>
+    <frequency>10</frequency>
+    <timeframe>300</timeframe>
+    <description>Sysmon Network: same destination IP:Port hit 10+ times in 5 minutes — C2 beaconing heartbeat pattern (T1071)</description>
+    <mitre><id>T1071</id></mitre>
+    <group>c2,beaconing,high_frequency,</group>
+  </rule>
+
+  <!-- ── mshta.exe making outbound connection ───────────────────────────────── -->
+
+  <rule id="104035" level="14">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^3$</field>
+    <field name="win.eventdata.image" type="pcre2">(?i)\\mshta\.exe$</field>
+    <field name="win.eventdata.initiated" type="pcre2">^true$</field>
+    <description>Sysmon Network: mshta.exe initiating outbound connection — HTA-based C2 callback (T1218.005)</description>
+    <mitre><id>T1218.005</id></mitre>
+    <group>c2,mshta,critical,</group>
+  </rule>
+
+</group>

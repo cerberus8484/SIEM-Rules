@@ -1,0 +1,430 @@
+<!--
+  HuntingThreats — Wazuh Hunt Rules
+  Category:  Discovery — System & Network Enumeration (T1082, T1016, T1018, T1083)
+  Batch:     1 / Discovery
+  Rules:     106001 – 106035
+  Platform:  Wazuh 4.x
+  Sources:   Sysmon Event 1 (Process Creation)
+             Windows Event 4688 (Process Creation)
+             Sysmon Event 22 (DNS Query)
+
+  T1082  — System Information Discovery
+  T1016  — System Network Configuration Discovery
+  T1018  — Remote System Discovery
+  T1083  — File and Directory Discovery
+  T1135  — Network Share Discovery
+  T1087  — Account Discovery
+  T1069  — Permission Groups Discovery
+  T1033  — System Owner / User Discovery
+  T1057  — Process Discovery
+  T1049  — System Network Connections Discovery
+-->
+
+<group name="hunt_discovery,enumeration,windows,">
+
+  <!-- ── systeminfo — comprehensive system discovery ───────────────────────── -->
+
+  <rule id="106001" level="8">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$|^4688$</field>
+    <field name="win.eventdata.image|win.eventdata.newProcessName" type="pcre2">(?i)\\systeminfo\.exe$</field>
+    <field name="win.eventdata.parentImage" type="pcre2">(?i)(powershell|cmd|wscript|cscript|python|java)</field>
+    <description>systeminfo.exe: system information gathered by script — attacker host reconnaissance (T1082)</description>
+    <mitre><id>T1082</id></mitre>
+    <group>discovery,systeminfo,</group>
+  </rule>
+
+  <!-- ── whoami with all flags ──────────────────────────────────────────────── -->
+
+  <rule id="106002" level="8">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$|^4688$</field>
+    <field name="win.eventdata.image|win.eventdata.newProcessName" type="pcre2">(?i)\\whoami\.exe$</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?i)(/all|/groups|/priv|/user)</field>
+    <description>whoami.exe: detailed user/group/privilege info gathered — post-exploitation context discovery (T1033)</description>
+    <mitre><id>T1033</id></mitre>
+    <group>discovery,whoami,</group>
+  </rule>
+
+  <!-- ── ipconfig / ip route / arp ─────────────────────────────────────────── -->
+
+  <rule id="106003" level="6">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$|^4688$</field>
+    <field name="win.eventdata.image|win.eventdata.newProcessName" type="pcre2">(?i)\\(ipconfig|arp|route)\.exe$</field>
+    <field name="win.eventdata.parentImage" type="pcre2">(?i)(powershell|cmd|wscript|cscript)</field>
+    <description>Network tool: IP/ARP/route info collected from script — network configuration discovery (T1016)</description>
+    <mitre><id>T1016</id></mitre>
+    <group>discovery,network_info,</group>
+  </rule>
+
+  <!-- ── nslookup / Resolve-DnsName (internal DNS recon) ─────────────────── -->
+
+  <rule id="106004" level="8">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$|^4688$</field>
+    <field name="win.eventdata.image|win.eventdata.newProcessName" type="pcre2">(?i)\\nslookup\.exe$</field>
+    <field name="win.eventdata.parentImage" type="pcre2">(?i)(powershell|cmd|wscript)</field>
+    <description>nslookup.exe: DNS resolution from script context — internal network discovery (T1016.001)</description>
+    <mitre><id>T1016.001</id></mitre>
+    <group>discovery,dns_recon,</group>
+  </rule>
+
+  <!-- ── netstat listing all connections ───────────────────────────────────── -->
+
+  <rule id="106005" level="6">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$|^4688$</field>
+    <field name="win.eventdata.image|win.eventdata.newProcessName" type="pcre2">(?i)\\netstat\.exe$</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?i)(-a|-ano|-b)</field>
+    <field name="win.eventdata.parentImage" type="pcre2">(?i)(powershell|cmd|wscript)</field>
+    <description>netstat.exe: active connections and listening ports enumerated — network state discovery (T1049)</description>
+    <mitre><id>T1049</id></mitre>
+    <group>discovery,netstat,</group>
+  </rule>
+
+  <!-- ── ping sweep (repeated ping from script) ────────────────────────────── -->
+
+  <rule id="106006" level="8">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$|^4688$</field>
+    <field name="win.eventdata.image|win.eventdata.newProcessName" type="pcre2">(?i)\\ping\.exe$</field>
+    <field name="win.eventdata.parentImage" type="pcre2">(?i)(powershell|cmd|wscript)</field>
+    <same_field>win.eventdata.parentImage</same_field>
+    <frequency>5</frequency>
+    <timeframe>30</timeframe>
+    <description>ping.exe: rapid ping from script — host discovery sweep (T1018)</description>
+    <mitre><id>T1018</id></mitre>
+    <group>discovery,ping_sweep,threshold,</group>
+  </rule>
+
+  <!-- ── nltest — domain/DC enumeration ────────────────────────────────────── -->
+
+  <rule id="106007" level="10">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$|^4688$</field>
+    <field name="win.eventdata.image|win.eventdata.newProcessName" type="pcre2">(?i)\\nltest\.exe$</field>
+    <description>nltest.exe: domain/trust/DC enumeration — Active Directory recon (T1482)</description>
+    <mitre><id>T1482</id></mitre>
+    <group>discovery,nltest,ad_recon,high_confidence,</group>
+  </rule>
+
+  <!-- ── nmap / masscan scanning ────────────────────────────────────────────── -->
+
+  <rule id="106008" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$|^4688$</field>
+    <field name="win.eventdata.image|win.eventdata.newProcessName" type="pcre2">(?i)(\\nmap\.exe|\\masscan\.exe|\\zmap\.exe)$</field>
+    <description>Port scanner: nmap/masscan/zmap executed — network scanning activity (T1046)</description>
+    <mitre><id>T1046</id></mitre>
+    <group>discovery,port_scan,high_confidence,</group>
+  </rule>
+
+  <!-- ── PowerShell Test-NetConnection (port scan) ─────────────────────────── -->
+
+  <rule id="106009" level="8">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^4103$|^4104$</field>
+    <field name="win.eventdata.scriptBlockText" type="pcre2">(?i)(Test-NetConnection|Test-Connection|New-Object.*Net\.Sockets\.TcpClient).*-Port\s+[0-9]</field>
+    <description>PowerShell: port connectivity test in script — PS-based port scanner (T1046)</description>
+    <mitre><id>T1046</id></mitre>
+    <group>discovery,ps_port_scan,</group>
+  </rule>
+
+  <!-- ── wmic process list ──────────────────────────────────────────────────── -->
+
+  <rule id="106010" level="6">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$|^4688$</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?i)wmic\s+(process|product|os|computersystem|logicaldisk)\s+(list|get|query)</field>
+    <field name="win.eventdata.parentImage" type="pcre2">(?i)(powershell|cmd|wscript)</field>
+    <description>wmic.exe: WMI-based system information discovery — inventory of processes/software (T1082, T1057)</description>
+    <mitre><id>T1057</id></mitre>
+    <group>discovery,wmic,process_list,</group>
+  </rule>
+
+  <!-- ── tasklist enumerating processes ────────────────────────────────────── -->
+
+  <rule id="106011" level="6">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$|^4688$</field>
+    <field name="win.eventdata.image|win.eventdata.newProcessName" type="pcre2">(?i)\\tasklist\.exe$</field>
+    <field name="win.eventdata.parentImage" type="pcre2">(?i)(powershell|cmd|wscript)</field>
+    <description>tasklist.exe: running process list collected — post-exploitation process discovery (T1057)</description>
+    <mitre><id>T1057</id></mitre>
+    <group>discovery,tasklist,</group>
+  </rule>
+
+  <!-- ── reg query for installed software ──────────────────────────────────── -->
+
+  <rule id="106012" level="6">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$|^4688$</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?i)reg\s+query.*\\(uninstall|installed|software|microsoft\\windows\\currentversion)</field>
+    <field name="win.eventdata.parentImage" type="pcre2">(?i)(powershell|cmd|wscript)</field>
+    <description>reg.exe: installed software queried via registry — software inventory for attack planning (T1082)</description>
+    <mitre><id>T1082</id></mitre>
+    <group>discovery,software_inventory,</group>
+  </rule>
+
+  <!-- ── PS Get-Process / Get-Service (recon) ──────────────────────────────── -->
+
+  <rule id="106013" level="6">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^4103$|^4104$</field>
+    <field name="win.eventdata.scriptBlockText" type="pcre2">(?i)(Get-Process|Get-Service|Get-HotFix|Get-ComputerInfo|Get-LocalGroupMember|Get-LocalUser)\s*(-ComputerName\s+[^$]|$)</field>
+    <description>PowerShell: system/user/service discovery cmdlet — PS-based enumeration (T1082, T1057)</description>
+    <mitre><id>T1082</id></mitre>
+    <group>discovery,ps_enum,</group>
+  </rule>
+
+  <!-- ── dir /s searching for interesting files ────────────────────────────── -->
+
+  <rule id="106014" level="8">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$|^4688$</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?i)(dir\s+/s\s+/b|findstr\s+.*(password|secret|credentials|apikey|token)).*(C:\\|D:\\|\\\\)</field>
+    <description>Command: recursive file search for sensitive files — file content discovery (T1083)</description>
+    <mitre><id>T1083</id></mitre>
+    <group>discovery,file_search,sensitive_files,high_confidence,</group>
+  </rule>
+
+  <!-- ── net user / net group (AD account enum) ────────────────────────────── -->
+
+  <rule id="106015" level="8">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$|^4688$</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?i)net\s+(user|accounts|localgroup|group)(\s+/domain|\s+[a-zA-Z]|$)</field>
+    <field name="win.eventdata.parentImage" type="pcre2">(?i)(powershell|cmd|wscript)</field>
+    <description>net.exe: user/group account enumeration — AD account discovery (T1087, T1069)</description>
+    <mitre><id>T1087</id></mitre>
+    <group>discovery,net_user,account_enum,</group>
+  </rule>
+
+  <!-- ── Get-ADUser / Get-ADComputer (PS AD module) ────────────────────────── -->
+
+  <rule id="106016" level="8">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^4103$|^4104$</field>
+    <field name="win.eventdata.scriptBlockText" type="pcre2">(?i)(Get-ADUser|Get-ADComputer|Get-ADGroup|Get-ADGroupMember|Get-ADDomainController|Get-ADTrust)</field>
+    <description>PowerShell: Active Directory object enumeration via AD module — domain reconnaissance (T1087.002)</description>
+    <mitre><id>T1087.002</id></mitre>
+    <group>discovery,ad_enum,powershell,high_confidence,</group>
+  </rule>
+
+  <!-- ── PowerView recon functions ─────────────────────────────────────────── -->
+
+  <rule id="106017" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^4103$|^4104$</field>
+    <field name="win.eventdata.scriptBlockText" type="pcre2">(?i)(Get-NetUser|Get-NetGroup|Get-NetComputer|Get-NetDomain|Find-LocalAdminAccess|Invoke-ACLScanner|Get-DomainUser|Get-DomainGroup)</field>
+    <description>PowerShell: PowerView AD enumeration function detected — attack path reconnaissance (T1087.002)</description>
+    <mitre><id>T1087.002</id></mitre>
+    <group>discovery,powerview,ad_recon,high_confidence,</group>
+  </rule>
+
+  <!-- ── gpresult — group policy discovery ─────────────────────────────────── -->
+
+  <rule id="106018" level="6">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$|^4688$</field>
+    <field name="win.eventdata.image|win.eventdata.newProcessName" type="pcre2">(?i)\\gpresult\.exe$</field>
+    <field name="win.eventdata.parentImage" type="pcre2">(?i)(powershell|cmd|wscript)</field>
+    <description>gpresult.exe: Group Policy enumeration — policy discovery for exploitation planning (T1615)</description>
+    <mitre><id>T1615</id></mitre>
+    <group>discovery,gpo,</group>
+  </rule>
+
+  <!-- ── Security tool detection (AV/EDR check) ───────────────────────────── -->
+
+  <rule id="106019" level="10">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^4103$|^4104$</field>
+    <field name="win.eventdata.scriptBlockText" type="pcre2">(?i)(Get-MpComputerStatus|Get-AntiVirusProduct|HKLM.*\\SOFTWARE.*(CrowdStrike|Cylance|SentinelOne|Carbon Black|Defender|McAfee|Symantec))</field>
+    <description>PowerShell: security product enumeration — attacker checking for EDR/AV before executing payload (T1518.001)</description>
+    <mitre><id>T1518.001</id></mitre>
+    <group>discovery,security_product,high_confidence,</group>
+  </rule>
+
+  <!-- ── CheckVM / Sandbox detection ──────────────────────────────────────── -->
+
+  <rule id="106020" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^4103$|^4104$</field>
+    <field name="win.eventdata.scriptBlockText" type="pcre2">(?i)(VBOX|VMWARE|VIRTUALBOX|QEMU|KVM|SANDBOX|CUCKOO|VirtualPC|Win32_ComputerSystem.*manufacturer.*vmware)</field>
+    <description>PowerShell: virtualization/sandbox detection check — malware VM evasion technique (T1497)</description>
+    <mitre><id>T1497</id></mitre>
+    <group>discovery,sandbox_evasion,high_confidence,</group>
+  </rule>
+
+  <!-- ── Enumerate scheduled tasks for persistence discovery ──────────────── -->
+
+  <rule id="106021" level="6">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^4103$|^4104$</field>
+    <field name="win.eventdata.scriptBlockText" type="pcre2">(?i)(Get-ScheduledTask|schtasks.*\/query|Get-ChildItem.*Tasks)</field>
+    <description>PowerShell: scheduled task enumeration — persistence discovery during recon (T1053.005)</description>
+    <mitre><id>T1053.005</id></mitre>
+    <group>discovery,schtask_enum,</group>
+  </rule>
+
+  <!-- ── Find credentials in files ─────────────────────────────────────────── -->
+
+  <rule id="106022" level="10">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^4103$|^4104$</field>
+    <field name="win.eventdata.scriptBlockText" type="pcre2">(?i)(Get-ChildItem.*Recurse.*(password|pass|cred|secret)|Select-String.*(password|api_key|token|secret))</field>
+    <description>PowerShell: recursive file search for credential strings — filesystem credential hunting (T1552.001)</description>
+    <mitre><id>T1552.001</id></mitre>
+    <group>discovery,credential_hunt,high_confidence,</group>
+  </rule>
+
+  <!-- ── Enumerate network shares ──────────────────────────────────────────── -->
+
+  <rule id="106023" level="8">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$|^4688$</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?i)net\s+share|net\s+view\s+\\\\|Get-WmiObject.*Win32_Share</field>
+    <description>Command: network share enumeration — identifying file shares for data collection (T1135)</description>
+    <mitre><id>T1135</id></mitre>
+    <group>discovery,share_enum,</group>
+  </rule>
+
+  <!-- ── SPN scanning (Kerberoast prep) ────────────────────────────────────── -->
+
+  <rule id="106024" level="10">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^4103$|^4104$</field>
+    <field name="win.eventdata.scriptBlockText" type="pcre2">(?i)(setspn\s+-[LQ]|Get-ADUser.*ServicePrincipalName|Find-DomainUser.*SPN|Get-NetUser.*SPN|Invoke-Kerberoast)</field>
+    <description>PowerShell: SPN enumeration for Kerberoasting — identifying service accounts to crack (T1558.003)</description>
+    <mitre><id>T1558.003</id></mitre>
+    <group>discovery,spn_scan,kerberoast_prep,high_confidence,</group>
+  </rule>
+
+  <!-- ── Local admin discovery ─────────────────────────────────────────────── -->
+
+  <rule id="106025" level="8">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^4103$|^4104$</field>
+    <field name="win.eventdata.scriptBlockText" type="pcre2">(?i)(Find-LocalAdminAccess|Test-AdminAccess|Invoke-EnumerateLocalAdmin|Get-LocalGroupMember.*Administrators)</field>
+    <description>PowerShell: local admin access discovery — identifying hosts where attacker has admin rights (T1069.001)</description>
+    <mitre><id>T1069.001</id></mitre>
+    <group>discovery,local_admin,high_confidence,</group>
+  </rule>
+
+  <!-- ── Cloud metadata discovery (AWS/Azure IMDS) ─────────────────────────── -->
+
+  <rule id="106026" level="10">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^3$</field>
+    <field name="win.eventdata.destinationIp" type="pcre2">^169\.254\.169\.254$</field>
+    <field name="win.eventdata.image" type="pcre2">(?i)(?!.*\\(svchost|azure|awscli)\.exe)</field>
+    <description>Sysmon Network: IMDS endpoint accessed from non-cloud-agent process — cloud metadata theft (T1552.005)</description>
+    <mitre><id>T1552.005</id></mitre>
+    <group>discovery,cloud_metadata,high_confidence,</group>
+  </rule>
+
+  <!-- ── wevtutil querying event logs (detection evasion check) ────────────── -->
+
+  <rule id="106027" level="8">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$|^4688$</field>
+    <field name="win.eventdata.image|win.eventdata.newProcessName" type="pcre2">(?i)\\wevtutil\.exe$</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?i)(qe\s+|enum-logs|gl\s+)</field>
+    <field name="win.eventdata.parentImage" type="pcre2">(?i)(powershell|cmd|wscript)</field>
+    <description>wevtutil.exe: event log queried from script — attacker checking own traces (T1070.001)</description>
+    <mitre><id>T1070.001</id></mitre>
+    <group>discovery,eventlog_query,</group>
+  </rule>
+
+  <!-- ── certutil discovering CA certs ─────────────────────────────────────── -->
+
+  <rule id="106028" level="8">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$|^4688$</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?i)certutil\s+(-dump|-store|-CA|-config\s+default)</field>
+    <field name="win.eventdata.parentImage" type="pcre2">(?i)(powershell|cmd|wscript)</field>
+    <description>certutil.exe: certificate store or CA information queried — PKI infrastructure discovery (T1482)</description>
+    <mitre><id>T1482</id></mitre>
+    <group>discovery,cert_discovery,</group>
+  </rule>
+
+  <!-- ── Firewall rule enumeration ─────────────────────────────────────────── -->
+
+  <rule id="106029" level="6">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^4103$|^4104$</field>
+    <field name="win.eventdata.scriptBlockText" type="pcre2">(?i)(Get-NetFirewallRule|netsh.*advfirewall.*show|Get-MpPreference)</field>
+    <description>PowerShell: firewall rules enumerated — discovering allowed ports/protocols (T1016)</description>
+    <mitre><id>T1016</id></mitre>
+    <group>discovery,firewall_enum,</group>
+  </rule>
+
+  <!-- ── klist (Kerberos ticket list) ──────────────────────────────────────── -->
+
+  <rule id="106030" level="8">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$|^4688$</field>
+    <field name="win.eventdata.image|win.eventdata.newProcessName" type="pcre2">(?i)\\klist\.exe$</field>
+    <field name="win.eventdata.parentImage" type="pcre2">(?i)(powershell|cmd|wscript)</field>
+    <description>klist.exe: Kerberos ticket cache listed from script — ticket discovery for PTT (T1558)</description>
+    <mitre><id>T1558</id></mitre>
+    <group>discovery,klist,kerberos,</group>
+  </rule>
+
+  <!-- ── PS history / transcript discovery ─────────────────────────────────── -->
+
+  <rule id="106031" level="8">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^4103$|^4104$</field>
+    <field name="win.eventdata.scriptBlockText" type="pcre2">(?i)(Get-PSReadLineOption|PSReadLine.*HistorySavePath|Microsoft\\Windows\\PowerShell.*history\.txt)</field>
+    <description>PowerShell: PS history file accessed — previous command discovery (T1552.001)</description>
+    <mitre><id>T1552.001</id></mitre>
+    <group>discovery,ps_history,</group>
+  </rule>
+
+  <!-- ── USB/removable device discovery ────────────────────────────────────── -->
+
+  <rule id="106032" level="6">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^4103$|^4104$</field>
+    <field name="win.eventdata.scriptBlockText" type="pcre2">(?i)(Get-PnpDevice.*USB|Get-Volume.*DriveType.*Removable|USBSTOR)</field>
+    <description>PowerShell: USB/removable device enumeration — peripheral device discovery (T1120)</description>
+    <mitre><id>T1120</id></mitre>
+    <group>discovery,usb_enum,</group>
+  </rule>
+
+  <!-- ── Empire's Invoke-Portscan ──────────────────────────────────────────── -->
+
+  <rule id="106033" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^4103$|^4104$</field>
+    <field name="win.eventdata.scriptBlockText" type="pcre2">(?i)(Invoke-Portscan|Invoke-NetworkScan|Invoke-HostDiscovery|Invoke-ARPScan)</field>
+    <description>PowerShell: Empire/PowerSploit network scan function — in-memory port scanning (T1046)</description>
+    <mitre><id>T1046</id></mitre>
+    <group>discovery,port_scan,powershell,high_confidence,</group>
+  </rule>
+
+  <!-- ── Enumerate antivirus via WMI ───────────────────────────────────────── -->
+
+  <rule id="106034" level="10">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^4103$|^4104$</field>
+    <field name="win.eventdata.scriptBlockText" type="pcre2">(?i)(AntiVirusProduct|root\\SecurityCenter|Get-WmiObject.*AntiVirus|Get-CimInstance.*AntiVirus)</field>
+    <description>PowerShell: antivirus product enumerated via SecurityCenter WMI — pre-attack AV awareness (T1518.001)</description>
+    <mitre><id>T1518.001</id></mitre>
+    <group>discovery,av_discovery,high_confidence,</group>
+  </rule>
+
+  <!-- ── Get-GPPPassword (Group Policy Preferences credentials) ────────────── -->
+
+  <rule id="106035" level="14">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^4103$|^4104$</field>
+    <field name="win.eventdata.scriptBlockText" type="pcre2">(?i)(Get-GPPPassword|Get-GPPAutologon|Get-CachedGPPPassword|cpassword.*AES)</field>
+    <description>PowerShell: Group Policy Preferences credential harvesting — reading GPP cpassword (T1552.006)</description>
+    <mitre><id>T1552.006</id></mitre>
+    <group>discovery,gpp_password,credential_access,critical,</group>
+  </rule>
+
+</group>

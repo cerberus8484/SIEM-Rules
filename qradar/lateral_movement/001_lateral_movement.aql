@@ -1,0 +1,773 @@
+-- ============================================================
+-- HuntingThreats — QRadar AQL Hunt Rules
+-- Category : Lateral Movement (T1021, T1047, T1570)
+-- Batch    : 10 / Lateral Movement
+-- Rules    : QR-105001 – QR-105040
+-- Platform : QRadar 7.4+ / AQL
+-- Sources  : Windows Security (4624/4648/4769), Sysmon (1/3), WinCollect
+-- ============================================================
+
+-- ==================================================
+-- QR-105001 | T1021.001 | External RDP Logon (Event 4624 Type 10)
+-- Severity: High | Confidence: Medium
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  sourceip,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+  AND (UTF8(payload) ILIKE '%EventID>4624<%'
+    OR UTF8(payload) ILIKE '%EventID">"4624"%')
+  AND UTF8(payload) ILIKE '%10%'
+  AND NOT (sourceip ILIKE '10.%'
+    OR sourceip ILIKE '192.168.%'
+    OR sourceip ILIKE '172.1%.%'
+    OR sourceip ILIKE '127.%'
+    OR sourceip ILIKE '::1')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-105002 | T1021.002 | Admin Share Access (C$/ADMIN$/IPC$)
+-- Severity: High | Confidence: Medium
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  sourceip,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+  AND (UTF8(payload) ILIKE '%C$%'
+    OR UTF8(payload) ILIKE '%ADMIN$%'
+    OR UTF8(payload) ILIKE '%IPC$%')
+  AND NOT (sourceip ILIKE '10.%'
+    OR sourceip ILIKE '192.168.%'
+    OR sourceip ILIKE '172.1%.%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-105003 | T1570 | PsExec / PaExec Service Installed Remotely
+-- Severity: High | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  sourceip,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+  AND (UTF8(payload) ILIKE '%EventID>7045<%'
+    OR UTF8(payload) ILIKE '%EventID">"7045"%')
+  AND (UTF8(payload) ILIKE '%PSEXESVC%'
+    OR UTF8(payload) ILIKE '%paexec%'
+    OR UTF8(payload) ILIKE '%PAExecSvc%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-105004 | T1021.003 | WMIC Remote Process Creation
+-- Severity: High | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE (LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+    OR LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%')
+  AND UTF8(payload) ILIKE '%wmic%'
+  AND (UTF8(payload) ILIKE '%/node:%'
+    OR UTF8(payload) ILIKE '% node:%')
+  AND UTF8(payload) ILIKE '%process%'
+  AND UTF8(payload) ILIKE '%call create%'
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-105005 | T1021.006 | PS Invoke-Command Remote Host
+-- Severity: High | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%PowerShell%'
+  AND (UTF8(payload) ILIKE '%Invoke-Command%'
+    OR UTF8(payload) ILIKE '%Enter-PSSession%')
+  AND (UTF8(payload) ILIKE '%-ComputerName%'
+    OR UTF8(payload) ILIKE '%-cn %')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-105006 | T1021.002 | Net Use Admin Share
+-- Severity: High | Confidence: Medium
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE (LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+    OR LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%')
+  AND UTF8(payload) ILIKE '%net%'
+  AND UTF8(payload) ILIKE '% use %'
+  AND (UTF8(payload) ILIKE '%C$%'
+    OR UTF8(payload) ILIKE '%ADMIN$%'
+    OR UTF8(payload) ILIKE '%IPC$%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-105007 | T1021.002 | Executable Copied to Admin Share
+-- Severity: High | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%'
+  AND UTF8(payload) ILIKE '%FileCreate%'
+  AND UTF8(payload) ILIKE '%\\\\%'
+  AND (UTF8(payload) ILIKE '%ADMIN$%'
+    OR UTF8(payload) ILIKE '%C$%')
+  AND (UTF8(payload) ILIKE '%.exe%'
+    OR UTF8(payload) ILIKE '%.dll%'
+    OR UTF8(payload) ILIKE '%.ps1%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-105008 | T1047 | WMI Subscription Persistence (Lateral)
+-- Severity: High | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%PowerShell%'
+  AND (UTF8(payload) ILIKE '%Set-WmiInstance%'
+    OR UTF8(payload) ILIKE '%Subscribe-WmiEvent%'
+    OR UTF8(payload) ILIKE '%Register-WmiEvent%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-105009 | T1550.002 | Pass-the-Hash — Mimikatz sekurlsa::pth
+-- Severity: Critical | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%PowerShell%'
+  AND (UTF8(payload) ILIKE '%sekurlsa::pth%'
+    OR UTF8(payload) ILIKE '%pth%'
+    OR UTF8(payload) ILIKE '%Invoke-TheHash%'
+    OR UTF8(payload) ILIKE '%Invoke-SMBExec%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-105010 | T1550.003 | Pass-the-Ticket (Rubeus PTT)
+-- Severity: Critical | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE (LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+    OR LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%')
+  AND (UTF8(payload) ILIKE '%rubeus%'
+    OR UTF8(payload) ILIKE '%mimikatz%')
+  AND (UTF8(payload) ILIKE '%ptt%'
+    OR UTF8(payload) ILIKE '%pass-the-ticket%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-105011 | T1021.001 | Remote RDP via xfreerdp / rdesktop
+-- Severity: High | Confidence: Medium
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE (LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+    OR LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%')
+  AND (UTF8(payload) ILIKE '%xfreerdp%'
+    OR UTF8(payload) ILIKE '%rdesktop%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-105012 | T1021.006 | Remote Registry Access
+-- Severity: High | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  sourceip,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE (LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+    OR LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%')
+  AND UTF8(payload) ILIKE '%reg.exe%'
+  AND (UTF8(payload) ILIKE '%\\\\%'
+    OR UTF8(payload) ILIKE '% /e %')
+  AND (UTF8(payload) ILIKE '%query%'
+    OR UTF8(payload) ILIKE '%add%'
+    OR UTF8(payload) ILIKE '%export%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-105013 | T1021.006 | Remote Sc.exe Service Operation
+-- Severity: High | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE (LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+    OR LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%')
+  AND UTF8(payload) ILIKE '%sc.exe%'
+  AND UTF8(payload) ILIKE '%\\\\%'
+  AND (UTF8(payload) ILIKE '% create%'
+    OR UTF8(payload) ILIKE '% start%'
+    OR UTF8(payload) ILIKE '% stop%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-105014 | T1021.003 | Remote DCOM via PowerShell
+-- Severity: High | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%PowerShell%'
+  AND (UTF8(payload) ILIKE '%[activator]::CreateInstance%'
+    OR UTF8(payload) ILIKE '%GetTypeFromProgID%'
+    OR UTF8(payload) ILIKE '%ShellWindows%'
+    OR UTF8(payload) ILIKE '%MMC20.Application%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-105015 | T1021.001 | RDP Hijacking via tscon.exe
+-- Severity: Critical | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE (LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+    OR LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%')
+  AND UTF8(payload) ILIKE '%tscon%'
+  AND (UTF8(payload) ILIKE '%/dest%'
+    OR UTF8(payload) ILIKE '% console%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-105016 | T1570 | BloodHound / SharpHound AD Recon
+-- Severity: High | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE (LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+    OR LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%'
+    OR LOGSOURCETYPENAME(logsourceid) ILIKE '%PowerShell%')
+  AND (UTF8(payload) ILIKE '%SharpHound%'
+    OR UTF8(payload) ILIKE '%BloodHound%'
+    OR UTF8(payload) ILIKE '%AzureHound%'
+    OR UTF8(payload) ILIKE '%Invoke-BloodHound%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-105017 | T1570 | PowerView AD Enumeration Functions
+-- Severity: High | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%PowerShell%'
+  AND (UTF8(payload) ILIKE '%Get-NetUser%'
+    OR UTF8(payload) ILIKE '%Get-NetGroup%'
+    OR UTF8(payload) ILIKE '%Get-DomainUser%'
+    OR UTF8(payload) ILIKE '%Find-LocalAdminAccess%'
+    OR UTF8(payload) ILIKE '%Get-DomainController%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-105018 | T1078 | Overpass-the-Hash Pattern
+-- Severity: Critical | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  sourceip,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+  AND (UTF8(payload) ILIKE '%EventID>4624<%'
+    OR UTF8(payload) ILIKE '%EventID">"4624"%')
+  AND UTF8(payload) ILIKE '%Kerberos%'
+  AND (sourceip = '127.0.0.1' OR sourceip = '::1')
+  AND NOT username ILIKE '%$%'
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-105019 | T1558.003 | Silver Ticket — TGS from Localhost (not krbtgt)
+-- Severity: Critical | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  sourceip,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+  AND (UTF8(payload) ILIKE '%EventID>4769<%'
+    OR UTF8(payload) ILIKE '%EventID">"4769"%')
+  AND (sourceip = '127.0.0.1' OR sourceip = '::1')
+  AND NOT UTF8(payload) ILIKE '%krbtgt%'
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-105020 | T1021.002 | 3+ Logons from Same IP — Lateral Movement (Threshold)
+-- Severity: High | Confidence: High
+-- Threshold: 3+ successful logons from same source to different hosts
+-- ==================================================
+SELECT
+  sourceip,
+  COUNT(DISTINCT LOGSOURCENAME(logsourceid)) AS UniqueTargets
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+  AND (UTF8(payload) ILIKE '%EventID>4624<%'
+    OR UTF8(payload) ILIKE '%EventID">"4624"%')
+  AND NOT (sourceip ILIKE '10.%' AND sourceip = destinationip)
+GROUP BY sourceip
+HAVING COUNT(DISTINCT LOGSOURCENAME(logsourceid)) >= 3
+LAST 60 MINUTES;
+
+
+-- ==================================================
+-- QR-105021 | T1021 | Multiple NTLM Failures from Same Source (Threshold)
+-- Severity: High | Confidence: High
+-- Threshold: 5+ failed NTLM logons in 30 seconds
+-- ==================================================
+SELECT
+  sourceip,
+  COUNT(*) AS NtlmFailCount
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+  AND (UTF8(payload) ILIKE '%EventID>4625<%'
+    OR UTF8(payload) ILIKE '%EventID">"4625"%')
+  AND UTF8(payload) ILIKE '%NTLM%'
+GROUP BY sourceip
+HAVING COUNT(*) >= 5
+LAST 30 MINUTES;
+
+
+-- ==================================================
+-- QR-105022 | T1557 | Responder-Style Workstation Names
+-- Severity: Critical | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  sourceip,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+  AND (UTF8(payload) ILIKE '%EventID>4625<%'
+    OR UTF8(payload) ILIKE '%EventID>4624<%')
+  AND (UTF8(payload) ILIKE '%WORKGROUP%'
+    OR UTF8(payload) ILIKE '%DESKTOP-RANDOM%'
+    OR UTF8(payload) ILIKE '%MSEDGEWIN%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-105023 | T1484.001 | GPO Modification (Event 5136 groupPolicyContainer)
+-- Severity: Critical | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+  AND (UTF8(payload) ILIKE '%EventID>5136<%'
+    OR UTF8(payload) ILIKE '%EventID">"5136"%')
+  AND (UTF8(payload) ILIKE '%groupPolicyContainer%'
+    OR UTF8(payload) ILIKE '%gPCFileSysPath%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-105024 | T1021.006 | Remote Schtasks via /S Flag
+-- Severity: High | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE (LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+    OR LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%')
+  AND UTF8(payload) ILIKE '%schtasks%'
+  AND (UTF8(payload) ILIKE '% /s %'
+    OR UTF8(payload) ILIKE '% /S %')
+  AND NOT UTF8(payload) ILIKE '%localhost%'
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-105025 | T1021 | Impacket Workstation Name Pattern in Logon Event
+-- Severity: High | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  sourceip,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+  AND (UTF8(payload) ILIKE '%EventID>4624<%'
+    OR UTF8(payload) ILIKE '%EventID>4776<%')
+  AND (UTF8(payload) ILIKE '%DESKTOP-RANDOM%'
+    OR UTF8(payload) ILIKE '%KALI%'
+    OR UTF8(payload) ILIKE '%PARROT%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-105026 | T1021.002 | Net View / Session / Share Enumeration from Script
+-- Severity: Low | Confidence: Medium
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE (LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+    OR LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%')
+  AND (UTF8(payload) ILIKE '%net view%'
+    OR UTF8(payload) ILIKE '%net session%'
+    OR UTF8(payload) ILIKE '%net share%')
+  AND (UTF8(payload) ILIKE '%powershell%'
+    OR UTF8(payload) ILIKE '%wscript%'
+    OR UTF8(payload) ILIKE '%cmd.exe%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-105027 | T1484 | SYSVOL File Written (GPO Abuse)
+-- Severity: Critical | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%'
+  AND UTF8(payload) ILIKE '%FileCreate%'
+  AND UTF8(payload) ILIKE '%SYSVOL%'
+  AND (UTF8(payload) ILIKE '%.bat%'
+    OR UTF8(payload) ILIKE '%.exe%'
+    OR UTF8(payload) ILIKE '%.ps1%'
+    OR UTF8(payload) ILIKE '%.vbs%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-105028 | T1021 | Remote Task with Domain User Credentials
+-- Severity: High | Confidence: Medium
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE (LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+    OR LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%')
+  AND UTF8(payload) ILIKE '%schtasks%'
+  AND UTF8(payload) ILIKE '%/create%'
+  AND UTF8(payload) ILIKE '%/s %'
+  AND (UTF8(payload) ILIKE '%/u %'
+    OR UTF8(payload) ILIKE '%/p %')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-105029 | T1021 | CrackMapExec Random Service Name Pattern
+-- Severity: Critical | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+  AND (UTF8(payload) ILIKE '%EventID>7045<%'
+    OR UTF8(payload) ILIKE '%EventID">"7045"%')
+  AND UTF8(payload) ILIKE '%cmd /Q /c%'
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-105030 | T1021.004 | SSH to Internal Hosts from Non-SSH Process
+-- Severity: High | Confidence: Medium
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  sourceip,
+  destinationip,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%'
+  AND UTF8(payload) ILIKE '%NetworkConnect%'
+  AND destinationport = 22
+  AND NOT (UTF8(payload) ILIKE '%ssh%'
+    OR UTF8(payload) ILIKE '%putty%'
+    OR UTF8(payload) ILIKE '%winscp%'
+    OR UTF8(payload) ILIKE '%openssh%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-105031 | T1021 | WPAD / ISATAP DNS Query (MITM Indicator)
+-- Severity: High | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  sourceip,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%'
+  AND UTF8(payload) ILIKE '%DnsQuery%'
+  AND (UTF8(payload) ILIKE '%wpad%'
+    OR UTF8(payload) ILIKE '%isatap%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-105032 | T1021 | PS Invoke-SMBExec (Hash Relay)
+-- Severity: Critical | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%PowerShell%'
+  AND (UTF8(payload) ILIKE '%Invoke-SMBExec%'
+    OR UTF8(payload) ILIKE '%Invoke-WMIExec%'
+    OR UTF8(payload) ILIKE '%Invoke-TheHash%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-105033 | T1021.002 | PsExec / Paexec Binary Launched
+-- Severity: High | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE (LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+    OR LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%')
+  AND (UTF8(payload) ILIKE '%psexec%'
+    OR UTF8(payload) ILIKE '%paexec%')
+  AND (UTF8(payload) ILIKE '%\\\\%'
+    OR UTF8(payload) ILIKE '%/s%')
+  AND NOT UTF8(payload) ILIKE '%PSEXESVC%'
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-105034 | T1548 | AdminSDHolder Modification (Event 5136)
+-- Severity: Critical | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+  AND (UTF8(payload) ILIKE '%EventID>5136<%'
+    OR UTF8(payload) ILIKE '%EventID">"5136"%')
+  AND UTF8(payload) ILIKE '%AdminSDHolder%'
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-105035 | T1021 | Explicit Credentials for Lateral Movement (4648)
+-- Severity: High | Confidence: Medium
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  sourceip,
+  destinationip,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+  AND (UTF8(payload) ILIKE '%EventID>4648<%'
+    OR UTF8(payload) ILIKE '%EventID">"4648"%')
+  AND NOT username ILIKE '%$%'
+  AND NOT (UTF8(payload) ILIKE '%svchost%'
+    OR UTF8(payload) ILIKE '%scheduled task%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-105036 | T1484 | RBCD Attribute Modified (msDS-AllowedToActOnBehalfOfOtherIdentity)
+-- Severity: Critical | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+  AND (UTF8(payload) ILIKE '%EventID>5136<%'
+    OR UTF8(payload) ILIKE '%EventID">"5136"%')
+  AND UTF8(payload) ILIKE '%msDS-AllowedToActOnBehalfOfOtherIdentity%'
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-105037 | T1134.005 | Add-DomainObjectAcl WriteDACL/GenericAll
+-- Severity: Critical | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%PowerShell%'
+  AND (UTF8(payload) ILIKE '%Add-DomainObjectAcl%'
+    OR UTF8(payload) ILIKE '%WriteDACL%'
+    OR UTF8(payload) ILIKE '%GenericAll%'
+    OR UTF8(payload) ILIKE '%Set-DomainObjectOwner%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-105038 | T1021.003 | Psexec via Port 135/445 from Unusual Parent
+-- Severity: High | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  sourceip,
+  destinationip,
+  destinationport,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%'
+  AND UTF8(payload) ILIKE '%NetworkConnect%'
+  AND destinationport IN (135, 445)
+  AND (UTF8(payload) ILIKE '%wscript%'
+    OR UTF8(payload) ILIKE '%python%'
+    OR UTF8(payload) ILIKE '%perl%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-105039 | T1021 | Invoke-PetitPotam / EfsRpc Coercion
+-- Severity: Critical | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%PowerShell%'
+  AND (UTF8(payload) ILIKE '%PetitPotam%'
+    OR UTF8(payload) ILIKE '%EfsRpcOpenFileRaw%'
+    OR UTF8(payload) ILIKE '%Invoke-Coercer%'
+    OR UTF8(payload) ILIKE '%SpoolSample%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-105040 | T1484 | GPO Linked at Domain Root (gpLink on DC=)
+-- Severity: Critical | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+  AND (UTF8(payload) ILIKE '%EventID>5136<%'
+    OR UTF8(payload) ILIKE '%EventID">"5136"%')
+  AND UTF8(payload) ILIKE '%gpLink%'
+  AND UTF8(payload) ILIKE '%DC=%'
+LAST 1440 MINUTES;

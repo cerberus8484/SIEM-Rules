@@ -1,0 +1,473 @@
+// ============================================================
+// HuntingThreats — Google SecOps YARA-L 2.0 Hunt Rules
+// Category : Persistence — Registry Run Keys / Hijacking (T1547)
+// Batch    : 04 / Persistence
+// Rules    : GS-101001 – GS-101025
+// Platform : Google SecOps / Chronicle SIEM
+// ============================================================
+
+rule ht_gs_101001_registry_run_key_write {
+  meta:
+    rule_id         = "GS-101001"
+    author          = "HuntingThreats"
+    description     = "Registry Run key written by non-system process — persistence via Run key"
+    mitre_tactic    = "Persistence"
+    mitre_technique = "T1547.001"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "REGISTRY_MODIFICATION"
+    re.regex($e.target.registry.registry_key, `(?i)\\(Run|RunOnce|RunServices|RunServicesOnce)$`)
+    NOT re.regex($e.principal.process.file.full_path, `(?i)\\(msiexec|setup|install|update).*\.exe$`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_101002_registry_run_from_temp {
+  meta:
+    rule_id         = "GS-101002"
+    author          = "HuntingThreats"
+    description     = "Run key pointing to Temp/AppData path — staging path persistence"
+    mitre_tactic    = "Persistence"
+    mitre_technique = "T1547.001"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "REGISTRY_MODIFICATION"
+    re.regex($e.target.registry.registry_key, `(?i)\\(Run|RunOnce)`)
+    re.regex($e.target.registry.registry_value_data, `(?i)(\\temp\\|\\appdata\\|\\programdata\\)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_101003_registry_userinit_hijack {
+  meta:
+    rule_id         = "GS-101003"
+    author          = "HuntingThreats"
+    description     = "Winlogon Userinit or Shell modified — login process hijacking"
+    mitre_tactic    = "Persistence"
+    mitre_technique = "T1547.004"
+    severity        = "CRITICAL"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "REGISTRY_MODIFICATION"
+    re.regex($e.target.registry.registry_key, `(?i)\\Winlogon`)
+    re.regex($e.target.registry.registry_key, `(?i)(Userinit|Shell)$`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_101004_registry_appinit_dlls {
+  meta:
+    rule_id         = "GS-101004"
+    author          = "HuntingThreats"
+    description     = "AppInit_DLLs registry key set — DLL injection into all GUI processes"
+    mitre_tactic    = "Persistence"
+    mitre_technique = "T1546.010"
+    severity        = "CRITICAL"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "REGISTRY_MODIFICATION"
+    re.regex($e.target.registry.registry_key, `(?i)\\AppInit_DLLs`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_101005_registry_ifeo_debugger {
+  meta:
+    rule_id         = "GS-101005"
+    author          = "HuntingThreats"
+    description     = "Image File Execution Options Debugger set — process hijacking via IFEO"
+    mitre_tactic    = "Persistence"
+    mitre_technique = "T1546.012"
+    severity        = "CRITICAL"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "REGISTRY_MODIFICATION"
+    re.regex($e.target.registry.registry_key, `(?i)\\Image File Execution Options\\`)
+    re.regex($e.target.registry.registry_key, `(?i)\\Debugger$`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_101006_registry_sip_trust_provider {
+  meta:
+    rule_id         = "GS-101006"
+    author          = "HuntingThreats"
+    description     = "SIP or trust provider registry modification — code signing bypass"
+    mitre_tactic    = "Defense Evasion"
+    mitre_technique = "T1553.003"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "REGISTRY_MODIFICATION"
+    re.regex($e.target.registry.registry_key, `(?i)\\(CryptSIPDll|Trust Provider|SIP)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_101007_registry_lsa_packages {
+  meta:
+    rule_id         = "GS-101007"
+    author          = "HuntingThreats"
+    description     = "LSA Security/Authentication packages modified — SSP/AP injection"
+    mitre_tactic    = "Persistence"
+    mitre_technique = "T1547.005"
+    severity        = "CRITICAL"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "REGISTRY_MODIFICATION"
+    re.regex($e.target.registry.registry_key, `(?i)\\(Security Packages|Authentication Packages|Notification Packages)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_101008_registry_office_addin {
+  meta:
+    rule_id         = "GS-101008"
+    author          = "HuntingThreats"
+    description     = "Office VSTO or COM add-in registry written — Office persistence via add-in"
+    mitre_tactic    = "Persistence"
+    mitre_technique = "T1137.001"
+    severity        = "HIGH"
+    confidence      = "MEDIUM"
+
+  events:
+    $e.metadata.event_type = "REGISTRY_MODIFICATION"
+    re.regex($e.target.registry.registry_key, `(?i)\\(Word|Excel|PowerPoint|Outlook)\\Addins`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_101009_registry_screensaver_path {
+  meta:
+    rule_id         = "GS-101009"
+    author          = "HuntingThreats"
+    description     = "Screensaver registry path changed to non-.scr executable — persistence"
+    mitre_tactic    = "Persistence"
+    mitre_technique = "T1546.002"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "REGISTRY_MODIFICATION"
+    re.regex($e.target.registry.registry_key, `(?i)\\Control Panel\\Desktop.*SCRNSAVE\.EXE`)
+    NOT re.regex($e.target.registry.registry_value_data, `(?i)\.scr$`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_101010_registry_com_object_hijack {
+  meta:
+    rule_id         = "GS-101010"
+    author          = "HuntingThreats"
+    description     = "COM object CLSID InprocServer32 modified in HKCU — COM hijacking"
+    mitre_tactic    = "Persistence"
+    mitre_technique = "T1546.015"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "REGISTRY_MODIFICATION"
+    re.regex($e.target.registry.registry_key, `(?i)HKCU.*\\CLSID\\.*\\InprocServer32`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_101011_registry_boot_execute {
+  meta:
+    rule_id         = "GS-101011"
+    author          = "HuntingThreats"
+    description     = "BootExecute registry key modified — pre-boot persistence or rootkit"
+    mitre_tactic    = "Persistence"
+    mitre_technique = "T1547.001"
+    severity        = "CRITICAL"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "REGISTRY_MODIFICATION"
+    re.regex($e.target.registry.registry_key, `(?i)\\Session Manager\\BootExecute`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_101012_registry_env_variable_comspec {
+  meta:
+    rule_id         = "GS-101012"
+    author          = "HuntingThreats"
+    description     = "ComSpec or SystemRoot environment variable changed — shell hijacking"
+    mitre_tactic    = "Defense Evasion"
+    mitre_technique = "T1574.007"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "REGISTRY_MODIFICATION"
+    re.regex($e.target.registry.registry_key, `(?i)\\Environment`)
+    re.regex($e.target.registry.registry_key, `(?i)(ComSpec|SystemRoot|Path)$`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_101013_registry_cmd_autorun {
+  meta:
+    rule_id         = "GS-101013"
+    author          = "HuntingThreats"
+    description     = "Cmd.exe AutoRun registry key set — command executed on every cmd.exe start"
+    mitre_tactic    = "Persistence"
+    mitre_technique = "T1546.011"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "REGISTRY_MODIFICATION"
+    re.regex($e.target.registry.registry_key, `(?i)\\Command Processor\\AutoRun`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_101014_registry_print_monitor_dll {
+  meta:
+    rule_id         = "GS-101014"
+    author          = "HuntingThreats"
+    description     = "Print Monitor DLL registry written — PrintMonitor DLL hijacking / PrintNightmare"
+    mitre_tactic    = "Privilege Escalation"
+    mitre_technique = "T1547.010"
+    severity        = "CRITICAL"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "REGISTRY_MODIFICATION"
+    re.regex($e.target.registry.registry_key, `(?i)\\Print\\Monitors\\`)
+    re.regex($e.target.registry.registry_value_data, `(?i)\.dll`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_101015_registry_rdp_enable {
+  meta:
+    rule_id         = "GS-101015"
+    author          = "HuntingThreats"
+    description     = "RDP enabled via registry (fDenyTSConnections = 0) — remote access enablement"
+    mitre_tactic    = "Lateral Movement"
+    mitre_technique = "T1021.001"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "REGISTRY_MODIFICATION"
+    re.regex($e.target.registry.registry_key, `(?i)\\Terminal Server\\fDenyTSConnections`)
+    $e.target.registry.registry_value_data = "0"
+
+  condition:
+    $e
+}
+
+rule ht_gs_101016_registry_disable_uac {
+  meta:
+    rule_id         = "GS-101016"
+    author          = "HuntingThreats"
+    description     = "UAC disabled via ConsentPromptBehaviorAdmin = 0 — UAC bypass persistence"
+    mitre_tactic    = "Privilege Escalation"
+    mitre_technique = "T1548.002"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "REGISTRY_MODIFICATION"
+    re.regex($e.target.registry.registry_key, `(?i)\\Policies\\System`)
+    re.regex($e.target.registry.registry_key, `(?i)ConsentPromptBehaviorAdmin`)
+    $e.target.registry.registry_value_data = "0"
+
+  condition:
+    $e
+}
+
+rule ht_gs_101017_registry_disable_firewall {
+  meta:
+    rule_id         = "GS-101017"
+    author          = "HuntingThreats"
+    description     = "Windows Firewall disabled via registry — defense evasion"
+    mitre_tactic    = "Defense Evasion"
+    mitre_technique = "T1562.004"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "REGISTRY_MODIFICATION"
+    re.regex($e.target.registry.registry_key, `(?i)\\FirewallPolicy.*\\EnableFirewall`)
+    $e.target.registry.registry_value_data = "0"
+
+  condition:
+    $e
+}
+
+rule ht_gs_101018_registry_disable_windefender {
+  meta:
+    rule_id         = "GS-101018"
+    author          = "HuntingThreats"
+    description     = "Windows Defender disabled via registry — DisableAntiSpyware or DisableRealtimeMonitoring"
+    mitre_tactic    = "Defense Evasion"
+    mitre_technique = "T1562.001"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "REGISTRY_MODIFICATION"
+    re.regex($e.target.registry.registry_key, `(?i)\\Windows Defender`)
+    re.regex($e.target.registry.registry_key, `(?i)(DisableAntiSpyware|DisableRealtimeMonitoring|DisableBehaviorMonitoring)`)
+    $e.target.registry.registry_value_data = "1"
+
+  condition:
+    $e
+}
+
+rule ht_gs_101019_registry_netsh_helper_dll {
+  meta:
+    rule_id         = "GS-101019"
+    author          = "HuntingThreats"
+    description     = "Netsh helper DLL registered — persistence via netsh add helper"
+    mitre_tactic    = "Persistence"
+    mitre_technique = "T1546.007"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "REGISTRY_MODIFICATION"
+    re.regex($e.target.registry.registry_key, `(?i)\\netsh\\helpers`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_101020_registry_powershell_profile {
+  meta:
+    rule_id         = "GS-101020"
+    author          = "HuntingThreats"
+    description     = "PowerShell profile path modified in registry — PS startup persistence"
+    mitre_tactic    = "Persistence"
+    mitre_technique = "T1546.013"
+    severity        = "HIGH"
+    confidence      = "MEDIUM"
+
+  events:
+    $e.metadata.event_type = "REGISTRY_MODIFICATION"
+    re.regex($e.target.registry.registry_key, `(?i)\\PowerShell.*\\PSHome`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_101021_registry_installer_path_hijack {
+  meta:
+    rule_id         = "GS-101021"
+    author          = "HuntingThreats"
+    description     = "AlwaysInstallElevated registry set — MSI install with SYSTEM privileges"
+    mitre_tactic    = "Privilege Escalation"
+    mitre_technique = "T1548.002"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "REGISTRY_MODIFICATION"
+    re.regex($e.target.registry.registry_key, `(?i)\\Installer\\AlwaysInstallElevated`)
+    $e.target.registry.registry_value_data = "1"
+
+  condition:
+    $e
+}
+
+rule ht_gs_101022_registry_security_center_notify {
+  meta:
+    rule_id         = "GS-101022"
+    author          = "HuntingThreats"
+    description     = "Security Center notification disabled — hiding AV alerts from user"
+    mitre_tactic    = "Defense Evasion"
+    mitre_technique = "T1562.001"
+    severity        = "MEDIUM"
+    confidence      = "MEDIUM"
+
+  events:
+    $e.metadata.event_type = "REGISTRY_MODIFICATION"
+    re.regex($e.target.registry.registry_key, `(?i)\\Security Center`)
+    re.regex($e.target.registry.registry_key, `(?i)(AntiVirusDisableNotify|UpdatesDisableNotify)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_101023_registry_bits_job_persistence {
+  meta:
+    rule_id         = "GS-101023"
+    author          = "HuntingThreats"
+    description     = "BITS job registry written — BITS-based download or upload persistence"
+    mitre_tactic    = "Persistence"
+    mitre_technique = "T1197"
+    severity        = "MEDIUM"
+    confidence      = "MEDIUM"
+
+  events:
+    $e.metadata.event_type = "REGISTRY_MODIFICATION"
+    re.regex($e.target.registry.registry_key, `(?i)\\BITS\\Jobs`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_101024_registry_wbem_subscription {
+  meta:
+    rule_id         = "GS-101024"
+    author          = "HuntingThreats"
+    description     = "WBEM subscription written to registry — WMI persistence key modification"
+    mitre_tactic    = "Persistence"
+    mitre_technique = "T1546.003"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "REGISTRY_MODIFICATION"
+    re.regex($e.target.registry.registry_key, `(?i)\\WBEM\\(EventSubscription|Subscription)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_101025_registry_file_association_hijack {
+  meta:
+    rule_id         = "GS-101025"
+    author          = "HuntingThreats"
+    description     = "File association modified to point to malicious handler — extension hijacking"
+    mitre_tactic    = "Persistence"
+    mitre_technique = "T1546.001"
+    severity        = "HIGH"
+    confidence      = "MEDIUM"
+
+  events:
+    $e.metadata.event_type = "REGISTRY_MODIFICATION"
+    re.regex($e.target.registry.registry_key, `(?i)\\Classes\\.*\\shell\\open\\command`)
+    re.regex($e.target.registry.registry_value_data, `(?i)(\\temp\\|\\appdata\\|\\programdata\\)`)
+
+  condition:
+    $e
+}

@@ -1,0 +1,363 @@
+<!--
+  HuntingThreats — Wazuh Hunt Rules
+  Category:  Persistence — Scheduled Tasks (T1053)
+  Batch:     1 / Persistence
+  Rules:     101026 – 101055
+  Platform:  Wazuh 4.x
+  Sources:   Windows Event 4698 (task created)
+             Windows Event 4702 (task updated)
+             Windows Event 4699 (task deleted — cleanup)
+             Sysmon Event 1 (schtasks.exe process creation)
+             Windows Event 4688 (schtasks.exe — without Sysmon)
+
+  T1053.005 — Scheduled Task/Job: Scheduled Task
+  T1059     — Command and Scripting Interpreter (via task action)
+  T1562     — Impair Defenses (delete / modify security tasks)
+-->
+
+<group name="hunt_persistence,scheduled_task,windows,">
+
+  <!-- ── schtasks.exe creates task with interpreter action ─────────────────── -->
+
+  <rule id="101026" level="10">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$|^4688$</field>
+    <field name="win.eventdata.image|win.eventdata.newProcessName" type="pcre2">(?i)\\schtasks\.exe$</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?i)/create.*(powershell|cmd\.exe|wscript|cscript|mshta|rundll32)</field>
+    <description>schtasks.exe: task created with scripting engine action — persistence via interpreter (T1053.005)</description>
+    <mitre><id>T1053.005</id></mitre>
+    <group>persistence,schtasks,interpreter,</group>
+  </rule>
+
+  <!-- ── schtasks created from TEMP/AppData ───────────────────────────────── -->
+
+  <rule id="101027" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$|^4688$</field>
+    <field name="win.eventdata.image|win.eventdata.newProcessName" type="pcre2">(?i)\\schtasks\.exe$</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?i)/create.*(\\appdata\\|\\temp\\|\\public\\|\\downloads\\)</field>
+    <description>schtasks.exe: task action points to user-writable path — persistence from non-standard location (T1053.005)</description>
+    <mitre><id>T1053.005</id></mitre>
+    <group>persistence,schtasks,suspicious_path,high_confidence,</group>
+  </rule>
+
+  <!-- ── schtasks with SYSTEM privilege ───────────────────────────────────── -->
+
+  <rule id="101028" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$|^4688$</field>
+    <field name="win.eventdata.image|win.eventdata.newProcessName" type="pcre2">(?i)\\schtasks\.exe$</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?i)/ru\s+(system|nt authority\\\\system)</field>
+    <description>schtasks.exe: task created to run as SYSTEM — elevated persistence (T1053.005, T1548)</description>
+    <mitre><id>T1053.005</id></mitre>
+    <group>persistence,schtasks,privilege_escalation,high_confidence,</group>
+  </rule>
+
+  <!-- ── schtasks with encoded command ────────────────────────────────────── -->
+
+  <rule id="101029" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$|^4688$</field>
+    <field name="win.eventdata.image|win.eventdata.newProcessName" type="pcre2">(?i)\\schtasks\.exe$</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?i)/create.*(-enc|-encodedcommand|/e\s+[A-Za-z0-9+/]{20,})</field>
+    <description>schtasks.exe: task created with encoded command — obfuscated persistence (T1053.005, T1027)</description>
+    <mitre><id>T1053.005</id></mitre>
+    <mitre><id>T1027</id></mitre>
+    <group>persistence,schtasks,obfuscation,high_confidence,</group>
+  </rule>
+
+  <!-- ── Windows Event 4698: task created (direct event) ──────────────────── -->
+
+  <rule id="101030" level="10">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^4698$</field>
+    <description>Windows Security: scheduled task created (Event 4698) — review task action and author (T1053.005)</description>
+    <mitre><id>T1053.005</id></mitre>
+    <group>persistence,schtasks,event_4698,</group>
+  </rule>
+
+  <!-- ── Task 4698 with scripting engine in task XML ───────────────────────── -->
+
+  <rule id="101031" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^4698$</field>
+    <field name="win.eventdata.taskContent" type="pcre2">(?i)(powershell|cmd\.exe|wscript|cscript|mshta|rundll32|regsvr32)</field>
+    <description>Windows Security: scheduled task created with scripting engine action in task XML (T1053.005)</description>
+    <mitre><id>T1053.005</id></mitre>
+    <group>persistence,schtasks,event_4698,interpreter,high_confidence,</group>
+  </rule>
+
+  <!-- ── Task 4698 pointing to user-writable path ──────────────────────────── -->
+
+  <rule id="101032" level="14">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^4698$</field>
+    <field name="win.eventdata.taskContent" type="pcre2">(?i)(\\appdata\\|\\temp\\|\\public\\|\\programdata\\[^W])</field>
+    <description>Windows Security: scheduled task action in user-writable directory — high-risk persistence (T1053.005)</description>
+    <mitre><id>T1053.005</id></mitre>
+    <group>persistence,schtasks,suspicious_path,critical,</group>
+  </rule>
+
+  <!-- ── Windows Event 4702: task modified ────────────────────────────────── -->
+
+  <rule id="101033" level="10">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^4702$</field>
+    <description>Windows Security: scheduled task updated (Event 4702) — check if action was modified (T1053.005)</description>
+    <mitre><id>T1053.005</id></mitre>
+    <group>persistence,schtasks,event_4702,</group>
+  </rule>
+
+  <!-- ── schtasks delete (cleanup indicator) ──────────────────────────────── -->
+
+  <rule id="101034" level="10">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$|^4688$</field>
+    <field name="win.eventdata.image|win.eventdata.newProcessName" type="pcre2">(?i)\\schtasks\.exe$</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?i)/delete</field>
+    <description>schtasks.exe: task deleted — could indicate cleanup after compromise (T1053.005, T1070)</description>
+    <mitre><id>T1070</id></mitre>
+    <group>defense_evasion,schtasks,cleanup,</group>
+  </rule>
+
+  <!-- ── schtasks /change (modify existing task) ──────────────────────────── -->
+
+  <rule id="101035" level="10">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$|^4688$</field>
+    <field name="win.eventdata.image|win.eventdata.newProcessName" type="pcre2">(?i)\\schtasks\.exe$</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?i)/change.*(powershell|cmd|wscript|cscript|mshta)</field>
+    <description>schtasks.exe: existing task action changed to scripting engine — hijacked task persistence (T1053.005)</description>
+    <mitre><id>T1053.005</id></mitre>
+    <group>persistence,schtasks,task_hijacking,high_confidence,</group>
+  </rule>
+
+  <!-- ── schtasks from non-standard parent ────────────────────────────────── -->
+
+  <rule id="101036" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$</field>
+    <field name="win.eventdata.image" type="pcre2">(?i)\\schtasks\.exe$</field>
+    <field name="win.eventdata.parentImage" type="pcre2">(?i)(powershell|cmd|wscript|cscript|mshta|python|java|node)</field>
+    <description>Sysmon: schtasks.exe spawned by script interpreter — scripted task creation (T1053.005)</description>
+    <mitre><id>T1053.005</id></mitre>
+    <group>persistence,schtasks,suspicious_parent,high_confidence,</group>
+  </rule>
+
+  <!-- ── at.exe scheduled job (legacy, often blocked) ────────────────────── -->
+
+  <rule id="101037" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$|^4688$</field>
+    <field name="win.eventdata.image|win.eventdata.newProcessName" type="pcre2">(?i)\\at\.exe$</field>
+    <description>at.exe: legacy job scheduler invoked — often abused for persistence, blocked in modern Windows (T1053.002)</description>
+    <mitre><id>T1053.002</id></mitre>
+    <group>persistence,at_job,high_confidence,</group>
+  </rule>
+
+  <!-- ── Task XML created via file write to Tasks folder ───────────────────── -->
+
+  <rule id="101038" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^11$</field>
+    <field name="win.eventdata.targetFilename" type="pcre2">(?i)\\Windows\\System32\\Tasks\\|\\Windows\\SysWOW64\\Tasks\\</field>
+    <field name="win.eventdata.image" type="pcre2">(?i)(?!.*svchost\.exe)(?!.*taskeng\.exe)(?!.*taskhostw\.exe)</field>
+    <description>Sysmon: file written to Tasks directory by non-task process — direct XML task registration (T1053.005)</description>
+    <mitre><id>T1053.005</id></mitre>
+    <group>persistence,schtasks,xml_write,high_confidence,</group>
+  </rule>
+
+  <!-- ── Task targeting Security / AV scheduler ───────────────────────────── -->
+
+  <rule id="101039" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$|^4688$</field>
+    <field name="win.eventdata.image|win.eventdata.newProcessName" type="pcre2">(?i)\\schtasks\.exe$</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?i)/delete.*(defender|antivirus|security|update|windows update)</field>
+    <description>schtasks.exe: security or update task deleted — disabling AV/update persistence mechanism (T1053.005, T1562)</description>
+    <mitre><id>T1562</id></mitre>
+    <group>defense_evasion,schtasks,av_tamper,high_confidence,</group>
+  </rule>
+
+  <!-- ── COM Hijack via Task action calling scriptlet ─────────────────────── -->
+
+  <rule id="101040" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^4698$</field>
+    <field name="win.eventdata.taskContent" type="pcre2">(?i)(\.sct|\.hta|javascript:|vbscript:)</field>
+    <description>Windows Security: scheduled task references scriptlet or inline script — scriptlet-based persistence (T1053.005)</description>
+    <mitre><id>T1053.005</id></mitre>
+    <group>persistence,schtasks,scriptlet,high_confidence,</group>
+  </rule>
+
+  <!-- ── Task trigger: at logon (common APT pattern) ───────────────────────── -->
+
+  <rule id="101041" level="10">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^4698$</field>
+    <field name="win.eventdata.taskContent" type="pcre2">(?i)LogonTrigger.*UserId|SessionStateChangeTrigger</field>
+    <description>Windows Security: scheduled task with logon trigger — fires at every user logon (T1053.005)</description>
+    <mitre><id>T1053.005</id></mitre>
+    <group>persistence,schtasks,logon_trigger,</group>
+  </rule>
+
+  <!-- ── schtasks /query to enumerate all tasks ────────────────────────────── -->
+
+  <rule id="101042" level="6">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$|^4688$</field>
+    <field name="win.eventdata.image|win.eventdata.newProcessName" type="pcre2">(?i)\\schtasks\.exe$</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?i)/query.*/fo\s+(list|csv)</field>
+    <description>schtasks.exe: task enumeration in list/CSV format — discovery of installed tasks (T1053.005, T1082)</description>
+    <mitre><id>T1082</id></mitre>
+    <group>discovery,schtasks,enumeration,</group>
+  </rule>
+
+  <!-- ── PowerShell New-ScheduledTask / Register-ScheduledTask ────────────── -->
+
+  <rule id="101043" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$|^4103$|^4104$</field>
+    <field name="win.eventdata.commandLine|win.eventdata.scriptBlockText" type="pcre2">(?i)(New-ScheduledTask|Register-ScheduledTask|New-ScheduledTaskAction)</field>
+    <description>PowerShell: scheduled task registered via PS cmdlet — programmatic persistence (T1053.005)</description>
+    <mitre><id>T1053.005</id></mitre>
+    <group>persistence,schtasks,powershell,high_confidence,</group>
+  </rule>
+
+  <!-- ── PowerShell Unregister-ScheduledTask (cleanup) ───────────────────── -->
+
+  <rule id="101044" level="10">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^4103$|^4104$</field>
+    <field name="win.eventdata.scriptBlockText" type="pcre2">(?i)Unregister-ScheduledTask</field>
+    <description>PowerShell: scheduled task removed via PS cmdlet — possible cleanup (T1070, T1053.005)</description>
+    <mitre><id>T1070</id></mitre>
+    <group>defense_evasion,schtasks,cleanup,</group>
+  </rule>
+
+  <!-- ── Task executing from network share ────────────────────────────────── -->
+
+  <rule id="101045" level="14">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^4698$</field>
+    <field name="win.eventdata.taskContent" type="pcre2">(?i)\\\\[0-9]{1,3}\.[0-9]{1,3}|\\\\[a-zA-Z0-9-]+\\[a-zA-Z0-9$]</field>
+    <description>Windows Security: scheduled task action executes from network share — remote code execution via task (T1053.005)</description>
+    <mitre><id>T1053.005</id></mitre>
+    <group>persistence,schtasks,network_share,critical,</group>
+  </rule>
+
+  <!-- ── Task with -WindowStyle Hidden (evasion) ──────────────────────────── -->
+
+  <rule id="101046" level="10">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^4698$</field>
+    <field name="win.eventdata.taskContent" type="pcre2">(?i)(WindowStyle.*Hidden|-WindowStyle\s+Hidden|-w\s+hidden)</field>
+    <description>Windows Security: scheduled task hides window — evasion technique in task action (T1053.005, T1564)</description>
+    <mitre><id>T1564.003</id></mitre>
+    <group>persistence,schtasks,hidden_window,</group>
+  </rule>
+
+  <!-- ── Task with -NoProfile -NonInteractive (PS stealth) ────────────────── -->
+
+  <rule id="101047" level="10">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^4698$</field>
+    <field name="win.eventdata.taskContent" type="pcre2">(?i)(-nop|-noprofile).*(-noni|-noninteractive)</field>
+    <description>Windows Security: scheduled task uses PowerShell stealth flags — reduced-footprint execution (T1053.005)</description>
+    <mitre><id>T1059.001</id></mitre>
+    <group>persistence,schtasks,powershell,stealth,</group>
+  </rule>
+
+  <!-- ── schtasks /F /Z (force overwrite, delete on completion) ────────────── -->
+
+  <rule id="101048" level="10">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$|^4688$</field>
+    <field name="win.eventdata.image|win.eventdata.newProcessName" type="pcre2">(?i)\\schtasks\.exe$</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?i)/create.*/f\s|/f\s.*/create|/z\s</field>
+    <description>schtasks.exe: task created with /F (force) or /Z (delete-on-complete) flags — evasion (T1053.005)</description>
+    <mitre><id>T1053.005</id></mitre>
+    <group>persistence,schtasks,evasion,</group>
+  </rule>
+
+  <!-- ── Task 4699 (task deleted — suspicious if security-related) ─────────── -->
+
+  <rule id="101049" level="8">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^4699$</field>
+    <description>Windows Security: scheduled task deleted (Event 4699) — verify if task was security-related (T1070)</description>
+    <mitre><id>T1070</id></mitre>
+    <group>defense_evasion,schtasks,event_4699,</group>
+  </rule>
+
+  <!-- ── Task 4700/4701 enabled/disabled ──────────────────────────────────── -->
+
+  <rule id="101050" level="6">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^4700$|^4701$</field>
+    <description>Windows Security: scheduled task enabled or disabled (Event 4700/4701) — review task context (T1053.005)</description>
+    <mitre><id>T1053.005</id></mitre>
+    <group>persistence,schtasks,enable_disable,</group>
+  </rule>
+
+  <!-- ── Task action: IEX / download cradle ───────────────────────────────── -->
+
+  <rule id="101051" level="14">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^4698$</field>
+    <field name="win.eventdata.taskContent" type="pcre2">(?i)(iex|invoke-expression|downloadstring|downloadfile|webclient|invoke-webrequest)</field>
+    <description>Windows Security: scheduled task contains download cradle or IEX — fileless execution via task (T1053.005, T1059.001)</description>
+    <mitre><id>T1053.005</id></mitre>
+    <mitre><id>T1059.001</id></mitre>
+    <group>persistence,schtasks,download_cradle,critical,</group>
+  </rule>
+
+  <!-- ── schtasks run interval: every minute (polling beacon) ─────────────── -->
+
+  <rule id="101052" level="10">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^4698$</field>
+    <field name="win.eventdata.taskContent" type="pcre2">PT1M|RepetitionInterval.*T0:0[012]|Interval.*PT[1-5]M</field>
+    <description>Windows Security: scheduled task with very short interval (1-5 min) — possible beaconing or polling mechanism (T1053.005)</description>
+    <mitre><id>T1053.005</id></mitre>
+    <group>persistence,schtasks,high_frequency,</group>
+  </rule>
+
+  <!-- ── Task from Office macro spawn ─────────────────────────────────────── -->
+
+  <rule id="101053" level="14">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$</field>
+    <field name="win.eventdata.image" type="pcre2">(?i)\\schtasks\.exe$</field>
+    <field name="win.eventdata.parentImage" type="pcre2">(?i)\\(WINWORD|EXCEL|POWERPNT|OUTLOOK|ONENOTE)\.exe$</field>
+    <description>Sysmon: schtasks.exe spawned by Office application — task-based persistence from document macro (T1053.005)</description>
+    <mitre><id>T1053.005</id></mitre>
+    <mitre><id>T1566.001</id></mitre>
+    <group>persistence,schtasks,office_macro,critical,</group>
+  </rule>
+
+  <!-- ── Task hidden in system task path ──────────────────────────────────── -->
+
+  <rule id="101054" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^4698$</field>
+    <field name="win.eventdata.taskName" type="pcre2">(?i)\\Microsoft\\Windows\\</field>
+    <field name="win.eventdata.taskContent" type="pcre2">(?i)(\\appdata\\|\\temp\\|\\downloads\\|\\users\\public\\)</field>
+    <description>Windows Security: task masquerading as Microsoft task but executes from user path — camouflage persistence (T1053.005, T1036)</description>
+    <mitre><id>T1036</id></mitre>
+    <group>persistence,schtasks,masquerade,high_confidence,</group>
+  </rule>
+
+  <!-- ── schtasks /run (immediate forced execution) ────────────────────────── -->
+
+  <rule id="101055" level="10">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$|^4688$</field>
+    <field name="win.eventdata.image|win.eventdata.newProcessName" type="pcre2">(?i)\\schtasks\.exe$</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?i)/run\s+/tn</field>
+    <description>schtasks.exe: task manually forced to run with /run flag — immediate task execution (T1053.005)</description>
+    <mitre><id>T1053.005</id></mitre>
+    <group>execution,schtasks,immediate_run,</group>
+  </rule>
+
+</group>

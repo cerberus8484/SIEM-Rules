@@ -1,0 +1,475 @@
+<!--
+  HuntingThreats — Wazuh Hunt Rules
+  Category:  Privilege Escalation (T1548, T1134, T1574, T1611)
+  Batch:     1 / Privilege Escalation
+  Rules:     109001 – 109040
+  Platform:  Wazuh 4.x
+  Sources:   Sysmon Event 1 (Process Creation)
+             Windows Event 4688 (Process Creation)
+             Windows Events 4672/4673 (Special Privilege)
+             Sysmon Event 13 (Registry modification)
+             Sysmon Event 7 (Image Load)
+
+  T1548.002 — Abuse Elevation: UAC Bypass
+  T1134     — Access Token Manipulation
+  T1574     — Hijack Execution Flow (DLL order)
+  T1055     — Process Injection (for privilege)
+  T1611     — Escape to Host
+  T1068     — Exploitation for Privilege Escalation
+-->
+
+<group name="hunt_privilege_escalation,windows,">
+
+  <!-- ── Windows Event 4672 — admin privilege assigned at logon ────────────── -->
+
+  <rule id="109001" level="8">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^4672$</field>
+    <field name="win.eventdata.subjectUserName" type="pcre2">(?i)(?!.*(SYSTEM|LOCAL SERVICE|NETWORK SERVICE)$)</field>
+    <description>Windows Security: special privileges assigned to non-system account at logon (Event 4672) (T1134)</description>
+    <mitre><id>T1134</id></mitre>
+    <group>privilege_escalation,special_priv,</group>
+  </rule>
+
+  <!-- ── SeDebugPrivilege obtained ─────────────────────────────────────────── -->
+
+  <rule id="109002" level="10">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^4673$</field>
+    <field name="win.eventdata.privileges" type="pcre2">(?i)SeDebugPrivilege</field>
+    <description>Windows Security: SeDebugPrivilege requested — process can access any process memory (T1134)</description>
+    <mitre><id>T1134</id></mitre>
+    <group>privilege_escalation,sedebug,high_confidence,</group>
+  </rule>
+
+  <!-- ── Token theft (DuplicateTokenEx) ────────────────────────────────────── -->
+
+  <rule id="109003" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^4103$|^4104$</field>
+    <field name="win.eventdata.scriptBlockText" type="pcre2">(?i)(DuplicateTokenEx|ImpersonateLoggedOnUser|SetThreadToken|AdjustTokenPrivileges.*SeDebug)</field>
+    <description>PowerShell: token impersonation/duplication API — privilege escalation via token theft (T1134.001)</description>
+    <mitre><id>T1134.001</id></mitre>
+    <group>privilege_escalation,token_theft,high_confidence,</group>
+  </rule>
+
+  <!-- ── UAC bypass — eventvwr.exe / registry hijack ─────────────────────── -->
+
+  <rule id="109004" level="14">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^13$</field>
+    <field name="win.eventdata.targetObject" type="pcre2">(?i)HKCU\\Software\\Classes\\mscfile\\shell\\open\\command</field>
+    <description>Sysmon: eventvwr UAC bypass registry key set — HKCU COM hijack for elevation (T1548.002)</description>
+    <mitre><id>T1548.002</id></mitre>
+    <group>privilege_escalation,uac_bypass,eventvwr,critical,</group>
+  </rule>
+
+  <!-- ── UAC bypass — fodhelper registry ───────────────────────────────────── -->
+
+  <rule id="109005" level="14">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^13$</field>
+    <field name="win.eventdata.targetObject" type="pcre2">(?i)HKCU\\Software\\Classes\\ms-settings\\shell\\open\\command</field>
+    <description>Sysmon: fodhelper UAC bypass registry key set — ms-settings COM hijack for elevation (T1548.002)</description>
+    <mitre><id>T1548.002</id></mitre>
+    <group>privilege_escalation,uac_bypass,fodhelper,critical,</group>
+  </rule>
+
+  <!-- ── runas.exe with different user ─────────────────────────────────────── -->
+
+  <rule id="109006" level="8">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$|^4688$</field>
+    <field name="win.eventdata.image|win.eventdata.newProcessName" type="pcre2">(?i)\\runas\.exe$</field>
+    <field name="win.eventdata.parentImage" type="pcre2">(?i)(powershell|cmd|wscript)</field>
+    <description>runas.exe: process executed as different user from script — credential-based elevation (T1134)</description>
+    <mitre><id>T1134</id></mitre>
+    <group>privilege_escalation,runas,</group>
+  </rule>
+
+  <!-- ── Unquoted service path exploitation ────────────────────────────────── -->
+
+  <rule id="109007" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^11$</field>
+    <field name="win.eventdata.targetFilename" type="pcre2">(?i)\\Program\.exe$|\\Program Files\.exe$|\\Common Files\.exe$</field>
+    <description>Sysmon: binary planted in unquoted service path position — unquoted path privilege escalation (T1574.009)</description>
+    <mitre><id>T1574.009</id></mitre>
+    <group>privilege_escalation,unquoted_path,high_confidence,</group>
+  </rule>
+
+  <!-- ── DLL search order hijacking ────────────────────────────────────────── -->
+
+  <rule id="109008" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^7$</field>
+    <field name="win.eventdata.signed" type="pcre2">^false$</field>
+    <field name="win.eventdata.imageLoaded" type="pcre2">(?i)\\(System32|SysWOW64)\\.*\.dll$</field>
+    <field name="win.eventdata.image" type="pcre2">(?i)(?!.*\\(svchost|msiexec|TiWorker|TrustedInstaller)\.exe)</field>
+    <description>Sysmon: unsigned DLL loaded from System32 by non-system process — DLL hijacking (T1574.001)</description>
+    <mitre><id>T1574.001</id></mitre>
+    <group>privilege_escalation,dll_hijack,high_confidence,</group>
+  </rule>
+
+  <!-- ── Scheduled task as SYSTEM for privilege ────────────────────────────── -->
+
+  <rule id="109009" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^4698$</field>
+    <field name="win.eventdata.taskContent" type="pcre2">(?i)(RunAs.*S-1-5-18|RunLevel.*HighestAvailable|Principal.*LocalSystem)</field>
+    <description>Windows Security: scheduled task configured to run as SYSTEM — task-based privilege escalation (T1053.005, T1548)</description>
+    <mitre><id>T1548</id></mitre>
+    <group>privilege_escalation,schtask_system,high_confidence,</group>
+  </rule>
+
+  <!-- ── AlwaysInstallElevated registry key ────────────────────────────────── -->
+
+  <rule id="109010" level="14">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^13$</field>
+    <field name="win.eventdata.targetObject" type="pcre2">(?i)(HKLM|HKCU)\\SOFTWARE\\Policies\\Microsoft\\Windows\\Installer\\AlwaysInstallElevated</field>
+    <field name="win.eventdata.details" type="pcre2">^1$|DWORD.*1</field>
+    <description>Sysmon: AlwaysInstallElevated policy set — MSI executed as SYSTEM regardless of permissions (T1548.002)</description>
+    <mitre><id>T1548.002</id></mitre>
+    <group>privilege_escalation,always_install_elevated,critical,</group>
+  </rule>
+
+  <!-- ── msiexec installing from remote URL ────────────────────────────────── -->
+
+  <rule id="109011" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$|^4688$</field>
+    <field name="win.eventdata.image|win.eventdata.newProcessName" type="pcre2">(?i)\\msiexec\.exe$</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?i)/i\s+(http[s]?:|\\\\[0-9a-zA-Z])</field>
+    <description>msiexec.exe: MSI installed from remote location — remote MSI privilege escalation (T1548.002)</description>
+    <mitre><id>T1548.002</id></mitre>
+    <group>privilege_escalation,msiexec,remote_install,high_confidence,</group>
+  </rule>
+
+  <!-- ── PrintNightmare — Spool service exploitation ───────────────────────── -->
+
+  <rule id="109012" level="14">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^7$</field>
+    <field name="win.eventdata.image" type="pcre2">(?i)\\spoolsv\.exe$</field>
+    <field name="win.eventdata.imageLoaded" type="pcre2">(?i)(\\appdata\\|\\temp\\|\\downloads\\|\\Windows\\Temp\\).*\.dll$</field>
+    <description>Sysmon: spoolsv.exe loading DLL from user-writable path — PrintNightmare/PrintSpooler exploitation (T1068)</description>
+    <mitre><id>T1068</id></mitre>
+    <group>privilege_escalation,printnightmare,critical,</group>
+  </rule>
+
+  <!-- ── Add user to local admin group ─────────────────────────────────────── -->
+
+  <rule id="109013" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^4732$</field>
+    <field name="win.eventdata.targetUserName" type="pcre2">(?i)(Administrators|Remote Desktop Users|Backup Operators)</field>
+    <description>Windows Security: user added to privileged local group (Event 4732) — unauthorized privilege grant (T1098)</description>
+    <mitre><id>T1098</id></mitre>
+    <group>privilege_escalation,group_add,high_confidence,</group>
+  </rule>
+
+  <!-- ── Add user to domain admin group ────────────────────────────────────── -->
+
+  <rule id="109014" level="14">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^4728$</field>
+    <field name="win.eventdata.targetUserName" type="pcre2">(?i)(Domain Admins|Enterprise Admins|Schema Admins)</field>
+    <description>Windows Security: user added to domain admin group (Event 4728) — domain privilege escalation (T1098.001)</description>
+    <mitre><id>T1098.001</id></mitre>
+    <group>privilege_escalation,domain_admin_add,critical,</group>
+  </rule>
+
+  <!-- ── Local user created ────────────────────────────────────────────────── -->
+
+  <rule id="109015" level="10">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^4720$</field>
+    <description>Windows Security: local user account created (Event 4720) — persistence via new account (T1136.001)</description>
+    <mitre><id>T1136.001</id></mitre>
+    <group>privilege_escalation,account_create,high_confidence,</group>
+  </rule>
+
+  <!-- ── net localgroup administrators add ─────────────────────────────────── -->
+
+  <rule id="109016" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$|^4688$</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?i)net\s+localgroup\s+administrators\s+.*\/add</field>
+    <description>net.exe: user added to local Administrators group — unauthorized local admin grant (T1098)</description>
+    <mitre><id>T1098</id></mitre>
+    <group>privilege_escalation,local_admin_add,high_confidence,</group>
+  </rule>
+
+  <!-- ── PS Add-LocalGroupMember ────────────────────────────────────────────── -->
+
+  <rule id="109017" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^4103$|^4104$</field>
+    <field name="win.eventdata.scriptBlockText" type="pcre2">(?i)(Add-LocalGroupMember.*Administrators|Add-ADGroupMember.*(Domain Admins|Enterprise Admins))</field>
+    <description>PowerShell: user added to admin group via PS cmdlet — PS-based privilege escalation (T1098)</description>
+    <mitre><id>T1098</id></mitre>
+    <group>privilege_escalation,admin_add,powershell,high_confidence,</group>
+  </rule>
+
+  <!-- ── Exploit known vulnerability — known CVE patterns ─────────────────── -->
+
+  <rule id="109018" level="14">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$</field>
+    <field name="win.eventdata.parentImage" type="pcre2">(?i)\\(spoolsv|lsass|winlogon|svchost)\.exe$</field>
+    <field name="win.eventdata.image" type="pcre2">(?i)\\(cmd|powershell|wscript|cscript|mshta)\.exe$</field>
+    <description>Sysmon: scripting engine spawned by system process — possible service/driver exploitation (T1068)</description>
+    <mitre><id>T1068</id></mitre>
+    <group>privilege_escalation,service_exploit,critical,</group>
+  </rule>
+
+  <!-- ── Kernel exploit loading driver ─────────────────────────────────────── -->
+
+  <rule id="109019" level="14">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^6$</field>
+    <field name="win.eventdata.signed" type="pcre2">^false$</field>
+    <description>Sysmon: unsigned driver loaded — kernel exploit or rootkit driver installation (T1068, T1014)</description>
+    <mitre><id>T1068</id></mitre>
+    <group>privilege_escalation,kernel_driver,critical,</group>
+  </rule>
+
+  <!-- ── Invoke-PsExec with SYSTEM ─────────────────────────────────────────── -->
+
+  <rule id="109020" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^4103$|^4104$</field>
+    <field name="win.eventdata.scriptBlockText" type="pcre2">(?i)(Invoke-PsExec|Invoke-ServiceAbuse|Write-ServiceBinary|Install-ServiceBinary)</field>
+    <description>PowerShell: service-based privilege escalation function — vulnerable service exploitation (T1574.010)</description>
+    <mitre><id>T1574.010</id></mitre>
+    <group>privilege_escalation,service_abuse,powershell,critical,</group>
+  </rule>
+
+  <!-- ── SID History injection ──────────────────────────────────────────────── -->
+
+  <rule id="109021" level="14">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^4765$|^4766$</field>
+    <description>Windows Security: SID History added to account (Event 4765/4766) — AD privilege escalation via SID history (T1134.005)</description>
+    <mitre><id>T1134.005</id></mitre>
+    <group>privilege_escalation,sid_history,critical,</group>
+  </rule>
+
+  <!-- ── SDProp / AdminSDHolder modification ───────────────────────────────── -->
+
+  <rule id="109022" level="14">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^5136$</field>
+    <field name="win.eventdata.objectDN" type="pcre2">(?i)CN=AdminSDHolder</field>
+    <description>Windows Security: AdminSDHolder modified — backdoor domain-level privilege escalation (T1098.001)</description>
+    <mitre><id>T1098.001</id></mitre>
+    <group>privilege_escalation,adminsd_holder,critical,</group>
+  </rule>
+
+  <!-- ── Kerberos unconstrained delegation ─────────────────────────────────── -->
+
+  <rule id="109023" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^4738$</field>
+    <field name="win.eventdata.userAccountControl" type="pcre2">(?i)TRUSTED_FOR_DELEGATION</field>
+    <description>Windows Security: unconstrained delegation enabled on account — Kerberos TGT capture risk (T1558)</description>
+    <mitre><id>T1558</id></mitre>
+    <group>privilege_escalation,unconstrained_delegation,high_confidence,</group>
+  </rule>
+
+  <!-- ── whoami /priv from suspicious process ──────────────────────────────── -->
+
+  <rule id="109024" level="10">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$</field>
+    <field name="win.eventdata.image" type="pcre2">(?i)\\whoami\.exe$</field>
+    <field name="win.eventdata.parentImage" type="pcre2">(?i)(cmd|powershell|wscript)</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?i)/priv</field>
+    <description>Sysmon: whoami /priv — attacker checking their privileges post-escalation (T1033)</description>
+    <mitre><id>T1033</id></mitre>
+    <group>privilege_escalation,priv_check,</group>
+  </rule>
+
+  <!-- ── Token elevation via COM (IElevatedFactoryServer) ─────────────────── -->
+
+  <rule id="109025" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^4103$|^4104$</field>
+    <field name="win.eventdata.scriptBlockText" type="pcre2">(?i)(IElevatedFactoryServer|IFileOperation|ICMLuaUtil|ShellExecute.*runas|ElevationType)</field>
+    <description>PowerShell: elevated COM interface used — COM-based UAC bypass (T1548.002)</description>
+    <mitre><id>T1548.002</id></mitre>
+    <group>privilege_escalation,com_elevation,high_confidence,</group>
+  </rule>
+
+  <!-- ── LSA custom security package DLL ──────────────────────────────────── -->
+
+  <rule id="109026" level="14">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^7$</field>
+    <field name="win.eventdata.image" type="pcre2">(?i)\\lsass\.exe$</field>
+    <field name="win.eventdata.signed" type="pcre2">^false$</field>
+    <description>Sysmon: unsigned DLL loaded by LSASS — malicious security package or credential interceptor (T1547.005)</description>
+    <mitre><id>T1547.005</id></mitre>
+    <group>privilege_escalation,lsass_dll,critical,</group>
+  </rule>
+
+  <!-- ── Privilege escalation via named pipe ───────────────────────────────── -->
+
+  <rule id="109027" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^4103$|^4104$</field>
+    <field name="win.eventdata.scriptBlockText" type="pcre2">(?i)(Named[Pp]ipe|[Ii]mpersonate.*[Pp]ipe|ImpersonateNamedPipeClient|CreateNamedPipe.*SECURITY_IMPERSONATION)</field>
+    <description>PowerShell: named pipe impersonation — token theft via pipe for privilege escalation (T1134.001)</description>
+    <mitre><id>T1134.001</id></mitre>
+    <group>privilege_escalation,named_pipe,high_confidence,</group>
+  </rule>
+
+  <!-- ── Exploitation via JuicyPotato / RoguePotato ───────────────────────── -->
+
+  <rule id="109028" level="14">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$|^4688$</field>
+    <field name="win.eventdata.image|win.eventdata.newProcessName" type="pcre2">(?i)(JuicyPotato|RoguePotato|SweetPotato|PrintSpoofer|GodPotato|EfsPotato)\.exe$</field>
+    <description>Known potato exploit: SYSTEM token impersonation tool detected (T1134.001)</description>
+    <mitre><id>T1134.001</id></mitre>
+    <group>privilege_escalation,potato_exploit,critical,</group>
+  </rule>
+
+  <!-- ── Nessus / Exploit DB CVE scan for local privesc ────────────────────── -->
+
+  <rule id="109029" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^4103$|^4104$</field>
+    <field name="win.eventdata.scriptBlockText" type="pcre2">(?i)(Invoke-PrivescCheck|Invoke-AllChecks|PowerUp|Get-ModifiableServiceFile|Get-UnquotedService|Get-ServiceUnquoted)</field>
+    <description>PowerShell: privilege escalation enumeration tool — PowerUp/PrivescCheck running (T1068)</description>
+    <mitre><id>T1068</id></mitre>
+    <group>privilege_escalation,privesc_tool,high_confidence,</group>
+  </rule>
+
+  <!-- ── Phantom DLL hijacking (load order) ────────────────────────────────── -->
+
+  <rule id="109030" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^7$</field>
+    <field name="win.eventdata.signed" type="pcre2">^false$</field>
+    <field name="win.eventdata.imageLoaded" type="pcre2">(?i)\\(wlbsctrl|comsvcs|wbemcomn|oci|wlidsvc|cryptsp|ncobjapi)\.dll$</field>
+    <description>Sysmon: known phantom/ghost DLL loaded from non-standard path — DLL search order hijacking (T1574.001)</description>
+    <mitre><id>T1574.001</id></mitre>
+    <group>privilege_escalation,phantom_dll,high_confidence,</group>
+  </rule>
+
+  <!-- ── Seclogon service abuse (secondary logon) ───────────────────────────── -->
+
+  <rule id="109031" level="10">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^4624$</field>
+    <field name="win.eventdata.logonType" type="pcre2">^9$</field>
+    <field name="win.eventdata.logonProcessName" type="pcre2">(?i)seclogo</field>
+    <description>Windows Security: New Credentials logon type (Type9/Seclogon) — pass-the-ticket or runas /netonly (T1134)</description>
+    <mitre><id>T1134</id></mitre>
+    <group>privilege_escalation,seclogon,</group>
+  </rule>
+
+  <!-- ── Admin user creation via net user ──────────────────────────────────── -->
+
+  <rule id="109032" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$|^4688$</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?i)net\s+user\s+[a-zA-Z0-9]+\s+[^ ]+\s+\/add</field>
+    <description>net.exe: local user created — attacker creating backdoor account (T1136.001)</description>
+    <mitre><id>T1136.001</id></mitre>
+    <group>privilege_escalation,user_create,high_confidence,</group>
+  </rule>
+
+  <!-- ── Password reset without old password (4723 / 4724) ────────────────── -->
+
+  <rule id="109033" level="10">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^4724$</field>
+    <description>Windows Security: password reset by admin (Event 4724) — verify if authorized credential takeover (T1098)</description>
+    <mitre><id>T1098</id></mitre>
+    <group>privilege_escalation,password_reset,</group>
+  </rule>
+
+  <!-- ── Event log tampering via registry ───────────────────────────────────── -->
+
+  <rule id="109034" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^13$</field>
+    <field name="win.eventdata.targetObject" type="pcre2">(?i)\\HKLM\\SYSTEM\\CurrentControlSet\\Services\\EventLog\\Security\\</field>
+    <description>Sysmon: Security event log configuration modified — tampered logging for privilege evasion (T1562.002)</description>
+    <mitre><id>T1562.002</id></mitre>
+    <group>privilege_escalation,eventlog_tamper,high_confidence,</group>
+  </rule>
+
+  <!-- ── Binary planting in PATH-searched directory ────────────────────────── -->
+
+  <rule id="109035" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^11$</field>
+    <field name="win.eventdata.targetFilename" type="pcre2">(?i)\\Windows\\(cmd|net|ping|reg|sc|schtasks|wmic|certutil)\.exe$</field>
+    <field name="win.eventdata.image" type="pcre2">(?i)(?!.*\\(TiWorker|TrustedInstaller|wusa|msiexec|svchost)\.exe)</field>
+    <description>Sysmon: system binary replaced in Windows directory — binary planting for hijacking (T1574.001)</description>
+    <mitre><id>T1574.001</id></mitre>
+    <group>privilege_escalation,binary_plant,critical,</group>
+  </rule>
+
+  <!-- ── Exploitation via MS-DFSNM / EFS (PrinterBug variant) ─────────────── -->
+
+  <rule id="109036" level="14">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^4103$|^4104$</field>
+    <field name="win.eventdata.scriptBlockText" type="pcre2">(?i)(Invoke-PetitPotam|Invoke-PrinterBug|EfsRpcOpenFileRaw|dfscoerce|coercer)</field>
+    <description>PowerShell: NTLM coercion exploit (PetitPotam/PrinterBug) — forcing SYSTEM authentication for relay (T1187)</description>
+    <mitre><id>T1187</id></mitre>
+    <group>privilege_escalation,coercion,ntlm_relay,critical,</group>
+  </rule>
+
+  <!-- ── RBCD (Resource-Based Constrained Delegation) attack ───────────────── -->
+
+  <rule id="109037" level="14">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^4103$|^4104$</field>
+    <field name="win.eventdata.scriptBlockText" type="pcre2">(?i)(msDS-AllowedToActOnBehalfOfOtherIdentity|Set-ADComputer.*PrincipalsAllowedToDelegateToAccount|RBCD)</field>
+    <description>PowerShell: Resource-Based Constrained Delegation configured — RBCD privilege escalation (T1134.001)</description>
+    <mitre><id>T1134.001</id></mitre>
+    <group>privilege_escalation,rbcd,critical,</group>
+  </rule>
+
+  <!-- ── WriteDACL / WriteOwner on AD object ───────────────────────────────── -->
+
+  <rule id="109038" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^4103$|^4104$</field>
+    <field name="win.eventdata.scriptBlockText" type="pcre2">(?i)(Add-DomainObjectAcl|Set-DomainObjectOwner|WriteDACL|GenericWrite|GenericAll|AllExtendedRights)</field>
+    <description>PowerShell: AD object ACL modification — privilege escalation via AD ACL abuse (T1098.001)</description>
+    <mitre><id>T1098.001</id></mitre>
+    <group>privilege_escalation,acl_abuse,high_confidence,</group>
+  </rule>
+
+  <!-- ── UAC bypass via CMSTPLUA COM ────────────────────────────────────────── -->
+
+  <rule id="109039" level="14">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^13$</field>
+    <field name="win.eventdata.targetObject" type="pcre2">(?i)HKCU\\Software\\Classes\\CLSID\\.*InprocServer32</field>
+    <field name="win.eventdata.image" type="pcre2">(?i)(powershell|cmd|wscript)</field>
+    <description>Sysmon: HKCU CLSID COM server set from script — COM hijack UAC bypass preparation (T1548.002)</description>
+    <mitre><id>T1548.002</id></mitre>
+    <group>privilege_escalation,com_hijack,uac_bypass,critical,</group>
+  </rule>
+
+  <!-- ── Group Policy Object link to domain root ───────────────────────────── -->
+
+  <rule id="109040" level="14">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^5136$</field>
+    <field name="win.eventdata.ldapDisplayName" type="pcre2">(?i)gpLink</field>
+    <field name="win.eventdata.objectDN" type="pcre2">(?i)DC=.*,DC=</field>
+    <description>Windows Security: GPO linked at domain root level — domain-wide privilege escalation via GPO (T1484.001)</description>
+    <mitre><id>T1484.001</id></mitre>
+    <group>privilege_escalation,gpo_link,domain,critical,</group>
+  </rule>
+
+</group>

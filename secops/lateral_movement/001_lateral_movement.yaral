@@ -1,0 +1,778 @@
+// ============================================================
+// HuntingThreats — Google SecOps YARA-L 2.0 Hunt Rules
+// Category : Lateral Movement — RDP / SMB / WMI / Pass-the-X (T1021, T1047, T1570, T1550)
+// Batch    : 10 / Lateral Movement
+// Rules    : GS-105001 – GS-105040
+// Platform : Google SecOps / Chronicle SIEM
+// ============================================================
+
+rule ht_gs_105001_rdp_logon_from_unusual_source {
+  meta:
+    rule_id         = "GS-105001"
+    author          = "HuntingThreats"
+    description     = "RDP logon (Type 10) from external or unusual source IP"
+    mitre_tactic    = "Lateral Movement"
+    mitre_technique = "T1021.001"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "USER_LOGIN"
+    $e.extensions.auth.auth_details = "INTERACTIVE"
+    re.regex($e.metadata.product_log_id, `(?i)4624`)
+    NOT $e.principal.ip in cidr "10.0.0.0/8"
+    NOT $e.principal.ip in cidr "192.168.0.0/16"
+    NOT $e.principal.ip in cidr "172.16.0.0/12"
+
+  condition:
+    $e
+}
+
+rule ht_gs_105002_rdp_new_user_logon {
+  meta:
+    rule_id         = "GS-105002"
+    author          = "HuntingThreats"
+    description     = "RDP logon with unusual username — new account RDP access"
+    mitre_tactic    = "Lateral Movement"
+    mitre_technique = "T1021.001"
+    severity        = "MEDIUM"
+    confidence      = "MEDIUM"
+
+  events:
+    $e.metadata.event_type = "USER_LOGIN"
+    re.regex($e.target.user.userid, `(?i)(admin|administrator|guest|support|service|backup|temp)`)
+    $e.network.application_protocol = "RDP"
+
+  condition:
+    $e
+}
+
+rule ht_gs_105003_admin_share_access {
+  meta:
+    rule_id         = "GS-105003"
+    author          = "HuntingThreats"
+    description     = "Admin share access (C$ ADMIN$ IPC$) from remote host — lateral movement via SMB"
+    mitre_tactic    = "Lateral Movement"
+    mitre_technique = "T1021.002"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "USER_LOGIN"
+    re.regex($e.target.resource.name, `(?i)(C\$|ADMIN\$|IPC\$)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_105004_psexec_service_install {
+  meta:
+    rule_id         = "GS-105004"
+    author          = "HuntingThreats"
+    description     = "PsExec PSEXESVC service installed — PsExec lateral movement"
+    mitre_tactic    = "Lateral Movement"
+    mitre_technique = "T1570"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "SERVICE_CREATION"
+    re.regex($e.target.resource.name, `(?i)(PSEXESVC|psexec)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_105005_wmi_lateral_node {
+  meta:
+    rule_id         = "GS-105005"
+    author          = "HuntingThreats"
+    description     = "WMIC /node: remote process creation — WMI-based lateral movement"
+    mitre_tactic    = "Lateral Movement"
+    mitre_technique = "T1021.006"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.file.full_path, `(?i)\\wmic\.exe$`)
+    re.regex($e.target.process.command_line, `(?i)/node:`)
+    re.regex($e.target.process.command_line, `(?i)process\s+call\s+create`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_105006_ps_invoke_command_remote {
+  meta:
+    rule_id         = "GS-105006"
+    author          = "HuntingThreats"
+    description     = "PowerShell Invoke-Command with -ComputerName — PS remoting lateral movement"
+    mitre_tactic    = "Lateral Movement"
+    mitre_technique = "T1021.006"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.command_line, `(?i)invoke-command`)
+    re.regex($e.target.process.command_line, `(?i)(-computername|-cn\s)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_105007_pass_the_hash_ntlm {
+  meta:
+    rule_id         = "GS-105007"
+    author          = "HuntingThreats"
+    description     = "Pass-the-Hash NTLM logon with no interactive session — hash reuse detected"
+    mitre_tactic    = "Lateral Movement"
+    mitre_technique = "T1550.002"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "USER_LOGIN"
+    re.regex($e.metadata.product_log_id, `(?i)4624`)
+    re.regex($e.extensions.auth.auth_details, `(?i)(NtLmSsp|NTLM)`)
+    NOT $e.target.hostname = $e.principal.hostname
+
+  condition:
+    $e
+}
+
+rule ht_gs_105008_pass_the_ticket_rubeus {
+  meta:
+    rule_id         = "GS-105008"
+    author          = "HuntingThreats"
+    description     = "Rubeus ticket injection — ptt or createnetonly — Pass-the-Ticket"
+    mitre_tactic    = "Lateral Movement"
+    mitre_technique = "T1550.003"
+    severity        = "CRITICAL"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.command_line, `(?i)(rubeus.*ptt|rubeus.*createnetonly|mimikatz.*kerberos::ptt)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_105009_rdp_hijack_tscon {
+  meta:
+    rule_id         = "GS-105009"
+    author          = "HuntingThreats"
+    description     = "Tscon.exe used for RDP session hijacking — reconnect to another user's session"
+    mitre_tactic    = "Lateral Movement"
+    mitre_technique = "T1021.001"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.file.full_path, `(?i)\\tscon\.exe$`)
+    re.regex($e.target.process.command_line, `(?i)(\/dest|console|\d+\s+\/dest)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_105010_impacket_workstation_name {
+  meta:
+    rule_id         = "GS-105010"
+    author          = "HuntingThreats"
+    description     = "Impacket-style random workstation name in logon — DESKTOP-XXXXXXX pattern"
+    mitre_tactic    = "Lateral Movement"
+    mitre_technique = "T1550.002"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "USER_LOGIN"
+    re.regex($e.principal.hostname, `(?i)DESKTOP-[A-Z0-9]{7}`)
+    NOT $e.target.hostname = $e.principal.hostname
+
+  condition:
+    $e
+}
+
+rule ht_gs_105011_lateral_sc_remote {
+  meta:
+    rule_id         = "GS-105011"
+    author          = "HuntingThreats"
+    description     = "SC.exe targeting remote host for service install — remote service lateral movement"
+    mitre_tactic    = "Lateral Movement"
+    mitre_technique = "T1543.003"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.file.full_path, `(?i)\\sc\.exe$`)
+    re.regex($e.target.process.command_line, `(?i)\\\\[a-z0-9]`)
+    re.regex($e.target.process.command_line, `(?i)(create|start)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_105012_lateral_schtasks_remote {
+  meta:
+    rule_id         = "GS-105012"
+    author          = "HuntingThreats"
+    description     = "Schtasks /s targeting remote host — remote scheduled task creation"
+    mitre_tactic    = "Lateral Movement"
+    mitre_technique = "T1053.005"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.file.full_path, `(?i)\\schtasks\.exe$`)
+    re.regex($e.target.process.command_line, `(?i)(/s\s+\\\\|\/s\s+[a-z0-9])`)
+    re.regex($e.target.process.command_line, `(?i)/create`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_105013_bloodhound_recon {
+  meta:
+    rule_id         = "GS-105013"
+    author          = "HuntingThreats"
+    description     = "SharpHound or BloodHound AD collection tool — attack path mapping"
+    mitre_tactic    = "Discovery"
+    mitre_technique = "T1087.002"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.command_line, `(?i)(sharphound|invoke-bloodhound|-collectionmethod\s+(all|session|localadmin))`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_105014_powerview_getnetuser {
+  meta:
+    rule_id         = "GS-105014"
+    author          = "HuntingThreats"
+    description     = "PowerView AD enumeration — Get-NetUser / Get-DomainUser / Get-NetComputer"
+    mitre_tactic    = "Discovery"
+    mitre_technique = "T1087.002"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.command_line, `(?i)(get-netuser|get-domainuser|get-netcomputer|get-domaincomputer|get-domaingroup|find-localadminaccess|invoke-sharefinder)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_105015_gpo_modification_ad {
+  meta:
+    rule_id         = "GS-105015"
+    author          = "HuntingThreats"
+    description     = "GPO modified — groupPolicyContainer attribute changed (EID 5136)"
+    mitre_tactic    = "Privilege Escalation"
+    mitre_technique = "T1484.001"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.command_line, `(?i)(groupPolicyContainer|gpLink|gpcFileSysPath|Set-GPO|New-GPLink)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_105016_dcom_lateral_movement {
+  meta:
+    rule_id         = "GS-105016"
+    author          = "HuntingThreats"
+    description     = "DCOM lateral movement — MMC20.Application or Excel.Application Execute"
+    mitre_tactic    = "Lateral Movement"
+    mitre_technique = "T1021.003"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.command_line, `(?i)(MMC20\.Application|ShellWindows|ShellBrowserWindow|Excel\.Application.*run)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_105017_lateral_distinct_targets_threshold {
+  meta:
+    rule_id         = "GS-105017"
+    author          = "HuntingThreats"
+    description     = "One source connecting to 5+ distinct internal hosts in 10 min — lateral sweep"
+    mitre_tactic    = "Lateral Movement"
+    mitre_technique = "T1021"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "NETWORK_CONNECTION"
+    $e.target.ip in cidr "10.0.0.0/8"
+
+  match:
+    $e.principal.hostname over 10m
+
+  condition:
+    #e > 5
+}
+
+rule ht_gs_105018_crackmapexec_pattern {
+  meta:
+    rule_id         = "GS-105018"
+    author          = "HuntingThreats"
+    description     = "CrackMapExec pattern — cmd /Q /c in service or logon — CME lateral movement"
+    mitre_tactic    = "Lateral Movement"
+    mitre_technique = "T1021.002"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.command_line, `(?i)cmd\.exe\s+/Q\s+/c`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_105019_smb_execution_meterpreter {
+  meta:
+    rule_id         = "GS-105019"
+    author          = "HuntingThreats"
+    description     = "SMB share connection followed by immediate process creation — SMB execution chain"
+    mitre_tactic    = "Lateral Movement"
+    mitre_technique = "T1021.002"
+    severity        = "HIGH"
+    confidence      = "MEDIUM"
+
+  events:
+    $e1.metadata.event_type = "USER_LOGIN"
+    re.regex($e1.target.resource.name, `(?i)(C\$|ADMIN\$)`)
+
+    $e2.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e2.target.process.file.full_path, `(?i)\\(cmd|powershell|wscript)\.exe$`)
+
+    $e1.target.hostname = $e2.principal.hostname
+
+  match:
+    $e1.target.hostname over 5m
+
+  condition:
+    $e1 and $e2
+}
+
+rule ht_gs_105020_rbcd_msds_allow {
+  meta:
+    rule_id         = "GS-105020"
+    author          = "HuntingThreats"
+    description     = "msDS-AllowedToActOnBehalfOfOtherIdentity modified — RBCD delegation attack"
+    mitre_tactic    = "Privilege Escalation"
+    mitre_technique = "T1484.001"
+    severity        = "CRITICAL"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.command_line, `(?i)(msDS-AllowedToActOnBehalfOfOtherIdentity|Set-ADComputer.*PrincipalsAllowedToDelegateToAccount)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_105021_petitpotam_efsrpc {
+  meta:
+    rule_id         = "GS-105021"
+    author          = "HuntingThreats"
+    description     = "PetitPotam — EfsRpcOpenFileRaw call to coerce NTLM authentication"
+    mitre_tactic    = "Credential Access"
+    mitre_technique = "T1187"
+    severity        = "CRITICAL"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.command_line, `(?i)(EfsRpcOpenFileRaw|PetitPotam|EfsRpcEncryptFileSrv)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_105022_adminsdholder_attribute {
+  meta:
+    rule_id         = "GS-105022"
+    author          = "HuntingThreats"
+    description     = "AdminSDHolder SD modified — nTSecurityDescriptor on AdminSDHolder object"
+    mitre_tactic    = "Persistence"
+    mitre_technique = "T1484.001"
+    severity        = "CRITICAL"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.command_line, `(?i)(AdminSDHolder|nTSecurityDescriptor.*sdpropagator)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_105023_net_use_admin_share {
+  meta:
+    rule_id         = "GS-105023"
+    author          = "HuntingThreats"
+    description     = "Net use connecting to admin share — lateral movement share mapping"
+    mitre_tactic    = "Lateral Movement"
+    mitre_technique = "T1021.002"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.file.full_path, `(?i)\\net\.exe$`)
+    re.regex($e.target.process.command_line, `(?i)use.*\\\\.*\\(C\$|ADMIN\$|IPC\$)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_105024_win_rm_remote_exec {
+  meta:
+    rule_id         = "GS-105024"
+    author          = "HuntingThreats"
+    description     = "WinRM WS-Management remote execution detected — PS remoting over 5985/5986"
+    mitre_tactic    = "Lateral Movement"
+    mitre_technique = "T1021.006"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "NETWORK_CONNECTION"
+    $e.target.port in [5985, 5986]
+    NOT $e.target.ip in cidr "127.0.0.0/8"
+
+  condition:
+    $e
+}
+
+rule ht_gs_105025_lateral_via_scheduled_task {
+  meta:
+    rule_id         = "GS-105025"
+    author          = "HuntingThreats"
+    description     = "Remote scheduled task creation for lateral movement (schtasks /s)"
+    mitre_tactic    = "Lateral Movement"
+    mitre_technique = "T1053.005"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.command_line, `(?i)schtasks.*\/s\s+\\\\`)
+    re.regex($e.target.process.command_line, `(?i)\/create`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_105026_overpass_hash_logon_type9 {
+  meta:
+    rule_id         = "GS-105026"
+    author          = "HuntingThreats"
+    description     = "Logon Type 9 (NewCredentials) from non-standard tool — Overpass-the-Hash indicator"
+    mitre_tactic    = "Lateral Movement"
+    mitre_technique = "T1550.002"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "USER_LOGIN"
+    re.regex($e.metadata.product_log_id, `(?i)4648`)
+    NOT re.regex($e.principal.process.file.full_path, `(?i)\\(explorer|chrome|firefox|outlook)\.exe$`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_105027_golden_ticket_logon_anomaly {
+  meta:
+    rule_id         = "GS-105027"
+    author          = "HuntingThreats"
+    description     = "Kerberos ticket with unusual encryption type (23/RC4) for privileged account — Golden Ticket indicator"
+    mitre_tactic    = "Lateral Movement"
+    mitre_technique = "T1558.001"
+    severity        = "CRITICAL"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "USER_LOGIN"
+    re.regex($e.target.user.userid, `(?i)(administrator|krbtgt|admin)`)
+    re.regex($e.extensions.auth.auth_details, `(?i)(0x17|rc4|rc4-hmac)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_105028_lateral_reg_remote {
+  meta:
+    rule_id         = "GS-105028"
+    author          = "HuntingThreats"
+    description     = "Reg.exe targeting remote registry — remote registry modification for lateral movement"
+    mitre_tactic    = "Lateral Movement"
+    mitre_technique = "T1021.002"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.file.full_path, `(?i)\\reg\.exe$`)
+    re.regex($e.target.process.command_line, `(?i)(\\\\[a-z0-9].*\\HKLM|\\\\[a-z0-9].*\\HKCU)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_105029_ssh_key_theft {
+  meta:
+    rule_id         = "GS-105029"
+    author          = "HuntingThreats"
+    description     = "SSH private key file (.pem/.key/.ppk) accessed by non-SSH process"
+    mitre_tactic    = "Lateral Movement"
+    mitre_technique = "T1021.004"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "FILE_CREATION"
+    re.regex($e.target.file.full_path, `(?i)\.(pem|ppk|id_rsa|id_ed25519)$`)
+    NOT re.regex($e.principal.process.file.full_path, `(?i)\\(ssh|putty|winscp|filezilla|pageant)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_105030_network_logon_new_admin {
+  meta:
+    rule_id         = "GS-105030"
+    author          = "HuntingThreats"
+    description     = "Network logon (Type 3) with new account added to local admin — privilege escalation via lateral"
+    mitre_tactic    = "Lateral Movement"
+    mitre_technique = "T1078.002"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "USER_LOGIN"
+    re.regex($e.metadata.product_log_id, `(?i)4728`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_105031_active_directory_replication {
+  meta:
+    rule_id         = "GS-105031"
+    author          = "HuntingThreats"
+    description     = "Non-DC machine requesting AD replication — DCSync credential attack"
+    mitre_tactic    = "Credential Access"
+    mitre_technique = "T1003.006"
+    severity        = "CRITICAL"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.command_line, `(?i)(DS-Replication-Get-Changes|drsuapi|drsync|drsr|DRSBind)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_105032_smb_signing_disabled {
+  meta:
+    rule_id         = "GS-105032"
+    author          = "HuntingThreats"
+    description     = "SMB signing disabled — enabling NTLM relay attack condition"
+    mitre_tactic    = "Lateral Movement"
+    mitre_technique = "T1557.001"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "REGISTRY_MODIFICATION"
+    re.regex($e.target.registry.registry_key, `(?i)\\Smb.*RequireSecuritySignature`)
+    $e.target.registry.registry_value_data = "0"
+
+  condition:
+    $e
+}
+
+rule ht_gs_105033_gpo_link_at_dc {
+  meta:
+    rule_id         = "GS-105033"
+    author          = "HuntingThreats"
+    description     = "GPO linked directly at DC= organizational unit — domain-wide GPO abuse"
+    mitre_tactic    = "Privilege Escalation"
+    mitre_technique = "T1484.001"
+    severity        = "CRITICAL"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.command_line, `(?i)gpLink.*DC=`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_105034_lateral_via_winrm_ps {
+  meta:
+    rule_id         = "GS-105034"
+    author          = "HuntingThreats"
+    description     = "PowerShell New-PSSession or Enter-PSSession to remote host"
+    mitre_tactic    = "Lateral Movement"
+    mitre_technique = "T1021.006"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.command_line, `(?i)(new-pssession|enter-pssession)`)
+    re.regex($e.target.process.command_line, `(?i)(-computername|-cn|-hostname)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_105035_enable_rdp_via_registry {
+  meta:
+    rule_id         = "GS-105035"
+    author          = "HuntingThreats"
+    description     = "RDP enabled via registry modification — fDenyTSConnections set to 0"
+    mitre_tactic    = "Lateral Movement"
+    mitre_technique = "T1021.001"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "REGISTRY_MODIFICATION"
+    re.regex($e.target.registry.registry_key, `(?i)fDenyTSConnections`)
+    $e.target.registry.registry_value_data = "0"
+
+  condition:
+    $e
+}
+
+rule ht_gs_105036_unusual_service_account_logon {
+  meta:
+    rule_id         = "GS-105036"
+    author          = "HuntingThreats"
+    description     = "Service account interactive logon — SA used for lateral movement"
+    mitre_tactic    = "Lateral Movement"
+    mitre_technique = "T1078.003"
+    severity        = "HIGH"
+    confidence      = "MEDIUM"
+
+  events:
+    $e.metadata.event_type = "USER_LOGIN"
+    re.regex($e.target.user.userid, `(?i)(svc_|service_|svc-|_svc)`)
+    $e.extensions.auth.auth_details = "INTERACTIVE"
+
+  condition:
+    $e
+}
+
+rule ht_gs_105037_internal_port_scan_smb {
+  meta:
+    rule_id         = "GS-105037"
+    author          = "HuntingThreats"
+    description     = "One host connecting to 10+ internal SMB targets — lateral movement scanner"
+    mitre_tactic    = "Lateral Movement"
+    mitre_technique = "T1021.002"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "NETWORK_CONNECTION"
+    $e.target.port = 445
+    $e.target.ip in cidr "10.0.0.0/8"
+
+  match:
+    $e.principal.hostname over 10m
+
+  condition:
+    #e > 10
+}
+
+rule ht_gs_105038_lsass_lateral_dump_copy {
+  meta:
+    rule_id         = "GS-105038"
+    author          = "HuntingThreats"
+    description     = "LSASS dump copied to admin share — credential dump staging for lateral use"
+    mitre_tactic    = "Lateral Movement"
+    mitre_technique = "T1021.002"
+    severity        = "CRITICAL"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.command_line, `(?i)(copy|xcopy|robocopy).*lsass.*\\\\`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_105039_kerberoasting_then_lateral {
+  meta:
+    rule_id         = "GS-105039"
+    author          = "HuntingThreats"
+    description     = "Kerberoasting followed by logon to target service host — attack chain"
+    mitre_tactic    = "Lateral Movement"
+    mitre_technique = "T1558.003"
+    severity        = "CRITICAL"
+    confidence      = "HIGH"
+
+  events:
+    $e1.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e1.target.process.command_line, `(?i)(kerberoast|getuserspns|invoke-kerberoast)`)
+
+    $e2.metadata.event_type = "USER_LOGIN"
+    re.regex($e2.metadata.product_log_id, `(?i)4624`)
+    NOT $e2.target.hostname = $e2.principal.hostname
+
+    $e1.principal.hostname = $e2.principal.hostname
+
+  match:
+    $e1.principal.hostname over 60m
+
+  condition:
+    $e1 and $e2
+}
+
+rule ht_gs_105040_atexec_lateral_movement {
+  meta:
+    rule_id         = "GS-105040"
+    author          = "HuntingThreats"
+    description     = "Atexec.py or remote AT job — task-based lateral movement via Impacket"
+    mitre_tactic    = "Lateral Movement"
+    mitre_technique = "T1053.002"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.command_line, `(?i)(atexec|at\.exe\s+\\\\)`)
+
+  condition:
+    $e
+}

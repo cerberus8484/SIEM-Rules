@@ -1,0 +1,597 @@
+-- ============================================================
+-- HuntingThreats — QRadar AQL Hunt Rules
+-- Category : Exfiltration (T1048, T1041, T1071.004, T1052, T1567)
+-- Batch    : 12 / Exfiltration
+-- Rules    : QR-107001 – QR-107030
+-- Platform : QRadar 7.4+ / AQL
+-- Sources  : Windows (4688), Sysmon (1/3), Firewall/Netflow, PowerShell
+-- ============================================================
+
+-- ==================================================
+-- QR-107001 | T1048.003 | Data Staged and Sent to External IP via SMB
+-- Severity: High | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  sourceip,
+  destinationip,
+  destinationport,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%'
+  AND UTF8(payload) ILIKE '%NetworkConnect%'
+  AND destinationport = 445
+  AND NOT (destinationip ILIKE '10.%'
+    OR destinationip ILIKE '192.168.%'
+    OR destinationip ILIKE '172.1%.%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-107002 | T1041 | Large Outbound Transfer via HTTPS (Netflow Threshold)
+-- Severity: High | Confidence: Medium
+-- Threshold: 100MB+ to single external IP in 60 min
+-- ==================================================
+SELECT
+  sourceip,
+  destinationip,
+  SUM(eventcount) AS TotalBytes
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%Netflow%'
+  AND destinationport = 443
+  AND NOT (destinationip ILIKE '10.%'
+    OR destinationip ILIKE '192.168.%'
+    OR destinationip ILIKE '172.1%.%')
+GROUP BY sourceip, destinationip
+HAVING SUM(eventcount) >= 100000000
+LAST 60 MINUTES;
+
+
+-- ==================================================
+-- QR-107003 | T1071.004 | DNS Tunneling — Long Encoded Subdomain Query
+-- Severity: High | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  sourceip,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%'
+  AND UTF8(payload) ILIKE '%DnsQuery%'
+  AND (UTF8(payload) ILIKE '%================%'
+    OR UTF8(payload) ILIKE '%AAAAAAAAAAAAAAAA%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-107004 | T1048.001 | BITSadmin Upload to External URL
+-- Severity: Critical | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE (LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+    OR LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%')
+  AND UTF8(payload) ILIKE '%bitsadmin%'
+  AND (UTF8(payload) ILIKE '%/upload%'
+    OR UTF8(payload) ILIKE '%Transfer%')
+  AND UTF8(payload) ILIKE '%http%'
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-107005 | T1567.002 | Rclone to Cloud Storage (s3/gdrive/dropbox)
+-- Severity: Critical | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE (LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+    OR LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%')
+  AND (UTF8(payload) ILIKE '%rclone%'
+    OR UTF8(payload) ILIKE '%mega-put%'
+    OR UTF8(payload) ILIKE '%s3 cp%')
+  AND (UTF8(payload) ILIKE '%sync%'
+    OR UTF8(payload) ILIKE '%copy%'
+    OR UTF8(payload) ILIKE '%upload%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-107006 | T1071.001 | HTTP POST with Unusually Large Body from Script
+-- Severity: High | Confidence: Medium
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  destinationip,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%PowerShell%'
+  AND (UTF8(payload) ILIKE '%Invoke-WebRequest%'
+    OR UTF8(payload) ILIKE '%Invoke-RestMethod%')
+  AND UTF8(payload) ILIKE '%-Method Post%'
+  AND (UTF8(payload) ILIKE '%-Body%'
+    OR UTF8(payload) ILIKE '%-InFile%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-107007 | T1048 | FTP Upload to External Server from Script
+-- Severity: High | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  destinationip,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%'
+  AND UTF8(payload) ILIKE '%NetworkConnect%'
+  AND destinationport = 21
+  AND NOT (destinationip ILIKE '10.%'
+    OR destinationip ILIKE '192.168.%'
+    OR destinationip ILIKE '172.1%.%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-107008 | T1041 | PowerShell Compress-Archive + Upload Pattern
+-- Severity: High | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%PowerShell%'
+  AND UTF8(payload) ILIKE '%Compress-Archive%'
+  AND (UTF8(payload) ILIKE '%WebClient%'
+    OR UTF8(payload) ILIKE '%UploadFile%'
+    OR UTF8(payload) ILIKE '%Invoke-WebRequest%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-107009 | T1567 | Curl/Wget Upload to Pastebin or Cloud
+-- Severity: High | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE (LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+    OR LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%')
+  AND (UTF8(payload) ILIKE '%curl%'
+    OR UTF8(payload) ILIKE '%wget%')
+  AND (UTF8(payload) ILIKE '%pastebin%'
+    OR UTF8(payload) ILIKE '%transfer.sh%'
+    OR UTF8(payload) ILIKE '%gofile.io%'
+    OR UTF8(payload) ILIKE '%0x0.st%'
+    OR UTF8(payload) ILIKE '%-F "%'
+    OR UTF8(payload) ILIKE '%--data-binary%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-107010 | T1048 | Netcat / Socat Outbound with Redirect
+-- Severity: Critical | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE (LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+    OR LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%')
+  AND (UTF8(payload) ILIKE '%nc.exe%'
+    OR UTF8(payload) ILIKE '%ncat%'
+    OR UTF8(payload) ILIKE '%socat%')
+  AND (UTF8(payload) ILIKE '%< %'
+    OR UTF8(payload) ILIKE '%| nc%'
+    OR UTF8(payload) ILIKE '%EXEC%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-107011 | T1071.004 | DNS High Query Rate to Single Domain (Tunneling Threshold)
+-- Severity: High | Confidence: High
+-- Threshold: 100+ DNS queries to same domain in 10 minutes
+-- ==================================================
+SELECT
+  sourceip,
+  UTF8(payload) AS TopDomain,
+  COUNT(*) AS QueryCount
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%'
+  AND UTF8(payload) ILIKE '%DnsQuery%'
+GROUP BY sourceip, UTF8(payload)
+HAVING COUNT(*) >= 100
+LAST 10 MINUTES;
+
+
+-- ==================================================
+-- QR-107012 | T1567.001 | GitHub Gist or Raw Upload from Script
+-- Severity: High | Confidence: Medium
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%PowerShell%'
+  AND (UTF8(payload) ILIKE '%api.github.com/gists%'
+    OR UTF8(payload) ILIKE '%gist.github.com%'
+    OR UTF8(payload) ILIKE '%raw.githubusercontent.com%')
+  AND (UTF8(payload) ILIKE '%-Method Post%'
+    OR UTF8(payload) ILIKE '%WebClient%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-107013 | T1048.003 | WinSCP / FileZilla Spawned by Script
+-- Severity: High | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%'
+  AND (UTF8(payload) ILIKE '%winscp%'
+    OR UTF8(payload) ILIKE '%filezilla%'
+    OR UTF8(payload) ILIKE '%sftp%')
+  AND (UTF8(payload) ILIKE '%powershell%'
+    OR UTF8(payload) ILIKE '%cmd.exe%'
+    OR UTF8(payload) ILIKE '%wscript%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-107014 | T1132.001 | Base64 Blob in DNS TXT Response
+-- Severity: High | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  sourceip,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%'
+  AND UTF8(payload) ILIKE '%DnsQuery%'
+  AND UTF8(payload) ILIKE '%QueryType>16%'
+  AND (UTF8(payload) ILIKE '%AAAA%'
+    OR UTF8(payload) ILIKE '%base64%'
+    OR UTF8(payload) ILIKE '%==%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-107015 | T1052 | USB / Removable Media Write (Event 6416 + Sysmon FileCreate)
+-- Severity: High | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+  AND (UTF8(payload) ILIKE '%EventID>6416<%'
+    OR UTF8(payload) ILIKE '%EventID">"6416"%')
+  AND UTF8(payload) ILIKE '%DiskDrive%'
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-107016 | T1041 | Email Attachment with Archive (Outlook Scripted Send)
+-- Severity: High | Confidence: Medium
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%PowerShell%'
+  AND UTF8(payload) ILIKE '%Outlook%'
+  AND (UTF8(payload) ILIKE '%CreateItem%'
+    OR UTF8(payload) ILIKE '%.Send()%')
+  AND (UTF8(payload) ILIKE '%.zip%'
+    OR UTF8(payload) ILIKE '%.7z%'
+    OR UTF8(payload) ILIKE '%.rar%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-107017 | T1048 | Archive Created in Staging Path then Exfiltrated
+-- Severity: High | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%'
+  AND UTF8(payload) ILIKE '%FileCreate%'
+  AND (UTF8(payload) ILIKE '%\Temp\%'
+    OR UTF8(payload) ILIKE '%\AppData\Local\%'
+    OR UTF8(payload) ILIKE '%\ProgramData\%')
+  AND (UTF8(payload) ILIKE '%.zip%'
+    OR UTF8(payload) ILIKE '%.7z%'
+    OR UTF8(payload) ILIKE '%.rar%'
+    OR UTF8(payload) ILIKE '%.tar%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-107018 | T1048 | 7zip / WinRAR / tar from Command Line with Password
+-- Severity: High | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE (LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+    OR LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%')
+  AND (UTF8(payload) ILIKE '%7z.exe%'
+    OR UTF8(payload) ILIKE '%winrar%'
+    OR UTF8(payload) ILIKE '%rar.exe%')
+  AND (UTF8(payload) ILIKE '% -p%'
+    OR UTF8(payload) ILIKE '% a %')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-107019 | T1567 | Dropbox / OneDrive / Box API from Script
+-- Severity: High | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%PowerShell%'
+  AND (UTF8(payload) ILIKE '%api.dropboxapi.com%'
+    OR UTF8(payload) ILIKE '%graph.microsoft.com/v1.0/me/drive%'
+    OR UTF8(payload) ILIKE '%api.box.com%')
+  AND (UTF8(payload) ILIKE '%-Method Post%'
+    OR UTF8(payload) ILIKE '%PUT%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-107020 | T1071.004 | Iodine / dnscat DNS Tunnel Tool Detected
+-- Severity: Critical | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE (LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+    OR LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%')
+  AND (UTF8(payload) ILIKE '%iodine%'
+    OR UTF8(payload) ILIKE '%dnscat%'
+    OR UTF8(payload) ILIKE '%dnstunnel%'
+    OR UTF8(payload) ILIKE '%dns2tcp%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-107021 | T1029 | Scheduled Transfer — Schtasks + Curl/BITS Combo
+-- Severity: High | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE (LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+    OR LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%')
+  AND UTF8(payload) ILIKE '%schtasks%'
+  AND (UTF8(payload) ILIKE '%curl%'
+    OR UTF8(payload) ILIKE '%bitsadmin%'
+    OR UTF8(payload) ILIKE '%Invoke-WebRequest%')
+  AND UTF8(payload) ILIKE '%http%'
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-107022 | T1048.003 | ICMP Exfiltration (Non-standard ICMP Payload Size)
+-- Severity: High | Confidence: Medium
+-- ==================================================
+SELECT
+  sourceip,
+  destinationip,
+  COUNT(*) AS IcmpCount
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%Netflow%'
+  AND UTF8(payload) ILIKE '%ICMP%'
+  AND NOT (destinationip ILIKE '10.%'
+    OR destinationip ILIKE '192.168.%'
+    OR destinationip ILIKE '172.1%.%')
+GROUP BY sourceip, destinationip
+HAVING COUNT(*) >= 50
+LAST 30 MINUTES;
+
+
+-- ==================================================
+-- QR-107023 | T1041 | PowerShell WebClient UploadString / UploadFile
+-- Severity: High | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%PowerShell%'
+  AND (UTF8(payload) ILIKE '%UploadString%'
+    OR UTF8(payload) ILIKE '%UploadFile%'
+    OR UTF8(payload) ILIKE '%UploadData%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-107024 | T1567 | Mega.nz CLI Upload Detected
+-- Severity: Critical | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE (LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+    OR LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%')
+  AND (UTF8(payload) ILIKE '%mega-cmd%'
+    OR UTF8(payload) ILIKE '%mega.nz%'
+    OR UTF8(payload) ILIKE '%megaupload%'
+    OR UTF8(payload) ILIKE '%MEGAcmd%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-107025 | T1048 | Certutil Encode then HTTP Upload
+-- Severity: High | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE (LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+    OR LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%')
+  AND UTF8(payload) ILIKE '%certutil%'
+  AND (UTF8(payload) ILIKE '%-encode%'
+    OR UTF8(payload) ILIKE '%-encodehex%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-107026 | T1020 | Automated Exfil — Same Source Sends 5+ Files in 10 min (Threshold)
+-- Severity: High | Confidence: Medium
+-- ==================================================
+SELECT
+  sourceip,
+  destinationip,
+  COUNT(*) AS FileSendCount
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%'
+  AND UTF8(payload) ILIKE '%NetworkConnect%'
+  AND destinationport IN (21, 443, 80, 8080)
+  AND NOT (destinationip ILIKE '10.%'
+    OR destinationip ILIKE '192.168.%')
+GROUP BY sourceip, destinationip
+HAVING COUNT(*) >= 5
+LAST 10 MINUTES;
+
+
+-- ==================================================
+-- QR-107027 | T1048.002 | Exfiltration via Alternate Port (Non-standard HTTPS)
+-- Severity: High | Confidence: Medium
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  sourceip,
+  destinationip,
+  destinationport,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%'
+  AND UTF8(payload) ILIKE '%NetworkConnect%'
+  AND destinationport NOT IN (80, 443, 22, 25, 53, 3389, 8080, 8443)
+  AND destinationport > 1024
+  AND NOT (destinationip ILIKE '10.%'
+    OR destinationip ILIKE '192.168.%'
+    OR destinationip ILIKE '172.1%.%')
+  AND (UTF8(payload) ILIKE '%powershell%'
+    OR UTF8(payload) ILIKE '%wscript%'
+    OR UTF8(payload) ILIKE '%python%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-107028 | T1048 | AWS CLI S3 Sync to External Bucket
+-- Severity: Critical | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE (LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+    OR LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%')
+  AND UTF8(payload) ILIKE '%aws s3%'
+  AND (UTF8(payload) ILIKE '%sync%'
+    OR UTF8(payload) ILIKE '%cp%'
+    OR UTF8(payload) ILIKE '%mv%')
+  AND UTF8(payload) ILIKE '%s3://%'
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-107029 | T1048 | Browser Data / Cookie File Copied to Staging
+-- Severity: High | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%'
+  AND UTF8(payload) ILIKE '%FileCopy%'
+  AND (UTF8(payload) ILIKE '%\Google\Chrome\User Data\%'
+    OR UTF8(payload) ILIKE '%\Mozilla\Firefox\Profiles\%'
+    OR UTF8(payload) ILIKE '%\Microsoft\Edge\User Data\%')
+  AND (UTF8(payload) ILIKE '%Cookies%'
+    OR UTF8(payload) ILIKE '%Login Data%'
+    OR UTF8(payload) ILIKE '%key4.db%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-107030 | T1048 | exfiltration via Slack/Teams API from Script
+-- Severity: High | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%PowerShell%'
+  AND (UTF8(payload) ILIKE '%slack.com/api%'
+    OR UTF8(payload) ILIKE '%graph.microsoft.com%'
+    OR UTF8(payload) ILIKE '%teams.microsoft.com%')
+  AND (UTF8(payload) ILIKE '%files.upload%'
+    OR UTF8(payload) ILIKE '%sendFile%'
+    OR UTF8(payload) ILIKE '%-InFile%')
+LAST 1440 MINUTES;

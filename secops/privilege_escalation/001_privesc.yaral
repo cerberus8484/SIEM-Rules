@@ -1,0 +1,768 @@
+// ============================================================
+// HuntingThreats — Google SecOps YARA-L 2.0 Hunt Rules
+// Category : Privilege Escalation — UAC Bypass / Token Theft / Exploits (T1134, T1548, T1068)
+// Batch    : 14 / Privilege Escalation
+// Rules    : GS-109001 – GS-109040
+// Platform : Google SecOps / Chronicle SIEM
+// ============================================================
+
+rule ht_gs_109001_uac_bypass_fodhelper {
+  meta:
+    rule_id         = "GS-109001"
+    author          = "HuntingThreats"
+    description     = "UAC bypass via fodhelper ms-settings registry key — HKCU COM hijack"
+    mitre_tactic    = "Privilege Escalation"
+    mitre_technique = "T1548.002"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "REGISTRY_MODIFICATION"
+    re.regex($e.target.registry.registry_key, `(?i)HKCU.*\\ms-settings\\Shell\\Open\\Command`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_109002_uac_bypass_eventvwr {
+  meta:
+    rule_id         = "GS-109002"
+    author          = "HuntingThreats"
+    description     = "UAC bypass via eventvwr mscfile registry — auto-elevate exploit"
+    mitre_tactic    = "Privilege Escalation"
+    mitre_technique = "T1548.002"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "REGISTRY_MODIFICATION"
+    re.regex($e.target.registry.registry_key, `(?i)HKCU.*\\mscfile\\Shell\\Open\\Command`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_109003_uac_bypass_sdclt {
+  meta:
+    rule_id         = "GS-109003"
+    author          = "HuntingThreats"
+    description     = "UAC bypass via sdclt IsolatedCommand registry — Backup and Restore UAC bypass"
+    mitre_tactic    = "Privilege Escalation"
+    mitre_technique = "T1548.002"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "REGISTRY_MODIFICATION"
+    re.regex($e.target.registry.registry_key, `(?i)HKCU.*\\exefile\\Shell\\runas\\command\\IsolatedCommand`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_109004_uac_bypass_cmstp {
+  meta:
+    rule_id         = "GS-109004"
+    author          = "HuntingThreats"
+    description     = "CMSTP /s used for UAC bypass — auto-elevated COM object abuse"
+    mitre_tactic    = "Privilege Escalation"
+    mitre_technique = "T1548.002"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.file.full_path, `(?i)\\cmstp\.exe$`)
+    re.regex($e.target.process.command_line, `(?i)\/s`)
+    re.regex($e.principal.process.file.full_path, `(?i)\\(powershell|cmd|wscript)\.exe$`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_109005_uac_bypass_computerdefaults {
+  meta:
+    rule_id         = "GS-109005"
+    author          = "HuntingThreats"
+    description     = "UAC bypass via ComputerDefaults or wsreset hijack — auto-elevated bypass"
+    mitre_tactic    = "Privilege Escalation"
+    mitre_technique = "T1548.002"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "REGISTRY_MODIFICATION"
+    re.regex($e.target.registry.registry_key, `(?i)HKCU.*\\AppX.*Shell\\Open\\Command`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_109006_juicypotato_rottenpotatong {
+  meta:
+    rule_id         = "GS-109006"
+    author          = "HuntingThreats"
+    description     = "JuicyPotato/RottenPotato/GodPotato/SweetPotato CLSID escalation"
+    mitre_tactic    = "Privilege Escalation"
+    mitre_technique = "T1134.001"
+    severity        = "CRITICAL"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.command_line, `(?i)(juicypotato|rottenpotato|godpotato|sweetpotato|printspoofer|roguepotato)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_109007_sebdebugprivilege_abuse {
+  meta:
+    rule_id         = "GS-109007"
+    author          = "HuntingThreats"
+    description     = "SeDebugPrivilege used by non-system process — privilege abuse for injection"
+    mitre_tactic    = "Privilege Escalation"
+    mitre_technique = "T1134"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.command_line, `(?i)(SeDebugPrivilege|AdjustTokenPrivileges)`)
+    NOT re.regex($e.principal.process.file.full_path, `(?i)\\(taskmgr|procexp|svchost|lsass)\.exe$`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_109008_dll_search_order_hijack {
+  meta:
+    rule_id         = "GS-109008"
+    author          = "HuntingThreats"
+    description     = "DLL dropped in application directory of privileged binary — search order hijack"
+    mitre_tactic    = "Privilege Escalation"
+    mitre_technique = "T1574.001"
+    severity        = "HIGH"
+    confidence      = "MEDIUM"
+
+  events:
+    $e.metadata.event_type = "FILE_CREATION"
+    re.regex($e.target.file.full_path, `(?i)\\Program Files.*\.dll$`)
+    NOT re.regex($e.principal.process.file.full_path, `(?i)\\(msiexec|setup|install|trustedinstaller|tiworker)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_109009_print_nightmare_spoolsv {
+  meta:
+    rule_id         = "GS-109009"
+    author          = "HuntingThreats"
+    description     = "PrintNightmare — spoolsv.exe loading DLL from non-System32 path"
+    mitre_tactic    = "Privilege Escalation"
+    mitre_technique = "T1547.012"
+    severity        = "CRITICAL"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "FILE_CREATION"
+    re.regex($e.principal.process.file.full_path, `(?i)\\spoolsv\.exe$`)
+    re.regex($e.target.file.full_path, `(?i)\.dll$`)
+    NOT re.regex($e.target.file.full_path, `(?i)\\(System32|SysWOW64)\\`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_109010_service_dll_user_path {
+  meta:
+    rule_id         = "GS-109010"
+    author          = "HuntingThreats"
+    description     = "ServiceDll registry pointing to user-writable path — DLL service escalation"
+    mitre_tactic    = "Privilege Escalation"
+    mitre_technique = "T1543.003"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "REGISTRY_MODIFICATION"
+    re.regex($e.target.registry.registry_key, `(?i)\\Services\\.*\\ServiceDll`)
+    re.regex($e.target.registry.registry_value_data, `(?i)(\\Users\\|\\Temp\\|\\AppData\\)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_109011_consentprompt_disabled {
+  meta:
+    rule_id         = "GS-109011"
+    author          = "HuntingThreats"
+    description     = "ConsentPromptBehaviorAdmin disabled (0) — UAC completely bypassed"
+    mitre_tactic    = "Privilege Escalation"
+    mitre_technique = "T1548.002"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "REGISTRY_MODIFICATION"
+    re.regex($e.target.registry.registry_key, `(?i)\\Policies\\System\\ConsentPromptBehaviorAdmin`)
+    $e.target.registry.registry_value_data = "0"
+
+  condition:
+    $e
+}
+
+rule ht_gs_109012_net_localgroup_admins_add {
+  meta:
+    rule_id         = "GS-109012"
+    author          = "HuntingThreats"
+    description     = "Net localgroup administrators /add — adding user to local admins"
+    mitre_tactic    = "Privilege Escalation"
+    mitre_technique = "T1136.001"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.file.full_path, `(?i)\\net\.exe$`)
+    re.regex($e.target.process.command_line, `(?i)localgroup.*administrators.*\/add`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_109013_net_group_domain_admins_add {
+  meta:
+    rule_id         = "GS-109013"
+    author          = "HuntingThreats"
+    description     = "Net group 'Domain Admins' /add — adding account to domain admin group"
+    mitre_tactic    = "Privilege Escalation"
+    mitre_technique = "T1098.007"
+    severity        = "CRITICAL"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.file.full_path, `(?i)\\net\.exe$`)
+    re.regex($e.target.process.command_line, `(?i)"domain admins".*\/add`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_109014_admin_added_event4728 {
+  meta:
+    rule_id         = "GS-109014"
+    author          = "HuntingThreats"
+    description     = "User added to privileged AD group (EID 4728) — Domain Admins/Enterprise Admins"
+    mitre_tactic    = "Privilege Escalation"
+    mitre_technique = "T1098.007"
+    severity        = "CRITICAL"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "USER_RESOURCE_ACCESS"
+    re.regex($e.metadata.product_log_id, `(?i)4728`)
+    re.regex($e.target.user.group_identifiers, `(?i)(Domain Admins|Enterprise Admins|Schema Admins)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_109015_sid_history_injection {
+  meta:
+    rule_id         = "GS-109015"
+    author          = "HuntingThreats"
+    description     = "SID History attribute modified (EID 4765) — SID injection for privilege persistence"
+    mitre_tactic    = "Privilege Escalation"
+    mitre_technique = "T1134.005"
+    severity        = "CRITICAL"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.command_line, `(?i)(sidhistory|sIDHistory|set-aduser.*sidhistory)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_109016_named_pipe_impersonation {
+  meta:
+    rule_id         = "GS-109016"
+    author          = "HuntingThreats"
+    description     = "Named pipe impersonation — ConnectNamedPipe + ImpersonateNamedPipeClient"
+    mitre_tactic    = "Privilege Escalation"
+    mitre_technique = "T1134.001"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.command_line, `(?i)(connectnamedpipe|impersonatenamedpipeclient|namedpipeclient)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_109017_token_impersonation_ps {
+  meta:
+    rule_id         = "GS-109017"
+    author          = "HuntingThreats"
+    description     = "Invoke-TokenManipulation or DuplicateTokenEx — PS token impersonation"
+    mitre_tactic    = "Privilege Escalation"
+    mitre_technique = "T1134.001"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.command_line, `(?i)(invoke-tokenmanipulation|duplicatetokenex|impersonateloggedonuser)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_109018_kernel_driver_byovd {
+  meta:
+    rule_id         = "GS-109018"
+    author          = "HuntingThreats"
+    description     = "Known vulnerable driver loaded for kernel exploitation — BYOVD attack"
+    mitre_tactic    = "Privilege Escalation"
+    mitre_technique = "T1068"
+    severity        = "CRITICAL"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "SERVICE_CREATION"
+    re.regex($e.target.resource.name, `(?i)(gdrv|rtcore64|dbutil_2_3|cpuz|mhyprot|iqvw64|ntiolib|winio|razer|aswarpot|kprocesshacker)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_109019_unquoted_service_path {
+  meta:
+    rule_id         = "GS-109019"
+    author          = "HuntingThreats"
+    description     = "Service with unquoted path containing spaces — privilege escalation via DLL plant"
+    mitre_tactic    = "Privilege Escalation"
+    mitre_technique = "T1574.009"
+    severity        = "MEDIUM"
+    confidence      = "MEDIUM"
+
+  events:
+    $e.metadata.event_type = "REGISTRY_MODIFICATION"
+    re.regex($e.target.registry.registry_key, `(?i)\\Services\\.*\\ImagePath`)
+    re.regex($e.target.registry.registry_value_data, `^[^"'].*\s.*\\.*\.exe`)
+    NOT re.regex($e.target.registry.registry_value_data, `^"`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_109020_always_install_elevated {
+  meta:
+    rule_id         = "GS-109020"
+    author          = "HuntingThreats"
+    description     = "AlwaysInstallElevated enabled — MSI install with SYSTEM privileges"
+    mitre_tactic    = "Privilege Escalation"
+    mitre_technique = "T1548.002"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "REGISTRY_MODIFICATION"
+    re.regex($e.target.registry.registry_key, `(?i)\\Installer\\AlwaysInstallElevated`)
+    $e.target.registry.registry_value_data = "1"
+
+  condition:
+    $e
+}
+
+rule ht_gs_109021_process_from_system_parent_unusual {
+  meta:
+    rule_id         = "GS-109021"
+    author          = "HuntingThreats"
+    description     = "SYSTEM-context process from unexpected parent — threshold 3+ in 5 min"
+    mitre_tactic    = "Privilege Escalation"
+    mitre_technique = "T1055"
+    severity        = "HIGH"
+    confidence      = "MEDIUM"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    $e.principal.user.userid = "SYSTEM"
+    NOT re.regex($e.principal.process.file.full_path, `(?i)\\(services|svchost|wininit|smss|ntoskrnl|taskhost|taskhostw|msiexec|trustedinstaller)`)
+
+  match:
+    $e.principal.hostname over 5m
+
+  condition:
+    #e > 3
+}
+
+rule ht_gs_109022_run_as_savecred {
+  meta:
+    rule_id         = "GS-109022"
+    author          = "HuntingThreats"
+    description     = "Runas /savecred — saved credential reuse for privilege escalation"
+    mitre_tactic    = "Privilege Escalation"
+    mitre_technique = "T1134.002"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.file.full_path, `(?i)\\runas\.exe$`)
+    re.regex($e.target.process.command_line, `(?i)\/savecred`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_109023_privesc_via_accessibility {
+  meta:
+    rule_id         = "GS-109023"
+    author          = "HuntingThreats"
+    description     = "Sticky keys or accessibility backdoor — sethc/Utilman IFEO debugger replaced"
+    mitre_tactic    = "Privilege Escalation"
+    mitre_technique = "T1546.008"
+    severity        = "CRITICAL"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "REGISTRY_MODIFICATION"
+    re.regex($e.target.registry.registry_key, `(?i)\\Image File Execution Options\\(sethc|utilman|osk|magnify|narrator|DisplaySwitch)\.exe`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_109024_privesc_dll_sideload_trusted {
+  meta:
+    rule_id         = "GS-109024"
+    author          = "HuntingThreats"
+    description     = "DLL sideloaded via trusted elevated process — auto-elevation exploit"
+    mitre_tactic    = "Privilege Escalation"
+    mitre_technique = "T1574.002"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "FILE_CREATION"
+    re.regex($e.principal.process.file.full_path, `(?i)\\(wsreset|eventvwr|sdclt|computerdefaults|slui)\.exe$`)
+    re.regex($e.target.file.full_path, `(?i)\.dll$`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_109025_token_elevation_type2 {
+  meta:
+    rule_id         = "GS-109025"
+    author          = "HuntingThreats"
+    description     = "Logon event with elevated token type 2 — unexpected full admin logon"
+    mitre_tactic    = "Privilege Escalation"
+    mitre_technique = "T1548"
+    severity        = "MEDIUM"
+    confidence      = "MEDIUM"
+
+  events:
+    $e.metadata.event_type = "USER_LOGIN"
+    re.regex($e.metadata.product_log_id, `(?i)4672`)
+    NOT re.regex($e.principal.process.file.full_path, `(?i)\\(lsass|services|winlogon)\.exe$`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_109026_exploit_ms16_075 {
+  meta:
+    rule_id         = "GS-109026"
+    author          = "HuntingThreats"
+    description     = "Hot Potato / Rotten Potato — NTLM relay to localhost via NBNS spoofing"
+    mitre_tactic    = "Privilege Escalation"
+    mitre_technique = "T1134.001"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.command_line, `(?i)(hotpotato|rottenpotato|token.*relay.*local)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_109027_privesc_kerberos_ticket {
+  meta:
+    rule_id         = "GS-109027"
+    author          = "HuntingThreats"
+    description     = "Ticket imported for privileged account from non-privileged context"
+    mitre_tactic    = "Privilege Escalation"
+    mitre_technique = "T1550.003"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.command_line, `(?i)(kerberos::ptt|rubeus.*ptt|mimikatz.*ticket.*import)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_109028_printspooler_exploit {
+  meta:
+    rule_id         = "GS-109028"
+    author          = "HuntingThreats"
+    description     = "Print spooler exploit — spoolsv spawning unexpected child process"
+    mitre_tactic    = "Privilege Escalation"
+    mitre_technique = "T1068"
+    severity        = "CRITICAL"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.principal.process.file.full_path, `(?i)\\spoolsv\.exe$`)
+    re.regex($e.target.process.file.full_path, `(?i)\\(cmd|powershell|wscript|rundll32|mshta)\.exe$`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_109029_new_admin_account_created {
+  meta:
+    rule_id         = "GS-109029"
+    author          = "HuntingThreats"
+    description     = "New user account created (EID 4720) — attacker adding backdoor account"
+    mitre_tactic    = "Persistence"
+    mitre_technique = "T1136.001"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "USER_RESOURCE_ACCESS"
+    re.regex($e.metadata.product_log_id, `(?i)4720`)
+    re.regex($e.principal.process.file.full_path, `(?i)\\(cmd|powershell|net|wmiprvse)\.exe$`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_109030_bypass_applocker {
+  meta:
+    rule_id         = "GS-109030"
+    author          = "HuntingThreats"
+    description     = "AppLocker bypass via trusted binary proxy — InstallUtil/RegSvcs/MSBuild"
+    mitre_tactic    = "Defense Evasion"
+    mitre_technique = "T1218"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.file.full_path, `(?i)\\(installutil|regsvcs|regasm|msbuild)\.exe$`)
+    NOT re.regex($e.target.process.command_line, `(?i)\\(System32|Program Files)\\`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_109031_rbcd_attack_set {
+  meta:
+    rule_id         = "GS-109031"
+    author          = "HuntingThreats"
+    description     = "Resource-Based Constrained Delegation attack — msDS-AllowedToActOnBehalf set"
+    mitre_tactic    = "Privilege Escalation"
+    mitre_technique = "T1484.001"
+    severity        = "CRITICAL"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.command_line, `(?i)(msDS-AllowedToActOnBehalfOfOtherIdentity|PrincipalsAllowedToDelegateToAccount)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_109032_nopac_attack {
+  meta:
+    rule_id         = "GS-109032"
+    author          = "HuntingThreats"
+    description     = "noPac / sAMAccountName spoofing — CVE-2021-42278/42287 exploitation"
+    mitre_tactic    = "Privilege Escalation"
+    mitre_technique = "T1484.001"
+    severity        = "CRITICAL"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.command_line, `(?i)(nopac|sAMAccountName.*exploit|CVE-2021-42278)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_109033_zerologon_exploit {
+  meta:
+    rule_id         = "GS-109033"
+    author          = "HuntingThreats"
+    description     = "Zerologon — NetrServerPasswordSet with empty authenticator — CVE-2020-1472"
+    mitre_tactic    = "Privilege Escalation"
+    mitre_technique = "T1068"
+    severity        = "CRITICAL"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.command_line, `(?i)(zerologon|CVE-2020-1472|secretsdump.*zerologon|netchangepassword)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_109034_suid_abuse_linux {
+  meta:
+    rule_id         = "GS-109034"
+    author          = "HuntingThreats"
+    description     = "SUID binary abuse on Linux — find SUID followed by privilege-gaining execution"
+    mitre_tactic    = "Privilege Escalation"
+    mitre_technique = "T1548.001"
+    severity        = "HIGH"
+    confidence      = "MEDIUM"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.command_line, `(?i)find.*-perm.*-4000`)
+    re.regex($e.principal.process.file.full_path, `(?i)(bash|sh|zsh|dash)$`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_109035_linux_sudo_privesc {
+  meta:
+    rule_id         = "GS-109035"
+    author          = "HuntingThreats"
+    description     = "Sudo -l followed by sudo abuse — Linux privilege escalation via sudo"
+    mitre_tactic    = "Privilege Escalation"
+    mitre_technique = "T1548.003"
+    severity        = "HIGH"
+    confidence      = "MEDIUM"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.command_line, `(?i)sudo.*-l`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_109036_privileged_process_parent_anomaly {
+  meta:
+    rule_id         = "GS-109036"
+    author          = "HuntingThreats"
+    description     = "Privileged Windows process with unexpected parent — potential escalation chain"
+    mitre_tactic    = "Privilege Escalation"
+    mitre_technique = "T1055"
+    severity        = "HIGH"
+    confidence      = "MEDIUM"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.file.full_path, `(?i)\\(net|sc|schtasks|reg|wmic)\.exe$`)
+    $e.principal.user.userid = "SYSTEM"
+    NOT re.regex($e.principal.process.file.full_path, `(?i)\\(svchost|services|wmiprvse|taskhost)\.exe$`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_109037_getsystem_meterpreter {
+  meta:
+    rule_id         = "GS-109037"
+    author          = "HuntingThreats"
+    description     = "Meterpreter getsystem technique — named pipe or token duplication for SYSTEM"
+    mitre_tactic    = "Privilege Escalation"
+    mitre_technique = "T1134.001"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.command_line, `(?i)(getsystem|Incognito|ImpersonateToken|steal_token)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_109038_credentialguard_bypass {
+  meta:
+    rule_id         = "GS-109038"
+    author          = "HuntingThreats"
+    description     = "Credential Guard bypass attempt — disabling HVCI or SecureBoot for cred access"
+    mitre_tactic    = "Defense Evasion"
+    mitre_technique = "T1562.010"
+    severity        = "CRITICAL"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "REGISTRY_MODIFICATION"
+    re.regex($e.target.registry.registry_key, `(?i)\\DeviceGuard`)
+    re.regex($e.target.registry.registry_key, `(?i)(EnableVirtualizationBasedSecurity|LsaCfgFlags)`)
+    $e.target.registry.registry_value_data = "0"
+
+  condition:
+    $e
+}
+
+rule ht_gs_109039_whoami_system_verify {
+  meta:
+    rule_id         = "GS-109039"
+    author          = "HuntingThreats"
+    description     = "Whoami returning SYSTEM from script — privilege escalation success verification"
+    mitre_tactic    = "Privilege Escalation"
+    mitre_technique = "T1033"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.file.full_path, `(?i)\\whoami\.exe$`)
+    $e.principal.user.userid = "SYSTEM"
+    re.regex($e.principal.process.file.full_path, `(?i)\\(cmd|powershell|wscript)\.exe$`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_109040_privesc_exploit_chain {
+  meta:
+    rule_id         = "GS-109040"
+    author          = "HuntingThreats"
+    description     = "Privilege escalation chain — non-admin process spawning SYSTEM child — full chain"
+    mitre_tactic    = "Privilege Escalation"
+    mitre_technique = "T1068"
+    severity        = "CRITICAL"
+    confidence      = "HIGH"
+
+  events:
+    $e1.metadata.event_type = "PROCESS_LAUNCH"
+    NOT $e1.principal.user.userid = "SYSTEM"
+    re.regex($e1.target.process.file.full_path, `(?i)\\(cmd|powershell|wscript|cscript|mshta)\.exe$`)
+
+    $e2.metadata.event_type = "PROCESS_LAUNCH"
+    $e2.principal.user.userid = "SYSTEM"
+    $e2.principal.process.file.full_path = $e1.target.process.file.full_path
+
+    $e1.principal.hostname = $e2.principal.hostname
+
+  match:
+    $e1.principal.hostname over 5m
+
+  condition:
+    $e1 and $e2
+}

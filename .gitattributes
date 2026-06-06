@@ -1,0 +1,9 @@
+# Normalize line endings for all text files
+* text=auto
+
+# Force LF for rule files (cross-platform)
+*.xml   text eol=lf
+*.aql   text eol=lf
+*.yaral text eol=lf
+*.md    text eol=lf
+*.html  text eol=lf

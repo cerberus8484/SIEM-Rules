@@ -1,0 +1,671 @@
+// ============================================================
+// HuntingThreats — Google SecOps YARA-L 2.0 Hunt Rules
+// Category : Execution — LOLBins / Living off the Land (T1218, T1059)
+// Batch    : 02 / Execution
+// Rules    : GS-100026 – GS-100060
+// Platform : Google SecOps / Chronicle SIEM
+// ============================================================
+
+rule ht_gs_100026_lolbin_mshta_remote {
+  meta:
+    rule_id         = "GS-100026"
+    author          = "HuntingThreats"
+    description     = "MSHTA executing remote script — LOLBin remote HTA execution"
+    mitre_tactic    = "Execution"
+    mitre_technique = "T1218.005"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.file.full_path, `(?i)\\mshta\.exe$`)
+    re.regex($e.target.process.command_line, `(?i)(http://|https://|\\\\)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_100027_lolbin_regsvr32_scrobj {
+  meta:
+    rule_id         = "GS-100027"
+    author          = "HuntingThreats"
+    description     = "Regsvr32 with /s /n /u and scrobj.dll — Squiblydoo bypass"
+    mitre_tactic    = "Defense Evasion"
+    mitre_technique = "T1218.010"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.file.full_path, `(?i)\\regsvr32\.exe$`)
+    re.regex($e.target.process.command_line, `(?i)(scrobj\.dll|/s\s+/n\s+/u)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_100028_lolbin_rundll32_remote {
+  meta:
+    rule_id         = "GS-100028"
+    author          = "HuntingThreats"
+    description     = "Rundll32 loading from remote UNC path or URL"
+    mitre_tactic    = "Execution"
+    mitre_technique = "T1218.011"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.file.full_path, `(?i)\\rundll32\.exe$`)
+    re.regex($e.target.process.command_line, `(?i)(\\\\[a-z0-9]|http://|https://)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_100029_lolbin_certutil_decode {
+  meta:
+    rule_id         = "GS-100029"
+    author          = "HuntingThreats"
+    description     = "Certutil -decode or -urlcache — file decode or download via certutil"
+    mitre_tactic    = "Defense Evasion"
+    mitre_technique = "T1140"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.file.full_path, `(?i)\\certutil\.exe$`)
+    re.regex($e.target.process.command_line, `(?i)(-decode|-urlcache|-verifyctl)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_100030_lolbin_bitsadmin_download {
+  meta:
+    rule_id         = "GS-100030"
+    author          = "HuntingThreats"
+    description     = "BITSAdmin /transfer or /download — background download via BITS"
+    mitre_tactic    = "Defense Evasion"
+    mitre_technique = "T1197"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.file.full_path, `(?i)\\bitsadmin\.exe$`)
+    re.regex($e.target.process.command_line, `(?i)(/transfer|/download|/addfile)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_100031_lolbin_wscript_remote {
+  meta:
+    rule_id         = "GS-100031"
+    author          = "HuntingThreats"
+    description     = "WScript or CScript executing from Temp/Downloads/remote path"
+    mitre_tactic    = "Execution"
+    mitre_technique = "T1059.005"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.file.full_path, `(?i)\\(wscript|cscript)\.exe$`)
+    re.regex($e.target.process.command_line, `(?i)(\\temp\\|\\appdata\\|\\downloads\\|\\\\)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_100032_lolbin_installutil {
+  meta:
+    rule_id         = "GS-100032"
+    author          = "HuntingThreats"
+    description     = "InstallUtil executing non-MSI binary — AppLocker bypass"
+    mitre_tactic    = "Defense Evasion"
+    mitre_technique = "T1218.004"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.file.full_path, `(?i)\\installutil\.exe$`)
+    re.regex($e.target.process.command_line, `(?i)\.(exe|dll)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_100033_lolbin_msiexec_remote {
+  meta:
+    rule_id         = "GS-100033"
+    author          = "HuntingThreats"
+    description     = "Msiexec loading MSI from remote URL — remote package execution"
+    mitre_tactic    = "Defense Evasion"
+    mitre_technique = "T1218.007"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.file.full_path, `(?i)\\msiexec\.exe$`)
+    re.regex($e.target.process.command_line, `(?i)(http://|https://|/i\s+https?)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_100034_lolbin_cmstp {
+  meta:
+    rule_id         = "GS-100034"
+    author          = "HuntingThreats"
+    description     = "CMSTP execution — UAC bypass and AppLocker bypass via COM"
+    mitre_tactic    = "Defense Evasion"
+    mitre_technique = "T1218.003"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.file.full_path, `(?i)\\cmstp\.exe$`)
+    re.regex($e.target.process.command_line, `(?i)/s`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_100035_lolbin_odbcconf {
+  meta:
+    rule_id         = "GS-100035"
+    author          = "HuntingThreats"
+    description     = "Odbcconf executing DLL via REGSVR action — AppLocker bypass"
+    mitre_tactic    = "Defense Evasion"
+    mitre_technique = "T1218.008"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.file.full_path, `(?i)\\odbcconf\.exe$`)
+    re.regex($e.target.process.command_line, `(?i)(regsvr|/a|/f)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_100036_lolbin_forfiles_cmd {
+  meta:
+    rule_id         = "GS-100036"
+    author          = "HuntingThreats"
+    description     = "Forfiles executing cmd.exe with suspicious command — LOLBin execution"
+    mitre_tactic    = "Execution"
+    mitre_technique = "T1059.003"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.file.full_path, `(?i)\\forfiles\.exe$`)
+    re.regex($e.target.process.command_line, `(?i)/c\s+.*(powershell|mshta|wscript|cscript)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_100037_lolbin_pcalua {
+  meta:
+    rule_id         = "GS-100037"
+    author          = "HuntingThreats"
+    description     = "Pcalua.exe executing arbitrary binary — AppLocker bypass via compatibility layer"
+    mitre_tactic    = "Defense Evasion"
+    mitre_technique = "T1218"
+    severity        = "HIGH"
+    confidence      = "MEDIUM"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.file.full_path, `(?i)\\pcalua\.exe$`)
+    re.regex($e.target.process.command_line, `(?i)(-a|-m)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_100038_lolbin_appsyncpublishingserver {
+  meta:
+    rule_id         = "GS-100038"
+    author          = "HuntingThreats"
+    description     = "AppSyncPublishingServer executing PowerShell — AppLocker bypass"
+    mitre_tactic    = "Defense Evasion"
+    mitre_technique = "T1218"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.file.full_path, `(?i)\\AppSyncPublishingServer\.exe$`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_100039_lolbin_xwizard {
+  meta:
+    rule_id         = "GS-100039"
+    author          = "HuntingThreats"
+    description     = "xwizard.exe running arbitrary binary — LOLBin proxy execution"
+    mitre_tactic    = "Defense Evasion"
+    mitre_technique = "T1218"
+    severity        = "HIGH"
+    confidence      = "MEDIUM"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.file.full_path, `(?i)\\xwizard\.exe$`)
+    re.regex($e.target.process.command_line, `(?i)(runwizard|\\\\|http)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_100040_lolbin_msbuild_inline_task {
+  meta:
+    rule_id         = "GS-100040"
+    author          = "HuntingThreats"
+    description     = "MSBuild executing inline task — code execution via build system"
+    mitre_tactic    = "Defense Evasion"
+    mitre_technique = "T1127.001"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.file.full_path, `(?i)\\msbuild\.exe$`)
+    re.regex($e.target.process.command_line, `(?i)\.(xml|proj|csproj)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_100041_lolbin_dnscmd_dll {
+  meta:
+    rule_id         = "GS-100041"
+    author          = "HuntingThreats"
+    description     = "Dnscmd /serverlevelplugindll — DLL injection via DNS admin"
+    mitre_tactic    = "Persistence"
+    mitre_technique = "T1543"
+    severity        = "CRITICAL"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.file.full_path, `(?i)\\dnscmd\.exe$`)
+    re.regex($e.target.process.command_line, `(?i)/serverlevelplugindll`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_100042_lolbin_nltest_domain_trust {
+  meta:
+    rule_id         = "GS-100042"
+    author          = "HuntingThreats"
+    description     = "Nltest domain trust enumeration — AD reconnaissance"
+    mitre_tactic    = "Discovery"
+    mitre_technique = "T1482"
+    severity        = "MEDIUM"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.file.full_path, `(?i)\\nltest\.exe$`)
+    re.regex($e.target.process.command_line, `(?i)(/domain_trusts|/dclist|/dsgetdc)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_100043_lolbin_expand_payload {
+  meta:
+    rule_id         = "GS-100043"
+    author          = "HuntingThreats"
+    description     = "expand.exe used to drop file to writable path — payload extraction"
+    mitre_tactic    = "Defense Evasion"
+    mitre_technique = "T1218"
+    severity        = "HIGH"
+    confidence      = "MEDIUM"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.file.full_path, `(?i)\\expand\.exe$`)
+    re.regex($e.target.process.command_line, `(?i)(\\temp\\|\\appdata\\|\\programdata\\)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_100044_lolbin_wmic_process_call {
+  meta:
+    rule_id         = "GS-100044"
+    author          = "HuntingThreats"
+    description     = "WMIC process call create — code execution via WMI CLI"
+    mitre_tactic    = "Execution"
+    mitre_technique = "T1047"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.file.full_path, `(?i)\\wmic\.exe$`)
+    re.regex($e.target.process.command_line, `(?i)process\s+call\s+create`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_100045_lolbin_cmd_echo_persist {
+  meta:
+    rule_id         = "GS-100045"
+    author          = "HuntingThreats"
+    description     = "Cmd.exe echo redirected to startup folder — persistence via echo"
+    mitre_tactic    = "Persistence"
+    mitre_technique = "T1547.001"
+    severity        = "HIGH"
+    confidence      = "MEDIUM"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.file.full_path, `(?i)\\cmd\.exe$`)
+    re.regex($e.target.process.command_line, `(?i)echo.*>.*startup`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_100046_lolbin_net1_user_add {
+  meta:
+    rule_id         = "GS-100046"
+    author          = "HuntingThreats"
+    description     = "Net1 used to add user — net.exe proxy execution for detection evasion"
+    mitre_tactic    = "Persistence"
+    mitre_technique = "T1136.001"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.file.full_path, `(?i)\\net1\.exe$`)
+    re.regex($e.target.process.command_line, `(?i)(user.*\/add|localgroup.*\/add)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_100047_lolbin_schtasks_on_logon {
+  meta:
+    rule_id         = "GS-100047"
+    author          = "HuntingThreats"
+    description     = "Schtasks /sc ONLOGON or /sc ONSTART — persistence at login"
+    mitre_tactic    = "Persistence"
+    mitre_technique = "T1053.005"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.file.full_path, `(?i)\\schtasks\.exe$`)
+    re.regex($e.target.process.command_line, `(?i)(/sc\s+(onlogon|onstart|onidle)|/create)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_100048_lolbin_at_schedule_cmd {
+  meta:
+    rule_id         = "GS-100048"
+    author          = "HuntingThreats"
+    description     = "AT.exe scheduling a cmd or powershell command — legacy task scheduler abuse"
+    mitre_tactic    = "Persistence"
+    mitre_technique = "T1053.002"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.file.full_path, `(?i)\\at\.exe$`)
+    re.regex($e.target.process.command_line, `(?i)(cmd|powershell|mshta|wscript)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_100049_lolbin_ieexec {
+  meta:
+    rule_id         = "GS-100049"
+    author          = "HuntingThreats"
+    description     = "ieexec.exe downloading and executing remote binary — IE LOLBin"
+    mitre_tactic    = "Defense Evasion"
+    mitre_technique = "T1218"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.file.full_path, `(?i)\\ieexec\.exe$`)
+    re.regex($e.target.process.command_line, `(?i)http`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_100050_lolbin_pktmon {
+  meta:
+    rule_id         = "GS-100050"
+    author          = "HuntingThreats"
+    description     = "Pktmon started for network capture — built-in packet sniffer"
+    mitre_tactic    = "Discovery"
+    mitre_technique = "T1040"
+    severity        = "MEDIUM"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.file.full_path, `(?i)\\pktmon\.exe$`)
+    re.regex($e.target.process.command_line, `(?i)(start|filter\s+add)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_100051_lolbin_diskshadow_exec {
+  meta:
+    rule_id         = "GS-100051"
+    author          = "HuntingThreats"
+    description     = "Diskshadow executing script with exec keyword — LOLBin code execution"
+    mitre_tactic    = "Defense Evasion"
+    mitre_technique = "T1218"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.file.full_path, `(?i)\\diskshadow\.exe$`)
+    re.regex($e.target.process.command_line, `(?i)(/s|exec|script)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_100052_lolbin_eudcedit {
+  meta:
+    rule_id         = "GS-100052"
+    author          = "HuntingThreats"
+    description     = "Eudcedit.exe spawning child process — DLL hijacking via font editor"
+    mitre_tactic    = "Defense Evasion"
+    mitre_technique = "T1574.001"
+    severity        = "HIGH"
+    confidence      = "MEDIUM"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.principal.process.file.full_path, `(?i)\\eudcedit\.exe$`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_100053_lolbin_mavinject {
+  meta:
+    rule_id         = "GS-100053"
+    author          = "HuntingThreats"
+    description     = "Mavinject.exe injecting DLL — Microsoft-signed injection tool"
+    mitre_tactic    = "Defense Evasion"
+    mitre_technique = "T1055.001"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.file.full_path, `(?i)\\mavinject\.exe$`)
+    re.regex($e.target.process.command_line, `(?i)(\/injectrunning|\/dll)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_100054_lolbin_sc_create_service {
+  meta:
+    rule_id         = "GS-100054"
+    author          = "HuntingThreats"
+    description     = "SC.exe creating new service — persistence or lateral movement via service"
+    mitre_tactic    = "Persistence"
+    mitre_technique = "T1543.003"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.file.full_path, `(?i)\\sc\.exe$`)
+    re.regex($e.target.process.command_line, `(?i)(create|config|start)`)
+    re.regex($e.target.process.command_line, `(?i)(binpath|type=\s*own)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_100055_lolbin_reg_export_sam {
+  meta:
+    rule_id         = "GS-100055"
+    author          = "HuntingThreats"
+    description     = "Reg.exe exporting SAM or SECURITY hive — credential theft via registry"
+    mitre_tactic    = "Credential Access"
+    mitre_technique = "T1003.002"
+    severity        = "CRITICAL"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.file.full_path, `(?i)\\reg\.exe$`)
+    re.regex($e.target.process.command_line, `(?i)(save|export)`)
+    re.regex($e.target.process.command_line, `(?i)(hklm\\sam|hklm\\security|hklm\\system)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_100056_lolbin_ntdsutil_snapshot {
+  meta:
+    rule_id         = "GS-100056"
+    author          = "HuntingThreats"
+    description     = "Ntdsutil activating or snapshotting AD database — NTDS.dit credential theft"
+    mitre_tactic    = "Credential Access"
+    mitre_technique = "T1003.003"
+    severity        = "CRITICAL"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.file.full_path, `(?i)\\ntdsutil\.exe$`)
+    re.regex($e.target.process.command_line, `(?i)(snapshot|activate\s+instance|ifm)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_100057_lolbin_vssadmin_delete_shadows {
+  meta:
+    rule_id         = "GS-100057"
+    author          = "HuntingThreats"
+    description     = "Vssadmin delete shadows — ransomware backup destruction"
+    mitre_tactic    = "Impact"
+    mitre_technique = "T1490"
+    severity        = "CRITICAL"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.file.full_path, `(?i)\\vssadmin\.exe$`)
+    re.regex($e.target.process.command_line, `(?i)delete\s+shadows`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_100058_lolbin_wusa_extract {
+  meta:
+    rule_id         = "GS-100058"
+    author          = "HuntingThreats"
+    description     = "Wusa.exe /extract to system path — patch installer DLL drop bypass"
+    mitre_tactic    = "Defense Evasion"
+    mitre_technique = "T1218"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.file.full_path, `(?i)\\wusa\.exe$`)
+    re.regex($e.target.process.command_line, `(?i)/extract`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_100059_lolbin_finger_download {
+  meta:
+    rule_id         = "GS-100059"
+    author          = "HuntingThreats"
+    description     = "Finger.exe as download cradle — data via port 79 finger protocol"
+    mitre_tactic    = "Command and Control"
+    mitre_technique = "T1095"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.file.full_path, `(?i)\\finger\.exe$`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_100060_lolbin_cmd_suspicious_parent {
+  meta:
+    rule_id         = "GS-100060"
+    author          = "HuntingThreats"
+    description     = "Cmd.exe spawned by svchost or WMI — unusual parent for shell execution"
+    mitre_tactic    = "Execution"
+    mitre_technique = "T1059.003"
+    severity        = "HIGH"
+    confidence      = "MEDIUM"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.file.full_path, `(?i)\\cmd\.exe$`)
+    re.regex($e.principal.process.file.full_path, `(?i)\\(svchost|wmiprvse|taskhost|taskhostw)\.exe$`)
+
+  condition:
+    $e
+}

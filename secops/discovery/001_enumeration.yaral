@@ -1,0 +1,675 @@
+// ============================================================
+// HuntingThreats — Google SecOps YARA-L 2.0 Hunt Rules
+// Category : Discovery — Enumeration / Recon / AD Discovery (T1087, T1069, T1018, T1082)
+// Batch    : 11 / Discovery
+// Rules    : GS-106001 – GS-106035
+// Platform : Google SecOps / Chronicle SIEM
+// ============================================================
+
+rule ht_gs_106001_net_user_domain {
+  meta:
+    rule_id         = "GS-106001"
+    author          = "HuntingThreats"
+    description     = "Net user /domain — domain user enumeration via net command"
+    mitre_tactic    = "Discovery"
+    mitre_technique = "T1087.002"
+    severity        = "MEDIUM"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.file.full_path, `(?i)\\net\.exe$`)
+    re.regex($e.target.process.command_line, `(?i)(user|group|localgroup)`)
+    re.regex($e.target.process.command_line, `(?i)\/domain`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_106002_net_group_domain_admins {
+  meta:
+    rule_id         = "GS-106002"
+    author          = "HuntingThreats"
+    description     = "Net group 'Domain Admins' query — privileged group enumeration"
+    mitre_tactic    = "Discovery"
+    mitre_technique = "T1069.002"
+    severity        = "MEDIUM"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.file.full_path, `(?i)\\net\.exe$`)
+    re.regex($e.target.process.command_line, `(?i)(domain admins|enterprise admins|schema admins|domain controllers)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_106003_ldifde_csvde_ad_export {
+  meta:
+    rule_id         = "GS-106003"
+    author          = "HuntingThreats"
+    description     = "Ldifde or Csvde exporting AD data — bulk AD object export"
+    mitre_tactic    = "Discovery"
+    mitre_technique = "T1087.002"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.file.full_path, `(?i)\\(ldifde|csvde)\.exe$`)
+    re.regex($e.target.process.command_line, `(?i)-f`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_106004_adfind_tool {
+  meta:
+    rule_id         = "GS-106004"
+    author          = "HuntingThreats"
+    description     = "AdFind.exe used for AD enumeration — comprehensive AD query tool"
+    mitre_tactic    = "Discovery"
+    mitre_technique = "T1087.002"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.file.full_path, `(?i)\\adfind\.exe$`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_106005_nmap_scan {
+  meta:
+    rule_id         = "GS-106005"
+    author          = "HuntingThreats"
+    description     = "Nmap network scanner launched — network reconnaissance"
+    mitre_tactic    = "Discovery"
+    mitre_technique = "T1046"
+    severity        = "MEDIUM"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.file.full_path, `(?i)\\nmap\.exe$`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_106006_port_scan_threshold {
+  meta:
+    rule_id         = "GS-106006"
+    author          = "HuntingThreats"
+    description     = "One host connecting to 20+ distinct ports on target — port scan behavior"
+    mitre_tactic    = "Discovery"
+    mitre_technique = "T1046"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "NETWORK_CONNECTION"
+
+  match:
+    $e.principal.hostname, $e.target.ip over 5m
+
+  condition:
+    #e > 20
+}
+
+rule ht_gs_106007_masscan_rustscan {
+  meta:
+    rule_id         = "GS-106007"
+    author          = "HuntingThreats"
+    description     = "Masscan or Rustscan high-speed scanner launched"
+    mitre_tactic    = "Discovery"
+    mitre_technique = "T1046"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.file.full_path, `(?i)\\(masscan|rustscan|zmap)\.exe$`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_106008_spn_enumeration_setspn {
+  meta:
+    rule_id         = "GS-106008"
+    author          = "HuntingThreats"
+    description     = "Setspn -q or -T — SPN enumeration for Kerberoasting target selection"
+    mitre_tactic    = "Discovery"
+    mitre_technique = "T1558.003"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.file.full_path, `(?i)\\setspn\.exe$`)
+    re.regex($e.target.process.command_line, `(?i)(-q|-T|-L)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_106009_powerview_ad_recon {
+  meta:
+    rule_id         = "GS-106009"
+    author          = "HuntingThreats"
+    description     = "PowerView AD reconnaissance — Get-ADUser/Computer bulk queries"
+    mitre_tactic    = "Discovery"
+    mitre_technique = "T1087.002"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.command_line, `(?i)(get-aduser|get-adcomputer|get-adgroup|get-adgroupmember|get-addomaincontroller)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_106010_get_aduser_threshold {
+  meta:
+    rule_id         = "GS-106010"
+    author          = "HuntingThreats"
+    description     = "High-frequency Get-ADUser calls — 3+ in 5 minutes, bulk enumeration"
+    mitre_tactic    = "Discovery"
+    mitre_technique = "T1087.002"
+    severity        = "HIGH"
+    confidence      = "MEDIUM"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.command_line, `(?i)get-aduser`)
+
+  match:
+    $e.principal.hostname over 5m
+
+  condition:
+    #e > 3
+}
+
+rule ht_gs_106011_wireshark_tcpdump_capture {
+  meta:
+    rule_id         = "GS-106011"
+    author          = "HuntingThreats"
+    description     = "Wireshark or Tcpdump launched — network capture / packet sniffing"
+    mitre_tactic    = "Discovery"
+    mitre_technique = "T1040"
+    severity        = "MEDIUM"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.file.full_path, `(?i)\\(wireshark|tshark|dumpcap|tcpdump|windump)\.exe$`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_106012_system_info_cmd {
+  meta:
+    rule_id         = "GS-106012"
+    author          = "HuntingThreats"
+    description     = "Systeminfo.exe run from shell or script — host reconnaissance"
+    mitre_tactic    = "Discovery"
+    mitre_technique = "T1082"
+    severity        = "MEDIUM"
+    confidence      = "MEDIUM"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.file.full_path, `(?i)\\systeminfo\.exe$`)
+    re.regex($e.principal.process.file.full_path, `(?i)\\(cmd|powershell|wscript|wmiprvse)\.exe$`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_106013_network_share_enum {
+  meta:
+    rule_id         = "GS-106013"
+    author          = "HuntingThreats"
+    description     = "Net view or Net share — network share enumeration"
+    mitre_tactic    = "Discovery"
+    mitre_technique = "T1135"
+    severity        = "MEDIUM"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.file.full_path, `(?i)\\net\.exe$`)
+    re.regex($e.target.process.command_line, `(?i)(view|share)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_106014_password_policy_query {
+  meta:
+    rule_id         = "GS-106014"
+    author          = "HuntingThreats"
+    description     = "Net accounts — password policy enumeration for spray planning"
+    mitre_tactic    = "Discovery"
+    mitre_technique = "T1201"
+    severity        = "MEDIUM"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.file.full_path, `(?i)\\net\.exe$`)
+    re.regex($e.target.process.command_line, `(?i)accounts`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_106015_whoami_all {
+  meta:
+    rule_id         = "GS-106015"
+    author          = "HuntingThreats"
+    description     = "Whoami /all or /groups — privilege and group membership check after compromise"
+    mitre_tactic    = "Discovery"
+    mitre_technique = "T1033"
+    severity        = "MEDIUM"
+    confidence      = "MEDIUM"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.file.full_path, `(?i)\\whoami\.exe$`)
+    re.regex($e.target.process.command_line, `(?i)(\/all|\/groups|\/priv)`)
+    re.regex($e.principal.process.file.full_path, `(?i)\\(cmd|powershell|wscript|wmiprvse)\.exe$`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_106016_ipconfig_all {
+  meta:
+    rule_id         = "GS-106016"
+    author          = "HuntingThreats"
+    description     = "Ipconfig /all or route print — network configuration discovery"
+    mitre_tactic    = "Discovery"
+    mitre_technique = "T1016"
+    severity        = "LOW"
+    confidence      = "MEDIUM"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.file.full_path, `(?i)\\(ipconfig|route)\.exe$`)
+    re.regex($e.target.process.command_line, `(?i)(\/all|print)`)
+    re.regex($e.principal.process.file.full_path, `(?i)\\(cmd|powershell|wmiprvse)\.exe$`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_106017_tasklist_processes {
+  meta:
+    rule_id         = "GS-106017"
+    author          = "HuntingThreats"
+    description     = "Tasklist /v or /svc — process enumeration from script context"
+    mitre_tactic    = "Discovery"
+    mitre_technique = "T1057"
+    severity        = "MEDIUM"
+    confidence      = "MEDIUM"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.file.full_path, `(?i)\\tasklist\.exe$`)
+    re.regex($e.principal.process.file.full_path, `(?i)\\(cmd|powershell|wscript|wmiprvse)\.exe$`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_106018_reg_query_system {
+  meta:
+    rule_id         = "GS-106018"
+    author          = "HuntingThreats"
+    description     = "Reg query targeting security-sensitive registry paths from script"
+    mitre_tactic    = "Discovery"
+    mitre_technique = "T1012"
+    severity        = "MEDIUM"
+    confidence      = "MEDIUM"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.file.full_path, `(?i)\\reg\.exe$`)
+    re.regex($e.target.process.command_line, `(?i)query`)
+    re.regex($e.target.process.command_line, `(?i)(\\lsa|\\sam|\\security|winlogon|\\policies|\\currentversion)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_106019_osquery_survey {
+  meta:
+    rule_id         = "GS-106019"
+    author          = "HuntingThreats"
+    description     = "Osquery launched in interactive mode by non-admin process — attacker survey"
+    mitre_tactic    = "Discovery"
+    mitre_technique = "T1082"
+    severity        = "MEDIUM"
+    confidence      = "MEDIUM"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.file.full_path, `(?i)\\osqueryi?\.exe$`)
+    re.regex($e.principal.process.file.full_path, `(?i)\\(cmd|powershell|wscript)\.exe$`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_106020_wmi_system_discovery {
+  meta:
+    rule_id         = "GS-106020"
+    author          = "HuntingThreats"
+    description     = "WMIC querying system info classes — multi-class WMI recon sweep"
+    mitre_tactic    = "Discovery"
+    mitre_technique = "T1082"
+    severity        = "MEDIUM"
+    confidence      = "MEDIUM"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.file.full_path, `(?i)\\wmic\.exe$`)
+    re.regex($e.target.process.command_line, `(?i)(computersystem|os\s+get|bios|product\s+get)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_106021_find_file_sensitive {
+  meta:
+    rule_id         = "GS-106021"
+    author          = "HuntingThreats"
+    description     = "Dir or Where searching for sensitive file types — credential file hunting"
+    mitre_tactic    = "Discovery"
+    mitre_technique = "T1083"
+    severity        = "MEDIUM"
+    confidence      = "MEDIUM"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.file.full_path, `(?i)\\(cmd|powershell)\.exe$`)
+    re.regex($e.target.process.command_line, `(?i)(dir.*\*\.pem|dir.*\*\.kdbx|dir.*password|gci.*\.config|get-childitem.*secret)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_106022_dns_zone_transfer {
+  meta:
+    rule_id         = "GS-106022"
+    author          = "HuntingThreats"
+    description     = "DNS zone transfer request — nslookup or dig with AXFR query type"
+    mitre_tactic    = "Discovery"
+    mitre_technique = "T1590.002"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.command_line, `(?i)(ls\s+-d|type=axfr|axfr|ls\s+-t)`)
+    re.regex($e.target.process.file.full_path, `(?i)\\(nslookup|dig)\.exe$`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_106023_ldap_enumeration {
+  meta:
+    rule_id         = "GS-106023"
+    author          = "HuntingThreats"
+    description     = "LDAP queries to domain controller from non-DC workstation — AD LDAP recon"
+    mitre_tactic    = "Discovery"
+    mitre_technique = "T1087.002"
+    severity        = "MEDIUM"
+    confidence      = "MEDIUM"
+
+  events:
+    $e.metadata.event_type = "NETWORK_CONNECTION"
+    $e.target.port in [389, 636, 3268, 3269]
+    NOT re.regex($e.principal.process.file.full_path, `(?i)\\(lsass|svchost|explorer|outlook)\.exe$`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_106024_cloud_metadata_query {
+  meta:
+    rule_id         = "GS-106024"
+    author          = "HuntingThreats"
+    description     = "Cloud metadata endpoint queried from non-cloud tool — IMDS credential theft"
+    mitre_tactic    = "Discovery"
+    mitre_technique = "T1526"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "NETWORK_DNS"
+    re.regex($e.network.dns.questions.name, `(?i)(169\.254\.169\.254|metadata\.google\.internal|169\.254\.169\.254)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_106025_sandbox_vm_detect {
+  meta:
+    rule_id         = "GS-106025"
+    author          = "HuntingThreats"
+    description     = "Sandbox/VM detection via BIOS or hardware fingerprinting — anti-analysis"
+    mitre_tactic    = "Defense Evasion"
+    mitre_technique = "T1497.001"
+    severity        = "MEDIUM"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.command_line, `(?i)(vboxguestadditions|vmwaretoolsd|vmtoolsd|virtualbox|virtualpc)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_106026_host_discovery_ping_sweep {
+  meta:
+    rule_id         = "GS-106026"
+    author          = "HuntingThreats"
+    description     = "Ping sweep — one host sending ICMP to 20+ distinct targets in 5 minutes"
+    mitre_tactic    = "Discovery"
+    mitre_technique = "T1018"
+    severity        = "MEDIUM"
+    confidence      = "MEDIUM"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.file.full_path, `(?i)\\ping\.exe$`)
+
+  match:
+    $e.principal.hostname over 5m
+
+  condition:
+    #e > 20
+}
+
+rule ht_gs_106027_get_hotfix_patch_level {
+  meta:
+    rule_id         = "GS-106027"
+    author          = "HuntingThreats"
+    description     = "Get-HotFix or WMIC QFE — patch level enumeration for exploit targeting"
+    mitre_tactic    = "Discovery"
+    mitre_technique = "T1082"
+    severity        = "MEDIUM"
+    confidence      = "MEDIUM"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.command_line, `(?i)(get-hotfix|wmic\s+qfe|get-wmiobject.*win32_quickfixengineering)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_106028_netstat_connection_list {
+  meta:
+    rule_id         = "GS-106028"
+    author          = "HuntingThreats"
+    description     = "Netstat -ano from script context — active connection enumeration"
+    mitre_tactic    = "Discovery"
+    mitre_technique = "T1049"
+    severity        = "LOW"
+    confidence      = "MEDIUM"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.file.full_path, `(?i)\\netstat\.exe$`)
+    re.regex($e.principal.process.file.full_path, `(?i)\\(cmd|powershell|wscript|wmiprvse)\.exe$`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_106029_dsquery_users {
+  meta:
+    rule_id         = "GS-106029"
+    author          = "HuntingThreats"
+    description     = "Dsquery user or computer — low-noise AD enumeration via built-in tool"
+    mitre_tactic    = "Discovery"
+    mitre_technique = "T1087.002"
+    severity        = "MEDIUM"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.file.full_path, `(?i)\\dsquery\.exe$`)
+    re.regex($e.target.process.command_line, `(?i)(user|computer|group|ou|server)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_106030_azuread_enumeration_tool {
+  meta:
+    rule_id         = "GS-106030"
+    author          = "HuntingThreats"
+    description     = "AzureAD PowerShell enumeration — Get-AzureADUser/Group from script"
+    mitre_tactic    = "Discovery"
+    mitre_technique = "T1087.004"
+    severity        = "MEDIUM"
+    confidence      = "MEDIUM"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.command_line, `(?i)(get-azureaduser|get-azureadgroup|get-azureaddevice|get-azureadapplication)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_106031_browser_history_access {
+  meta:
+    rule_id         = "GS-106031"
+    author          = "HuntingThreats"
+    description     = "Browser history or profile accessed by non-browser process — credential / session theft"
+    mitre_tactic    = "Collection"
+    mitre_technique = "T1217"
+    severity        = "HIGH"
+    confidence      = "MEDIUM"
+
+  events:
+    $e.metadata.event_type = "FILE_CREATION"
+    re.regex($e.target.file.full_path, `(?i)\\(Chrome|Firefox|Edge)\\.*\\(History|Cookies|Web Data)`)
+    NOT re.regex($e.principal.process.file.full_path, `(?i)\\(chrome|firefox|msedge|brave)\.exe$`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_106032_running_services_enum {
+  meta:
+    rule_id         = "GS-106032"
+    author          = "HuntingThreats"
+    description     = "Net start — running service enumeration for attack surface mapping"
+    mitre_tactic    = "Discovery"
+    mitre_technique = "T1007"
+    severity        = "LOW"
+    confidence      = "MEDIUM"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.file.full_path, `(?i)\\net\.exe$`)
+    re.regex($e.target.process.command_line, `(?i)^net\s+start\s*$`)
+    re.regex($e.principal.process.file.full_path, `(?i)\\(cmd|powershell|wmiprvse)\.exe$`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_106033_installed_software_query {
+  meta:
+    rule_id         = "GS-106033"
+    author          = "HuntingThreats"
+    description     = "WMI Win32_Product or reg query for installed software — application inventory"
+    mitre_tactic    = "Discovery"
+    mitre_technique = "T1518"
+    severity        = "LOW"
+    confidence      = "MEDIUM"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.command_line, `(?i)(win32_product|get-package|get-installedmodule)`)
+    re.regex($e.principal.process.file.full_path, `(?i)\\(cmd|powershell|wmiprvse|wscript)\.exe$`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_106034_msconfig_recon {
+  meta:
+    rule_id         = "GS-106034"
+    author          = "HuntingThreats"
+    description     = "Msconfig or BCDEdit used for system recon — boot config / startup discovery"
+    mitre_tactic    = "Discovery"
+    mitre_technique = "T1082"
+    severity        = "MEDIUM"
+    confidence      = "MEDIUM"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.file.full_path, `(?i)\\(msconfig|bcdedit)\.exe$`)
+    re.regex($e.principal.process.file.full_path, `(?i)\\(cmd|powershell|wscript|wmiprvse)\.exe$`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_106035_discovery_command_burst {
+  meta:
+    rule_id         = "GS-106035"
+    author          = "HuntingThreats"
+    description     = "Burst of discovery commands — 10+ recon tools in 2 minutes — post-compromise survey"
+    mitre_tactic    = "Discovery"
+    mitre_technique = "T1082"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.file.full_path, `(?i)\\(net|netstat|ipconfig|systeminfo|whoami|tasklist|wmic|nltest|dsquery|ping)\.exe$`)
+
+  match:
+    $e.principal.hostname over 2m
+
+  condition:
+    #e > 10
+}

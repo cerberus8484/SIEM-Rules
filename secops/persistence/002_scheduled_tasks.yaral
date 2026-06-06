@@ -1,0 +1,600 @@
+// ============================================================
+// HuntingThreats — Google SecOps YARA-L 2.0 Hunt Rules
+// Category : Persistence — Scheduled Tasks (T1053)
+// Batch    : 05 / Persistence
+// Rules    : GS-101026 – GS-101055
+// Platform : Google SecOps / Chronicle SIEM
+// ============================================================
+
+rule ht_gs_101026_task_schtasks_powershell {
+  meta:
+    rule_id         = "GS-101026"
+    author          = "HuntingThreats"
+    description     = "Schtasks creating task that runs PowerShell — PS persistence via task"
+    mitre_tactic    = "Persistence"
+    mitre_technique = "T1053.005"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.file.full_path, `(?i)\\schtasks\.exe$`)
+    re.regex($e.target.process.command_line, `(?i)/create`)
+    re.regex($e.target.process.command_line, `(?i)(powershell|pwsh)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_101027_task_schtasks_from_temp {
+  meta:
+    rule_id         = "GS-101027"
+    author          = "HuntingThreats"
+    description     = "Schtasks task pointing to Temp/AppData binary — staging path task"
+    mitre_tactic    = "Persistence"
+    mitre_technique = "T1053.005"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.file.full_path, `(?i)\\schtasks\.exe$`)
+    re.regex($e.target.process.command_line, `(?i)/create`)
+    re.regex($e.target.process.command_line, `(?i)(\\temp\\|\\appdata\\|\\programdata\\)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_101028_task_schtasks_xml_file {
+  meta:
+    rule_id         = "GS-101028"
+    author          = "HuntingThreats"
+    description     = "Schtasks importing XML task definition — silent task import from file"
+    mitre_tactic    = "Persistence"
+    mitre_technique = "T1053.005"
+    severity        = "HIGH"
+    confidence      = "MEDIUM"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.file.full_path, `(?i)\\schtasks\.exe$`)
+    re.regex($e.target.process.command_line, `(?i)/xml`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_101029_task_schtasks_system_account {
+  meta:
+    rule_id         = "GS-101029"
+    author          = "HuntingThreats"
+    description     = "Schtasks creating task with SYSTEM user — elevated persistent execution"
+    mitre_tactic    = "Privilege Escalation"
+    mitre_technique = "T1053.005"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.file.full_path, `(?i)\\schtasks\.exe$`)
+    re.regex($e.target.process.command_line, `(?i)/create`)
+    re.regex($e.target.process.command_line, `(?i)/ru\s+(system|nt authority\\system)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_101030_task_schtasks_delete_cover {
+  meta:
+    rule_id         = "GS-101030"
+    author          = "HuntingThreats"
+    description     = "Schtasks deleting a task after execution — self-cleanup pattern"
+    mitre_tactic    = "Defense Evasion"
+    mitre_technique = "T1070.004"
+    severity        = "MEDIUM"
+    confidence      = "MEDIUM"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.file.full_path, `(?i)\\schtasks\.exe$`)
+    re.regex($e.target.process.command_line, `(?i)/delete.*\/f`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_101031_task_ps_register_scheduledtask {
+  meta:
+    rule_id         = "GS-101031"
+    author          = "HuntingThreats"
+    description     = "PowerShell Register-ScheduledTask with encoded/obfuscated action — PS task persistence"
+    mitre_tactic    = "Persistence"
+    mitre_technique = "T1053.005"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.command_line, `(?i)register-scheduledtask`)
+    re.regex($e.target.process.command_line, `(?i)(-enc|iex|downloadstring|webclient)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_101032_task_ps_new_jobdefinition {
+  meta:
+    rule_id         = "GS-101032"
+    author          = "HuntingThreats"
+    description     = "PowerShell New-JobTrigger or ScheduledJob — PSJob-based persistence"
+    mitre_tactic    = "Persistence"
+    mitre_technique = "T1053.005"
+    severity        = "HIGH"
+    confidence      = "MEDIUM"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.command_line, `(?i)(register-scheduledjob|new-jobtrigger|new-scheduledjoboption)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_101033_task_created_by_office {
+  meta:
+    rule_id         = "GS-101033"
+    author          = "HuntingThreats"
+    description     = "Scheduled task created by Office process — macro-based task persistence"
+    mitre_tactic    = "Persistence"
+    mitre_technique = "T1053.005"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.file.full_path, `(?i)\\schtasks\.exe$`)
+    re.regex($e.principal.process.file.full_path, `(?i)\\(winword|excel|powerpnt|onenote|outlook)\.exe$`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_101034_task_schtasks_interval_short {
+  meta:
+    rule_id         = "GS-101034"
+    author          = "HuntingThreats"
+    description     = "Schtasks creating task with very short run interval (MINUTE) — beaconing task"
+    mitre_tactic    = "Command and Control"
+    mitre_technique = "T1053.005"
+    severity        = "MEDIUM"
+    confidence      = "MEDIUM"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.file.full_path, `(?i)\\schtasks\.exe$`)
+    re.regex($e.target.process.command_line, `(?i)/sc\s+minute`)
+    re.regex($e.target.process.command_line, `(?i)/create`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_101035_task_modify_existing {
+  meta:
+    rule_id         = "GS-101035"
+    author          = "HuntingThreats"
+    description     = "Schtasks /change modifying existing task action — task hijacking"
+    mitre_tactic    = "Persistence"
+    mitre_technique = "T1053.005"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.file.full_path, `(?i)\\schtasks\.exe$`)
+    re.regex($e.target.process.command_line, `(?i)/change`)
+    re.regex($e.target.process.command_line, `(?i)/tr`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_101036_task_trigger_at_logon {
+  meta:
+    rule_id         = "GS-101036"
+    author          = "HuntingThreats"
+    description     = "Schtasks creating ONLOGON trigger for suspicious binary — persistence at login"
+    mitre_tactic    = "Persistence"
+    mitre_technique = "T1053.005"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.file.full_path, `(?i)\\schtasks\.exe$`)
+    re.regex($e.target.process.command_line, `(?i)/sc\s+onlogon`)
+    re.regex($e.target.process.command_line, `(?i)(\\temp\\|\\appdata\\|powershell|wscript|mshta)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_101037_task_created_via_wmiprvse {
+  meta:
+    rule_id         = "GS-101037"
+    author          = "HuntingThreats"
+    description     = "Schtasks spawned by wmiprvse — task creation via WMI lateral movement"
+    mitre_tactic    = "Persistence"
+    mitre_technique = "T1053.005"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.file.full_path, `(?i)\\schtasks\.exe$`)
+    re.regex($e.principal.process.file.full_path, `(?i)\\wmiprvse\.exe$`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_101038_task_mshta_action {
+  meta:
+    rule_id         = "GS-101038"
+    author          = "HuntingThreats"
+    description     = "Schtasks /tr points to mshta — HTA executed via scheduled task"
+    mitre_tactic    = "Persistence"
+    mitre_technique = "T1053.005"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.file.full_path, `(?i)\\schtasks\.exe$`)
+    re.regex($e.target.process.command_line, `(?i)/tr.*mshta`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_101039_task_regsvr32_action {
+  meta:
+    rule_id         = "GS-101039"
+    author          = "HuntingThreats"
+    description     = "Schtasks /tr points to regsvr32 — COM scriptlet via scheduled task"
+    mitre_tactic    = "Persistence"
+    mitre_technique = "T1053.005"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.file.full_path, `(?i)\\schtasks\.exe$`)
+    re.regex($e.target.process.command_line, `(?i)/tr.*regsvr32`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_101040_task_wscript_action {
+  meta:
+    rule_id         = "GS-101040"
+    author          = "HuntingThreats"
+    description     = "Schtasks /tr executing wscript or cscript — VBS persistence via task"
+    mitre_tactic    = "Persistence"
+    mitre_technique = "T1053.005"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.file.full_path, `(?i)\\schtasks\.exe$`)
+    re.regex($e.target.process.command_line, `(?i)/tr.*(wscript|cscript)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_101041_task_query_hidden {
+  meta:
+    rule_id         = "GS-101041"
+    author          = "HuntingThreats"
+    description     = "Task with Hidden flag in XML — concealed task registration"
+    mitre_tactic    = "Defense Evasion"
+    mitre_technique = "T1564.002"
+    severity        = "HIGH"
+    confidence      = "MEDIUM"
+
+  events:
+    $e.metadata.event_type = "FILE_CREATION"
+    re.regex($e.target.file.full_path, `(?i)\\System32\\Tasks\\`)
+    re.regex($e.target.file.full_path, `(?i)\.(xml|job)$`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_101042_task_high_frequency_creation {
+  meta:
+    rule_id         = "GS-101042"
+    author          = "HuntingThreats"
+    description     = "Multiple scheduled tasks created in short time — batch task creation anomaly"
+    mitre_tactic    = "Persistence"
+    mitre_technique = "T1053.005"
+    severity        = "MEDIUM"
+    confidence      = "MEDIUM"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.file.full_path, `(?i)\\schtasks\.exe$`)
+    re.regex($e.target.process.command_line, `(?i)/create`)
+
+  match:
+    $e.principal.hostname over 5m
+
+  condition:
+    #e > 5
+}
+
+rule ht_gs_101043_task_run_key_combo {
+  meta:
+    rule_id         = "GS-101043"
+    author          = "HuntingThreats"
+    description     = "Both Run key and scheduled task created in same session — redundant persistence"
+    mitre_tactic    = "Persistence"
+    mitre_technique = "T1053.005"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e1.metadata.event_type = "REGISTRY_MODIFICATION"
+    re.regex($e1.target.registry.registry_key, `(?i)\\(Run|RunOnce)`)
+
+    $e2.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e2.target.process.file.full_path, `(?i)\\schtasks\.exe$`)
+    re.regex($e2.target.process.command_line, `(?i)/create`)
+
+    $e1.principal.hostname = $e2.principal.hostname
+
+  match:
+    $e1.principal.hostname over 30m
+
+  condition:
+    $e1 and $e2
+}
+
+rule ht_gs_101044_task_ps_named_pipe_action {
+  meta:
+    rule_id         = "GS-101044"
+    author          = "HuntingThreats"
+    description     = "Scheduled task action executing named pipe callback pattern — C2 staging"
+    mitre_tactic    = "Command and Control"
+    mitre_technique = "T1090.001"
+    severity        = "HIGH"
+    confidence      = "MEDIUM"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.file.full_path, `(?i)\\schtasks\.exe$`)
+    re.regex($e.target.process.command_line, `(?i)/tr.*\\\\\.\\pipe\\`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_101045_task_logon_trigger_all_users {
+  meta:
+    rule_id         = "GS-101045"
+    author          = "HuntingThreats"
+    description     = "Schtasks /ru ANY — task runs for all users at logon"
+    mitre_tactic    = "Persistence"
+    mitre_technique = "T1053.005"
+    severity        = "MEDIUM"
+    confidence      = "MEDIUM"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.file.full_path, `(?i)\\schtasks\.exe$`)
+    re.regex($e.target.process.command_line, `(?i)/create`)
+    re.regex($e.target.process.command_line, `(?i)/ru\s+everyone`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_101046_task_startup_folder_drop {
+  meta:
+    rule_id         = "GS-101046"
+    author          = "HuntingThreats"
+    description     = "File dropped in Startup folder by non-installer process — startup persistence"
+    mitre_tactic    = "Persistence"
+    mitre_technique = "T1547.001"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "FILE_CREATION"
+    re.regex($e.target.file.full_path, `(?i)\\Microsoft\\Windows\\Start Menu\\Programs\\Startup\\`)
+    NOT re.regex($e.principal.process.file.full_path, `(?i)\\(msiexec|setup|install).*\.exe$`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_101047_task_exec_encoded_ps_action {
+  meta:
+    rule_id         = "GS-101047"
+    author          = "HuntingThreats"
+    description     = "Scheduled task launches PowerShell with -Encoded — obfuscated PS from task"
+    mitre_tactic    = "Execution"
+    mitre_technique = "T1053.005"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.principal.process.file.full_path, `(?i)\\(taskeng|taskhostw|svchost)\.exe$`)
+    re.regex($e.target.process.file.full_path, `(?i)\\powershell\.exe$`)
+    re.regex($e.target.process.command_line, `(?i)-enc`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_101048_task_exec_iex_webclient {
+  meta:
+    rule_id         = "GS-101048"
+    author          = "HuntingThreats"
+    description     = "Task action: PowerShell IEX + WebClient download — remote payload via task"
+    mitre_tactic    = "Execution"
+    mitre_technique = "T1053.005"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.principal.process.file.full_path, `(?i)\\(taskeng|taskhostw|svchost)\.exe$`)
+    re.regex($e.target.process.file.full_path, `(?i)\\powershell\.exe$`)
+    re.regex($e.target.process.command_line, `(?i)(iex|invoke-expression).*(webclient|downloadstring)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_101049_task_active_setup {
+  meta:
+    rule_id         = "GS-101049"
+    author          = "HuntingThreats"
+    description     = "Active Setup registry modified with StubPath — user-level auto-execution"
+    mitre_tactic    = "Persistence"
+    mitre_technique = "T1547.014"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "REGISTRY_MODIFICATION"
+    re.regex($e.target.registry.registry_key, `(?i)\\Active Setup\\Installed Components\\`)
+    re.regex($e.target.registry.registry_key, `(?i)StubPath`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_101050_task_hidden_delete_run_once {
+  meta:
+    rule_id         = "GS-101050"
+    author          = "HuntingThreats"
+    description     = "RunOnce key written pointing to cmd self-delete — one-shot payload execution"
+    mitre_tactic    = "Persistence"
+    mitre_technique = "T1547.001"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "REGISTRY_MODIFICATION"
+    re.regex($e.target.registry.registry_key, `(?i)\\RunOnce`)
+    re.regex($e.target.registry.registry_value_data, `(?i)(cmd.*\/c.*del|powershell.*remove-item)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_101051_task_write_to_tasks_folder {
+  meta:
+    rule_id         = "GS-101051"
+    author          = "HuntingThreats"
+    description     = "File written directly to Windows\\System32\\Tasks — manual task creation"
+    mitre_tactic    = "Persistence"
+    mitre_technique = "T1053.005"
+    severity        = "HIGH"
+    confidence      = "MEDIUM"
+
+  events:
+    $e.metadata.event_type = "FILE_CREATION"
+    re.regex($e.target.file.full_path, `(?i)\\Windows\\System32\\Tasks\\`)
+    NOT re.regex($e.principal.process.file.full_path, `(?i)\\(svchost|taskhost|schtasks)\.exe$`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_101052_task_empire_stager_action {
+  meta:
+    rule_id         = "GS-101052"
+    author          = "HuntingThreats"
+    description     = "Scheduled task action matching Empire/Cobalt Strike stager pattern"
+    mitre_tactic    = "Command and Control"
+    mitre_technique = "T1053.005"
+    severity        = "CRITICAL"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.principal.process.file.full_path, `(?i)\\(taskeng|taskhostw|svchost)\.exe$`)
+    re.regex($e.target.process.file.full_path, `(?i)\\powershell\.exe$`)
+    re.regex($e.target.process.command_line, `(?i)(empire|invoke-shellcode|shellcode|cobalt)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_101053_task_wscript_temp_action {
+  meta:
+    rule_id         = "GS-101053"
+    author          = "HuntingThreats"
+    description     = "Task action: wscript from Temp path — VBS payload via task"
+    mitre_tactic    = "Persistence"
+    mitre_technique = "T1053.005"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.principal.process.file.full_path, `(?i)\\(taskeng|taskhostw|svchost)\.exe$`)
+    re.regex($e.target.process.file.full_path, `(?i)\\(wscript|cscript)\.exe$`)
+    re.regex($e.target.process.command_line, `(?i)(\\temp\\|\\appdata\\)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_101054_task_logon_triggered_mshta {
+  meta:
+    rule_id         = "GS-101054"
+    author          = "HuntingThreats"
+    description     = "Logon-triggered task launching mshta — HTA payload at logon"
+    mitre_tactic    = "Persistence"
+    mitre_technique = "T1053.005"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.principal.process.file.full_path, `(?i)\\(taskeng|taskhostw|svchost)\.exe$`)
+    re.regex($e.target.process.file.full_path, `(?i)\\mshta\.exe$`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_101055_task_creation_threshold {
+  meta:
+    rule_id         = "GS-101055"
+    author          = "HuntingThreats"
+    description     = "Mass scheduled task creation — 10+ tasks created in 10 minutes — automation sweep"
+    mitre_tactic    = "Persistence"
+    mitre_technique = "T1053.005"
+    severity        = "HIGH"
+    confidence      = "MEDIUM"
+
+  events:
+    $e.metadata.event_type = "FILE_CREATION"
+    re.regex($e.target.file.full_path, `(?i)\\Windows\\System32\\Tasks\\`)
+
+  match:
+    $e.principal.hostname over 10m
+
+  condition:
+    #e > 10
+}

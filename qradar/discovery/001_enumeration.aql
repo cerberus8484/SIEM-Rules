@@ -1,0 +1,713 @@
+-- ============================================================
+-- HuntingThreats — QRadar AQL Hunt Rules
+-- Category : Discovery / Enumeration (T1087, T1069, T1018, T1083)
+-- Batch    : 11 / Discovery
+-- Rules    : QR-106001 – QR-106035
+-- Platform : QRadar 7.4+ / AQL
+-- Sources  : Windows Security (4662/4688/7045), Sysmon (1/3/17), PowerShell
+-- ============================================================
+
+-- ==================================================
+-- QR-106001 | T1087.002 | Domain User Enumeration (net user /domain)
+-- Severity: Medium | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE (LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+    OR LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%')
+  AND UTF8(payload) ILIKE '%net%'
+  AND (UTF8(payload) ILIKE '%user /domain%'
+    OR UTF8(payload) ILIKE '%group /domain%'
+    OR UTF8(payload) ILIKE '%group "domain admins"%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-106002 | T1069.002 | Domain Group Enumeration (Event 4799/4798)
+-- Severity: Medium | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+  AND (UTF8(payload) ILIKE '%EventID>4799<%'
+    OR UTF8(payload) ILIKE '%EventID">"4799"%'
+    OR UTF8(payload) ILIKE '%EventID>4798<%'
+    OR UTF8(payload) ILIKE '%EventID">"4798"%')
+  AND NOT (UTF8(payload) ILIKE '%svchost%'
+    OR UTF8(payload) ILIKE '%taskhostw%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-106003 | T1018 | Network Share Enumeration (Event 5140/5142)
+-- Severity: Low | Confidence: Medium
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  sourceip,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+  AND (UTF8(payload) ILIKE '%EventID>5140<%'
+    OR UTF8(payload) ILIKE '%EventID">"5140"%')
+  AND (UTF8(payload) ILIKE '%IPC$%'
+    OR UTF8(payload) ILIKE '%SYSVOL%'
+    OR UTF8(payload) ILIKE '%NETLOGON%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-106004 | T1087 | LDAP Enumeration via ldifde / csvde
+-- Severity: Medium | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE (LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+    OR LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%')
+  AND (UTF8(payload) ILIKE '%ldifde%'
+    OR UTF8(payload) ILIKE '%csvde%'
+    OR UTF8(payload) ILIKE '%adfind%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-106005 | T1046 | Port Scan via Repeated Network Connections (Threshold)
+-- Severity: High | Confidence: Medium
+-- Threshold: 20+ distinct destination ports from same source in 5 min
+-- ==================================================
+SELECT
+  sourceip,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  COUNT(DISTINCT destinationport) AS PortCount
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%'
+  AND UTF8(payload) ILIKE '%NetworkConnect%'
+  AND NOT (destinationip ILIKE '10.%' AND sourceip = destinationip)
+GROUP BY sourceip, LOGSOURCENAME(logsourceid)
+HAVING COUNT(DISTINCT destinationport) >= 20
+LAST 5 MINUTES;
+
+
+-- ==================================================
+-- QR-106006 | T1083 | Directory Traversal via cmd/PowerShell
+-- Severity: Low | Confidence: Low
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE (LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+    OR LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%')
+  AND (UTF8(payload) ILIKE '%dir /s /b%'
+    OR UTF8(payload) ILIKE '%Get-ChildItem -Recurse%'
+    OR UTF8(payload) ILIKE '%ls -la%')
+  AND (UTF8(payload) ILIKE '%C:\Users\%'
+    OR UTF8(payload) ILIKE '%C:\Windows\%'
+    OR UTF8(payload) ILIKE '%C:\ProgramData\%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-106007 | T1057 | Process Discovery (tasklist / Get-Process)
+-- Severity: Low | Confidence: Low
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE (LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+    OR LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%'
+    OR LOGSOURCETYPENAME(logsourceid) ILIKE '%PowerShell%')
+  AND (UTF8(payload) ILIKE '%tasklist%'
+    OR UTF8(payload) ILIKE '%Get-Process%'
+    OR UTF8(payload) ILIKE '%ps -ef%'
+    OR UTF8(payload) ILIKE '%wmic process list%')
+  AND (UTF8(payload) ILIKE '%powershell%'
+    OR UTF8(payload) ILIKE '%wscript%'
+    OR UTF8(payload) ILIKE '%cmd.exe%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-106008 | T1135 | Network Share Discovery (net share / Invoke-ShareFinder)
+-- Severity: Medium | Confidence: Medium
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE (LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+    OR LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%'
+    OR LOGSOURCETYPENAME(logsourceid) ILIKE '%PowerShell%')
+  AND (UTF8(payload) ILIKE '%Invoke-ShareFinder%'
+    OR UTF8(payload) ILIKE '%Find-DomainShare%'
+    OR UTF8(payload) ILIKE '%net share%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-106009 | T1082 | System Information Discovery (systeminfo, hostname, whoami)
+-- Severity: Low | Confidence: Low
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE (LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+    OR LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%')
+  AND (UTF8(payload) ILIKE '%systeminfo%'
+    OR UTF8(payload) ILIKE '%whoami /all%'
+    OR UTF8(payload) ILIKE '%ipconfig /all%'
+    OR UTF8(payload) ILIKE '%hostname%')
+  AND (UTF8(payload) ILIKE '%powershell%'
+    OR UTF8(payload) ILIKE '%wscript%'
+    OR UTF8(payload) ILIKE '%mshta%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-106010 | T1016 | Network Configuration Discovery (arp, route, netstat)
+-- Severity: Low | Confidence: Medium
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE (LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+    OR LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%')
+  AND (UTF8(payload) ILIKE '%arp -a%'
+    OR UTF8(payload) ILIKE '%route print%'
+    OR UTF8(payload) ILIKE '%netstat -an%'
+    OR UTF8(payload) ILIKE '%nbtstat%')
+  AND (UTF8(payload) ILIKE '%powershell%'
+    OR UTF8(payload) ILIKE '%wscript%'
+    OR UTF8(payload) ILIKE '%cmd.exe%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-106011 | T1018 | Ping Sweep (Threshold)
+-- Severity: Medium | Confidence: High
+-- Threshold: 10+ ICMP echo requests to distinct hosts in 2 min
+-- ==================================================
+SELECT
+  sourceip,
+  COUNT(DISTINCT destinationip) AS PingedHosts
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%'
+  AND UTF8(payload) ILIKE '%NetworkConnect%'
+  AND (UTF8(payload) ILIKE '%ping%'
+    OR destinationport = 0)
+GROUP BY sourceip
+HAVING COUNT(DISTINCT destinationip) >= 10
+LAST 2 MINUTES;
+
+
+-- ==================================================
+-- QR-106012 | T1087.001 | Local Account Enumeration (Event 4798/Sam)
+-- Severity: Low | Confidence: Medium
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+  AND (UTF8(payload) ILIKE '%net localgroup administrators%'
+    OR UTF8(payload) ILIKE '%net user%'
+    OR UTF8(payload) ILIKE '%wmic useraccount%')
+  AND NOT (UTF8(payload) ILIKE '%/add%'
+    OR UTF8(payload) ILIKE '%/delete%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-106013 | T1069.002 | Enumeration of Privileged Groups (Domain Admins / EA)
+-- Severity: High | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%PowerShell%'
+  AND (UTF8(payload) ILIKE '%Domain Admins%'
+    OR UTF8(payload) ILIKE '%Enterprise Admins%'
+    OR UTF8(payload) ILIKE '%Schema Admins%'
+    OR UTF8(payload) ILIKE '%Account Operators%')
+  AND (UTF8(payload) ILIKE '%Get-ADGroupMember%'
+    OR UTF8(payload) ILIKE '%Get-DomainGroupMember%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-106014 | T1518 | Security Software Discovery (Defender / AV Query)
+-- Severity: Medium | Confidence: Medium
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE (LOGSOURCETYPENAME(logsourceid) ILIKE '%PowerShell%'
+    OR LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%')
+  AND (UTF8(payload) ILIKE '%Get-MpComputerStatus%'
+    OR UTF8(payload) ILIKE '%Get-AntiVirusProduct%'
+    OR UTF8(payload) ILIKE '%wmic /namespace:%'
+    OR UTF8(payload) ILIKE '%AntiVirusProduct%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-106015 | T1033 | Current User Identification (whoami)
+-- Severity: Low | Confidence: Low
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE (LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%'
+    OR LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%')
+  AND (UTF8(payload) ILIKE '%whoami /priv%'
+    OR UTF8(payload) ILIKE '%whoami /groups%'
+    OR UTF8(payload) ILIKE '%echo %username%%')
+  AND (UTF8(payload) ILIKE '%powershell%'
+    OR UTF8(payload) ILIKE '%cmd.exe%'
+    OR UTF8(payload) ILIKE '%wscript%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-106016 | T1040 | Network Capture Tool Detected (Wireshark/tcpdump/pktmon)
+-- Severity: High | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE (LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+    OR LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%')
+  AND (UTF8(payload) ILIKE '%wireshark%'
+    OR UTF8(payload) ILIKE '%tcpdump%'
+    OR UTF8(payload) ILIKE '%pktmon%'
+    OR UTF8(payload) ILIKE '%dumpcap%'
+    OR UTF8(payload) ILIKE '%tshark%'
+    OR UTF8(payload) ILIKE '%windump%')
+  AND NOT (username ILIKE '%network%'
+    OR username ILIKE '%soc%'
+    OR username ILIKE '%admin%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-106017 | T1201 | Password Policy Discovery (net accounts)
+-- Severity: Low | Confidence: Medium
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE (LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+    OR LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%')
+  AND (UTF8(payload) ILIKE '%net accounts%'
+    OR UTF8(payload) ILIKE '%Get-ADDefaultDomainPasswordPolicy%'
+    OR UTF8(payload) ILIKE '%Get-ADFineGrainedPasswordPolicy%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-106018 | T1087 | SPN Enumeration (Setspn / Get-DomainUser -SPN)
+-- Severity: High | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE (LOGSOURCETYPENAME(logsourceid) ILIKE '%PowerShell%'
+    OR LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%')
+  AND (UTF8(payload) ILIKE '%setspn%'
+    OR UTF8(payload) ILIKE '%Get-DomainUser%'
+    OR UTF8(payload) ILIKE '%-SPN%'
+    OR UTF8(payload) ILIKE '%GetUserSpns%'
+    OR UTF8(payload) ILIKE '%GetNPUsers%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-106019 | T1018 | Remote System Discovery (Invoke-HostEnum / nmap via PS)
+-- Severity: Medium | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%PowerShell%'
+  AND (UTF8(payload) ILIKE '%Invoke-HostEnum%'
+    OR UTF8(payload) ILIKE '%Test-NetConnection%'
+    OR UTF8(payload) ILIKE '%1..254 |%'
+    OR UTF8(payload) ILIKE '%ForEach-Object%')
+  AND UTF8(payload) ILIKE '%.%'
+  AND (UTF8(payload) ILIKE '%445%'
+    OR UTF8(payload) ILIKE '%3389%'
+    OR UTF8(payload) ILIKE '%80%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-106020 | T1046 | Nmap Binary Executed (Non-admin User)
+-- Severity: High | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE (LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+    OR LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%')
+  AND (UTF8(payload) ILIKE '%nmap%'
+    OR UTF8(payload) ILIKE '%masscan%'
+    OR UTF8(payload) ILIKE '%rustscan%'
+    OR UTF8(payload) ILIKE '%zmap%')
+  AND NOT username ILIKE '%admin%'
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-106021 | T1124 | System Time Discovery (net time / w32tm)
+-- Severity: Low | Confidence: Low
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE (LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+    OR LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%')
+  AND (UTF8(payload) ILIKE '%net time%'
+    OR UTF8(payload) ILIKE '%w32tm%'
+    OR UTF8(payload) ILIKE '%Get-Date%')
+  AND (UTF8(payload) ILIKE '%powershell%'
+    OR UTF8(payload) ILIKE '%wscript%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-106022 | T1049 | Network Connection List (netstat from Script)
+-- Severity: Low | Confidence: Medium
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE (LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+    OR LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%')
+  AND (UTF8(payload) ILIKE '%netstat -ano%'
+    OR UTF8(payload) ILIKE '%Get-NetTCPConnection%')
+  AND (UTF8(payload) ILIKE '%powershell%'
+    OR UTF8(payload) ILIKE '%wscript%'
+    OR UTF8(payload) ILIKE '%cmd.exe%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-106023 | T1083 | File Search for Credentials (pass / key / token in names)
+-- Severity: High | Confidence: Medium
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE (LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+    OR LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%')
+  AND (UTF8(payload) ILIKE '%dir%'
+    OR UTF8(payload) ILIKE '%Get-ChildItem%')
+  AND (UTF8(payload) ILIKE '%password%'
+    OR UTF8(payload) ILIKE '%passwd%'
+    OR UTF8(payload) ILIKE '%creds%'
+    OR UTF8(payload) ILIKE '%secret%'
+    OR UTF8(payload) ILIKE '%.kdbx%'
+    OR UTF8(payload) ILIKE '%.pfx%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-106024 | T1012 | Registry Discovery (reg query HKLM Security)
+-- Severity: Medium | Confidence: Medium
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE (LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+    OR LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%')
+  AND UTF8(payload) ILIKE '%reg query%'
+  AND (UTF8(payload) ILIKE '%HKLM\System\CurrentControlSet%'
+    OR UTF8(payload) ILIKE '%HKLM\Software\Microsoft\Windows NT%'
+    OR UTF8(payload) ILIKE '%HKCU\Software%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-106025 | T1119 | Automated Data Collection (Loop + File Copy to Temp)
+-- Severity: High | Confidence: Medium
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%PowerShell%'
+  AND (UTF8(payload) ILIKE '%Get-ChildItem%'
+    OR UTF8(payload) ILIKE '%dir%')
+  AND (UTF8(payload) ILIKE '%Copy-Item%'
+    OR UTF8(payload) ILIKE '%xcopy%')
+  AND (UTF8(payload) ILIKE '%\Temp\%'
+    OR UTF8(payload) ILIKE '%\AppData\Local\%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-106026 | T1087 | LDAP Query via .NET ADSI DirectorySearcher
+-- Severity: High | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%PowerShell%'
+  AND (UTF8(payload) ILIKE '%DirectorySearcher%'
+    OR UTF8(payload) ILIKE '%DirectoryEntry%'
+    OR UTF8(payload) ILIKE '%System.DirectoryServices%')
+  AND (UTF8(payload) ILIKE '%LDAP://%'
+    OR UTF8(payload) ILIKE '%(objectCategory=person)%'
+    OR UTF8(payload) ILIKE '%(objectClass=computer)%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-106027 | T1526 | Cloud Service Discovery (az/aws/gcloud CLI)
+-- Severity: Medium | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE (LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+    OR LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%')
+  AND (UTF8(payload) ILIKE '%az account list%'
+    OR UTF8(payload) ILIKE '%aws iam list%'
+    OR UTF8(payload) ILIKE '%gcloud iam%'
+    OR UTF8(payload) ILIKE '%aws s3 ls%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-106028 | T1518.001 | Security Tool Discovery via Tasklist
+-- Severity: Medium | Confidence: Medium
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE (LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+    OR LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%')
+  AND UTF8(payload) ILIKE '%tasklist%'
+  AND (UTF8(payload) ILIKE '%MsMpEng%'
+    OR UTF8(payload) ILIKE '%avp%'
+    OR UTF8(payload) ILIKE '%ekrn%'
+    OR UTF8(payload) ILIKE '%bdagent%'
+    OR UTF8(payload) ILIKE '%CylanceSvc%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-106029 | T1069 | Permission Groups Discovery via dsquery
+-- Severity: Medium | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE (LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+    OR LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%')
+  AND (UTF8(payload) ILIKE '%dsquery%'
+    OR UTF8(payload) ILIKE '%dsget%')
+  AND (UTF8(payload) ILIKE '%user%'
+    OR UTF8(payload) ILIKE '%group%'
+    OR UTF8(payload) ILIKE '%computer%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-106030 | T1082 | Virtualization/Sandbox Check (VM artifact enumeration)
+-- Severity: High | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE (LOGSOURCETYPENAME(logsourceid) ILIKE '%PowerShell%'
+    OR LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%')
+  AND (UTF8(payload) ILIKE '%VBOX%'
+    OR UTF8(payload) ILIKE '%VMware%'
+    OR UTF8(payload) ILIKE '%VirtualBox%'
+    OR UTF8(payload) ILIKE '%Hyper-V%'
+    OR UTF8(payload) ILIKE '%QEMU%')
+  AND (UTF8(payload) ILIKE '%Get-WmiObject%'
+    OR UTF8(payload) ILIKE '%Win32_ComputerSystem%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-106031 | T1082 | BIOS / UUID Fingerprinting (Anti-Sandbox)
+-- Severity: High | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%PowerShell%'
+  AND (UTF8(payload) ILIKE '%Win32_BIOS%'
+    OR UTF8(payload) ILIKE '%Win32_BaseBoard%'
+    OR UTF8(payload) ILIKE '%SerialNumber%'
+    OR UTF8(payload) ILIKE '%UUID%')
+  AND (UTF8(payload) ILIKE '%Get-WmiObject%'
+    OR UTF8(payload) ILIKE '%Get-CimInstance%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-106032 | T1614 | System Language Discovery (GetUserDefaultUILanguage)
+-- Severity: Medium | Confidence: Medium
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%PowerShell%'
+  AND (UTF8(payload) ILIKE '%GetUserDefaultUILanguage%'
+    OR UTF8(payload) ILIKE '%CultureInfo%'
+    OR UTF8(payload) ILIKE '%CurrentCulture%'
+    OR UTF8(payload) ILIKE '%(Get-Culture)%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-106033 | T1046 | Masscan / Zmap Detected on Host
+-- Severity: High | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE (LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+    OR LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%')
+  AND (UTF8(payload) ILIKE '%masscan%'
+    OR UTF8(payload) ILIKE '%zmap%'
+    OR UTF8(payload) ILIKE '%naabu%'
+    OR UTF8(payload) ILIKE '%sx tool%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-106034 | T1087 | Get-ADUser / Get-ADComputer Bulk Enumeration (Threshold)
+-- Severity: High | Confidence: High
+-- Threshold: 3+ distinct enumeration calls in 5 minutes
+-- ==================================================
+SELECT
+  username,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  COUNT(*) AS EnumCalls
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%PowerShell%'
+  AND (UTF8(payload) ILIKE '%Get-ADUser%'
+    OR UTF8(payload) ILIKE '%Get-ADComputer%'
+    OR UTF8(payload) ILIKE '%Get-ADGroup%')
+  AND NOT username ILIKE '%$%'
+GROUP BY username, LOGSOURCENAME(logsourceid)
+HAVING COUNT(*) >= 3
+LAST 5 MINUTES;
+
+
+-- ==================================================
+-- QR-106035 | T1087 | CrackMapExec / BloodHound SMB Signing Enum
+-- Severity: High | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  sourceip,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE (LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+    OR LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%')
+  AND (UTF8(payload) ILIKE '%crackmapexec%'
+    OR UTF8(payload) ILIKE '%cme %'
+    OR UTF8(payload) ILIKE '%SMB signing%'
+    OR UTF8(payload) ILIKE '% smb %')
+  AND (UTF8(payload) ILIKE '%--shares%'
+    OR UTF8(payload) ILIKE '--users%'
+    OR UTF8(payload) ILIKE '%--groups%')
+LAST 1440 MINUTES;

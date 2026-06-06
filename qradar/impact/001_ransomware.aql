@@ -1,0 +1,607 @@
+-- ============================================================
+-- HuntingThreats — QRadar AQL Hunt Rules
+-- Category : Impact / Ransomware (T1486, T1489, T1490, T1485, T1491)
+-- Batch    : 13 / Impact
+-- Rules    : QR-108001 – QR-108030
+-- Platform : QRadar 7.4+ / AQL
+-- Sources  : Windows (4688/7036), Sysmon (1/2/11), PowerShell
+-- ============================================================
+
+-- ==================================================
+-- QR-108001 | T1486 | Mass File Rename with Known Ransomware Extension
+-- Severity: Critical | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%'
+  AND (UTF8(payload) ILIKE '%FileCreate%'
+    OR UTF8(payload) ILIKE '%FileRename%')
+  AND (UTF8(payload) ILIKE '%.locked%'
+    OR UTF8(payload) ILIKE '%.encrypted%'
+    OR UTF8(payload) ILIKE '%.ryuk%'
+    OR UTF8(payload) ILIKE '%.conti%'
+    OR UTF8(payload) ILIKE '%.lockbit%'
+    OR UTF8(payload) ILIKE '%.hive%'
+    OR UTF8(payload) ILIKE '%.blackcat%'
+    OR UTF8(payload) ILIKE '%.cl0p%'
+    OR UTF8(payload) ILIKE '%.wnry%'
+    OR UTF8(payload) ILIKE '%.wncry%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-108002 | T1486 | High Volume File Modification Rate (Threshold)
+-- Severity: Critical | Confidence: High
+-- Threshold: 100+ file writes to same volume in 5 minutes
+-- ==================================================
+SELECT
+  username,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  COUNT(*) AS FileOps
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%'
+  AND (UTF8(payload) ILIKE '%FileCreate%'
+    OR UTF8(payload) ILIKE '%FileRename%')
+  AND (UTF8(payload) ILIKE '%C:\Users\%'
+    OR UTF8(payload) ILIKE '%C:\Documents%'
+    OR UTF8(payload) ILIKE '%\\%\%')
+GROUP BY username, LOGSOURCENAME(logsourceid)
+HAVING COUNT(*) >= 100
+LAST 5 MINUTES;
+
+
+-- ==================================================
+-- QR-108003 | T1486 | README / Ransom Note File Created
+-- Severity: Critical | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%'
+  AND UTF8(payload) ILIKE '%FileCreate%'
+  AND (UTF8(payload) ILIKE '%READ_ME%'
+    OR UTF8(payload) ILIKE '%DECRYPT%'
+    OR UTF8(payload) ILIKE '%HOW_TO_RECOVER%'
+    OR UTF8(payload) ILIKE '%RESTORE_FILES%'
+    OR UTF8(payload) ILIKE '%YOUR_FILES%'
+    OR UTF8(payload) ILIKE '%RANSOM%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-108004 | T1490 | Shadow Copy Deletion (vssadmin delete shadows)
+-- Severity: Critical | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE (LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+    OR LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%')
+  AND (UTF8(payload) ILIKE '%vssadmin%'
+    OR UTF8(payload) ILIKE '%wmic shadowcopy%')
+  AND (UTF8(payload) ILIKE '%delete%'
+    OR UTF8(payload) ILIKE '%Delete%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-108005 | T1490 | Shadow Copy Deletion via PowerShell (Get-WmiObject)
+-- Severity: Critical | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%PowerShell%'
+  AND (UTF8(payload) ILIKE '%Win32_ShadowCopy%'
+    OR UTF8(payload) ILIKE '%Get-WmiObject%')
+  AND (UTF8(payload) ILIKE '%.Delete()%'
+    OR UTF8(payload) ILIKE '%Remove-WmiObject%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-108006 | T1490 | Disable Automatic System Repair (bcdedit)
+-- Severity: Critical | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE (LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+    OR LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%')
+  AND UTF8(payload) ILIKE '%bcdedit%'
+  AND (UTF8(payload) ILIKE '%recoveryenabled no%'
+    OR UTF8(payload) ILIKE '%bootstatuspolicy ignoreallfailures%'
+    OR UTF8(payload) ILIKE '%safeboot%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-108007 | T1490 | wbadmin Delete System State Backup
+-- Severity: Critical | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE (LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+    OR LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%')
+  AND UTF8(payload) ILIKE '%wbadmin%'
+  AND UTF8(payload) ILIKE '%delete%'
+  AND (UTF8(payload) ILIKE '%backup%'
+    OR UTF8(payload) ILIKE '%catalog%'
+    OR UTF8(payload) ILIKE '%systemstatebackup%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-108008 | T1489 | Critical Service Stopped (Event 7036 — SQL / Exchange / DC)
+-- Severity: Critical | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+  AND (UTF8(payload) ILIKE '%EventID>7036<%'
+    OR UTF8(payload) ILIKE '%EventID">"7036"%')
+  AND UTF8(payload) ILIKE '%stopped%'
+  AND (UTF8(payload) ILIKE '%MSSQL%'
+    OR UTF8(payload) ILIKE '%MSExchange%'
+    OR UTF8(payload) ILIKE '%DNS Server%'
+    OR UTF8(payload) ILIKE '%Netlogon%'
+    OR UTF8(payload) ILIKE '%CrowdStrike%'
+    OR UTF8(payload) ILIKE '%MSSQLServer%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-108009 | T1489 | Mass Service Stop via sc.exe (Threshold)
+-- Severity: Critical | Confidence: High
+-- Threshold: 5+ service stop commands in 60 seconds
+-- ==================================================
+SELECT
+  username,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  COUNT(*) AS ServiceStops
+FROM events
+WHERE (LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+    OR LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%')
+  AND UTF8(payload) ILIKE '%sc%'
+  AND UTF8(payload) ILIKE '% stop%'
+GROUP BY username, LOGSOURCENAME(logsourceid)
+HAVING COUNT(*) >= 5
+LAST 1 MINUTES;
+
+
+-- ==================================================
+-- QR-108010 | T1486 | File Extension Changed to Known Ransomware Ext (FileRename)
+-- Severity: Critical | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%'
+  AND UTF8(payload) ILIKE '%FileCreateStreamHash%'
+  AND (UTF8(payload) ILIKE '%.akira%'
+    OR UTF8(payload) ILIKE '%.alphv%'
+    OR UTF8(payload) ILIKE '%.noberus%'
+    OR UTF8(payload) ILIKE '%.phobos%'
+    OR UTF8(payload) ILIKE '%.dharma%'
+    OR UTF8(payload) ILIKE '%.makop%'
+    OR UTF8(payload) ILIKE '%.babuk%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-108011 | T1485 | Recursive File Deletion (rd /s /q or Remove-Item -Recurse)
+-- Severity: Critical | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE (LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+    OR LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%')
+  AND (UTF8(payload) ILIKE '%rd /s /q%'
+    OR UTF8(payload) ILIKE '%rmdir /s%'
+    OR UTF8(payload) ILIKE '%Remove-Item -Recurse%')
+  AND (UTF8(payload) ILIKE '%C:\Users\%'
+    OR UTF8(payload) ILIKE '%C:\Windows\%'
+    OR UTF8(payload) ILIKE '%C:\ProgramData\%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-108012 | T1491.001 | Desktop Wallpaper Changed to Ransom Note Image
+-- Severity: Critical | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE (LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+    OR LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%')
+  AND UTF8(payload) ILIKE '%Wallpaper%'
+  AND (UTF8(payload) ILIKE '%DECRYPT%'
+    OR UTF8(payload) ILIKE '%RANSOM%'
+    OR UTF8(payload) ILIKE '%README%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-108013 | T1490 | System Restore Point Deleted (Event 520 / SR)
+-- Severity: Critical | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%PowerShell%'
+  AND (UTF8(payload) ILIKE '%Disable-ComputerRestore%'
+    OR UTF8(payload) ILIKE '%Remove-RestorePoint%'
+    OR UTF8(payload) ILIKE '%vssadmin Resize ShadowStorage%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-108014 | T1490 | Backup Tool Process Terminated
+-- Severity: Critical | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE (LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+    OR LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%')
+  AND (UTF8(payload) ILIKE '%taskkill%'
+    OR UTF8(payload) ILIKE '%Stop-Process%')
+  AND (UTF8(payload) ILIKE '%veeam%'
+    OR UTF8(payload) ILIKE '%backup%'
+    OR UTF8(payload) ILIKE '%acronis%'
+    OR UTF8(payload) ILIKE '%synology%'
+    OR UTF8(payload) ILIKE '%dpm%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-108015 | T1486 | Encrypting Sensitive Directory Trees
+-- Severity: Critical | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%'
+  AND UTF8(payload) ILIKE '%FileCreate%'
+  AND (UTF8(payload) ILIKE '%\Documents\%'
+    OR UTF8(payload) ILIKE '%\Desktop\%'
+    OR UTF8(payload) ILIKE '%\Finance\%'
+    OR UTF8(payload) ILIKE '%\Accounting\%'
+    OR UTF8(payload) ILIKE '%\HR\%')
+  AND (UTF8(payload) ILIKE '%.enc%'
+    OR UTF8(payload) ILIKE '%.cry%'
+    OR UTF8(payload) ILIKE '%.lock%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-108016 | T1490 | Boot Sector Modification (Sysmon DriverLoad uncommon disk driver)
+-- Severity: Critical | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%'
+  AND UTF8(payload) ILIKE '%DriverLoad%'
+  AND (UTF8(payload) ILIKE '%\Temp\%'
+    OR UTF8(payload) ILIKE '%\AppData\%'
+    OR UTF8(payload) ILIKE '%\Users\%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-108017 | T1489 | Antivirus / EDR Service Stopped via sc.exe
+-- Severity: Critical | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE (LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+    OR LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%')
+  AND UTF8(payload) ILIKE '%sc%'
+  AND UTF8(payload) ILIKE '% stop%'
+  AND (UTF8(payload) ILIKE '%WinDefend%'
+    OR UTF8(payload) ILIKE '%Sense%'
+    OR UTF8(payload) ILIKE '%csfalconservice%'
+    OR UTF8(payload) ILIKE '%xagt%'
+    OR UTF8(payload) ILIKE '%ekrn%'
+    OR UTF8(payload) ILIKE '%MsMpEng%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-108018 | T1486 | Ransomware Mutex / Marker in Process Args
+-- Severity: Critical | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE (LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+    OR LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%')
+  AND (UTF8(payload) ILIKE '%LocalkeysMutex%'
+    OR UTF8(payload) ILIKE '%RyukReadFiles%'
+    OR UTF8(payload) ILIKE '%Global\%mutex%'
+    OR UTF8(payload) ILIKE '%DoYouWantToHaveSexWithCuongVc%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-108019 | T1491 | Event Log Cleared (Event 1102 / 104)
+-- Severity: Critical | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+  AND (UTF8(payload) ILIKE '%EventID>1102<%'
+    OR UTF8(payload) ILIKE '%EventID">"1102"%'
+    OR UTF8(payload) ILIKE '%EventID>104<%'
+    OR UTF8(payload) ILIKE '%EventID">"104"%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-108020 | T1565 | Database File Overwritten or Truncated
+-- Severity: Critical | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%'
+  AND (UTF8(payload) ILIKE '%FileCreate%'
+    OR UTF8(payload) ILIKE '%FileRename%')
+  AND (UTF8(payload) ILIKE '%.mdf%'
+    OR UTF8(payload) ILIKE '%.ldf%'
+    OR UTF8(payload) ILIKE '%.bak%'
+    OR UTF8(payload) ILIKE '%.accdb%'
+    OR UTF8(payload) ILIKE '%.sqlite%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-108021 | T1490 | Firewall Rules Flushed (netsh advfirewall reset)
+-- Severity: Critical | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE (LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+    OR LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%')
+  AND UTF8(payload) ILIKE '%netsh%'
+  AND (UTF8(payload) ILIKE '%firewall reset%'
+    OR UTF8(payload) ILIKE '%advfirewall reset%'
+    OR UTF8(payload) ILIKE '%advfirewall set allprofiles state off%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-108022 | T1489 | Stopping Hyper-V VMs (Stop-VM / virsh destroy)
+-- Severity: Critical | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%PowerShell%'
+  AND (UTF8(payload) ILIKE '%Stop-VM%'
+    OR UTF8(payload) ILIKE '%Get-VM%')
+  AND NOT username ILIKE '%admin%'
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-108023 | T1486 | CryptAPI / BCryptEncrypt Called by Non-standard Process
+-- Severity: Critical | Confidence: Medium
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%'
+  AND UTF8(payload) ILIKE '%ImageLoad%'
+  AND (UTF8(payload) ILIKE '%bcrypt.dll%'
+    OR UTF8(payload) ILIKE '%cryptsp.dll%')
+  AND NOT (UTF8(payload) ILIKE '%svchost%'
+    OR UTF8(payload) ILIKE '%lsass%'
+    OR UTF8(payload) ILIKE '%explorer%'
+    OR UTF8(payload) ILIKE '%system32%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-108024 | T1490 | DiskShadow Used for Shadow Copy Interaction
+-- Severity: Critical | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE (LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+    OR LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%')
+  AND UTF8(payload) ILIKE '%diskshadow%'
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-108025 | T1486 | Ransomware Deployment via WMI Remote Exec
+-- Severity: Critical | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE (LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+    OR LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%')
+  AND UTF8(payload) ILIKE '%wmic%'
+  AND UTF8(payload) ILIKE '%/node:%'
+  AND (UTF8(payload) ILIKE '%process call create%')
+  AND (UTF8(payload) ILIKE '%.exe%'
+    OR UTF8(payload) ILIKE '%.bat%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-108026 | T1561.002 | MBR / GPT Overwrite (diskpart clean)
+-- Severity: Critical | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE (LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+    OR LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%')
+  AND UTF8(payload) ILIKE '%diskpart%'
+  AND UTF8(payload) ILIKE '%clean%'
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-108027 | T1529 | System Shutdown Initiated via Script
+-- Severity: Critical | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE (LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+    OR LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%')
+  AND (UTF8(payload) ILIKE '%shutdown /r%'
+    OR UTF8(payload) ILIKE '%shutdown -r%'
+    OR UTF8(payload) ILIKE '%Restart-Computer%'
+    OR UTF8(payload) ILIKE '%Stop-Computer%')
+  AND (UTF8(payload) ILIKE '%powershell%'
+    OR UTF8(payload) ILIKE '%wscript%'
+    OR UTF8(payload) ILIKE '%cmd.exe%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-108028 | T1486 | Ransom Tool Known Hash / Name (Black Basta / LockBit)
+-- Severity: Critical | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE (LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+    OR LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%')
+  AND (UTF8(payload) ILIKE '%black basta%'
+    OR UTF8(payload) ILIKE '%lockbit%'
+    OR UTF8(payload) ILIKE '%AlphV%'
+    OR UTF8(payload) ILIKE '%Vice Society%'
+    OR UTF8(payload) ILIKE '%REvil%'
+    OR UTF8(payload) ILIKE '%sodinokibi%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-108029 | T1490 | registry key SafeBoot Deleted / Modified
+-- Severity: Critical | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%'
+  AND UTF8(payload) ILIKE '%RegistryEvent%'
+  AND (UTF8(payload) ILIKE '%SafeBoot%'
+    OR UTF8(payload) ILIKE '%BootExecute%')
+  AND (UTF8(payload) ILIKE '%SetValue%'
+    OR UTF8(payload) ILIKE '%DeleteValue%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-108030 | T1486 | Ransomware Campaign Combo: Shadow Deletion + BCDedit + File Rename
+-- Severity: Critical | Confidence: High
+-- Threshold: All 3 indicators from same host in 30 minutes
+-- ==================================================
+SELECT
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  COUNT(DISTINCT UTF8(payload)) AS RansomIndicators
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+  AND (UTF8(payload) ILIKE '%vssadmin%delete%'
+    OR UTF8(payload) ILIKE '%bcdedit%recoveryenabled no%'
+    OR UTF8(payload) ILIKE '%FileCreate%.locked%'
+    OR UTF8(payload) ILIKE '%wbadmin%delete%')
+GROUP BY LOGSOURCENAME(logsourceid)
+HAVING COUNT(DISTINCT UTF8(payload)) >= 2
+LAST 30 MINUTES;

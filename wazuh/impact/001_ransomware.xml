@@ -1,0 +1,363 @@
+<!--
+  HuntingThreats — Wazuh Hunt Rules
+  Category:  Impact — Ransomware Precursors & Destructive Techniques (T1486, T1490, T1485)
+  Batch:     1 / Impact
+  Rules:     108001 – 108030
+  Platform:  Wazuh 4.x
+  Sources:   Windows Event 4688 / Sysmon 1 (Process Creation)
+             Sysmon Event 11 (File Create — ransom note)
+             Sysmon Event 7 (Image Load — ransomware DLLs)
+             Windows Event 7036/7045 (Service events)
+
+  T1486  — Data Encrypted for Impact
+  T1490  — Inhibit System Recovery
+  T1489  — Service Stop
+  T1485  — Data Destruction
+  T1561  — Disk Wipe
+  T1529  — System Shutdown/Reboot
+-->
+
+<group name="hunt_impact,ransomware,windows,">
+
+  <!-- ── Shadow copy deletion (vssadmin) ───────────────────────────────────── -->
+
+  <rule id="108001" level="14">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$|^4688$</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?i)vssadmin\s+delete\s+shadows|vssadmin\s+resize\s+shadowstorage.*maxsize=0</field>
+    <description>vssadmin: shadow copies deleted — ransomware recovery prevention (T1490)</description>
+    <mitre><id>T1490</id></mitre>
+    <group>impact,ransomware,shadow_delete,critical,</group>
+  </rule>
+
+  <!-- ── Shadow copy deletion (wmic) ───────────────────────────────────────── -->
+
+  <rule id="108002" level="14">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$|^4688$</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?i)wmic\s+shadowcopy\s+delete|Get-WmiObject.*Win32_ShadowCopy.*Delete\(\)</field>
+    <description>wmic/PowerShell: shadow copies deleted via WMI — ransomware recovery prevention (T1490)</description>
+    <mitre><id>T1490</id></mitre>
+    <group>impact,ransomware,shadow_delete,critical,</group>
+  </rule>
+
+  <!-- ── wbadmin delete catalog ────────────────────────────────────────────── -->
+
+  <rule id="108003" level="14">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$|^4688$</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?i)wbadmin\s+(delete\s+catalog|disable\s+backup)</field>
+    <description>wbadmin: Windows backup catalog deleted — backup destruction (T1490)</description>
+    <mitre><id>T1490</id></mitre>
+    <group>impact,ransomware,backup_delete,critical,</group>
+  </rule>
+
+  <!-- ── bcdedit recovery disable ─────────────────────────────────────────── -->
+
+  <rule id="108004" level="14">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$|^4688$</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?i)bcdedit\s+.*(recoveryenabled\s+no|safeboot\s+network|ignoreallfailures)</field>
+    <description>bcdedit: boot recovery disabled — system cannot automatically recover from failure (T1490)</description>
+    <mitre><id>T1490</id></mitre>
+    <group>impact,ransomware,boot_tamper,critical,</group>
+  </rule>
+
+  <!-- ── Mass file rename (.locked / .encrypted / .crypt extension) ─────────── -->
+
+  <rule id="108005" level="14">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^11$</field>
+    <field name="win.eventdata.targetFilename" type="pcre2">(?i)\.(locked|encrypted|crypt|crypto|enc|rnsom|pay2decrypt|wncry|cerber|locky|ryuk|sodinokibi|conti|revil)$</field>
+    <description>Sysmon: file with ransomware extension created — active file encryption (T1486)</description>
+    <mitre><id>T1486</id></mitre>
+    <group>impact,ransomware,file_encrypt,critical,</group>
+  </rule>
+
+  <!-- ── Ransom note file creation ─────────────────────────────────────────── -->
+
+  <rule id="108006" level="14">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^11$</field>
+    <field name="win.eventdata.targetFilename" type="pcre2">(?i)(READ-ME|README|DECRYPT|HOW-TO|HELP-DECRYPT|YOUR-FILES|_RESTORE_|RANSOM|_HOW_|RECOVER).*\.(txt|html|hta)$</field>
+    <description>Sysmon: ransom note file created — ransomware infection active (T1486)</description>
+    <mitre><id>T1486</id></mitre>
+    <group>impact,ransomware,ransom_note,critical,</group>
+  </rule>
+
+  <!-- ── Mass service stop (ransomware pattern) ────────────────────────────── -->
+
+  <rule id="108007" level="14">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$|^4688$</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?i)(net\s+stop\s+.*(sql|backup|exchange|postgres|mysql|oracle|veeam|acronis|symantec|McAfee))</field>
+    <description>net.exe: critical service stopped — ransomware disabling backup/DB services before encryption (T1489)</description>
+    <mitre><id>T1489</id></mitre>
+    <group>impact,ransomware,service_stop,critical,</group>
+  </rule>
+
+  <!-- ── Windows Event 7036 — multiple services stopped ───────────────────── -->
+
+  <rule id="108008" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^7036$</field>
+    <field name="win.eventdata.param2" type="pcre2">^stopped$</field>
+    <frequency>5</frequency>
+    <timeframe>30</timeframe>
+    <description>System: 5+ services stopped in 30 seconds — ransomware bulk service termination (T1489)</description>
+    <mitre><id>T1489</id></mitre>
+    <group>impact,ransomware,bulk_service_stop,critical,</group>
+  </rule>
+
+  <!-- ── MBR overwrite (diskpart / dd) ─────────────────────────────────────── -->
+
+  <rule id="108009" level="14">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$|^4688$</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?i)(diskpart.*clean|format\s+(c:|d:).*\/y|cipher\s+\/w:|sdelete\s+.*\/p)</field>
+    <description>Command: disk wipe or partition destruction — destructive data erasure (T1561, T1485)</description>
+    <mitre><id>T1561</id></mitre>
+    <group>impact,disk_wipe,critical,</group>
+  </rule>
+
+  <!-- ── NTFS journal deletion ──────────────────────────────────────────────── -->
+
+  <rule id="108010" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$|^4688$</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?i)fsutil\s+usn\s+deletejournal|fsutil\s+journal\s+disable</field>
+    <description>fsutil: NTFS journal deleted — forensic evidence destruction (T1485, T1070)</description>
+    <mitre><id>T1485</id></mitre>
+    <group>impact,ntfs_journal,critical,</group>
+  </rule>
+
+  <!-- ── System shutdown / forced reboot ───────────────────────────────────── -->
+
+  <rule id="108011" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$|^4688$</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?i)(shutdown\s+.*(\/r|\/s|\/f).*\/t\s+0|shutdown\s+.*-r\s+-f|Restart-Computer.*-Force)</field>
+    <description>Command: immediate forced system reboot — post-encryption reboot or wiper activation (T1529)</description>
+    <mitre><id>T1529</id></mitre>
+    <group>impact,system_shutdown,high_confidence,</group>
+  </rule>
+
+  <!-- ── cipher.exe overwrite (secure delete) ──────────────────────────────── -->
+
+  <rule id="108012" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$|^4688$</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?i)cipher\s+\/w:</field>
+    <description>cipher.exe /w: secure free-space overwrite — forensic data destruction (T1485)</description>
+    <mitre><id>T1485</id></mitre>
+    <group>impact,secure_delete,high_confidence,</group>
+  </rule>
+
+  <!-- ── DEL /F /Q /S mass file deletion ────────────────────────────────────── -->
+
+  <rule id="108013" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$|^4688$</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?i)del\s+\/[fFqQsS]{1,4}\s+(C:\\|D:\\|\\\\|%SystemDrive%)</field>
+    <description>cmd.exe: recursive forced deletion from root path — bulk file destruction (T1485)</description>
+    <mitre><id>T1485</id></mitre>
+    <group>impact,bulk_delete,high_confidence,</group>
+  </rule>
+
+  <!-- ── Defrag / Optimize-Volume (ransomware evasion or overwrite) ─────────── -->
+
+  <rule id="108014" level="10">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$|^4688$</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?i)(defrag\s+.*/U\s+/X|Optimize-Volume.*SlabConsolidate|defrag.*-x)</field>
+    <field name="win.eventdata.parentImage" type="pcre2">(?i)(powershell|cmd|wscript)</field>
+    <description>defrag: disk consolidation from script — used to overwrite unallocated space (T1561)</description>
+    <mitre><id>T1561</id></mitre>
+    <group>impact,disk_overwrite,</group>
+  </rule>
+
+  <!-- ── ACL reset on filesystem (icacls /reset) ───────────────────────────── -->
+
+  <rule id="108015" level="10">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$|^4688$</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?i)icacls\s+.*(\/reset|\/grant\s+everyone|\/inheritance:d)</field>
+    <field name="win.eventdata.parentImage" type="pcre2">(?i)(powershell|cmd|wscript)</field>
+    <description>icacls: file/directory permissions reset — ACL destruction for lockout (T1222.001)</description>
+    <mitre><id>T1222.001</id></mitre>
+    <group>impact,acl_tamper,</group>
+  </rule>
+
+  <!-- ── Registry hive destruction ─────────────────────────────────────────── -->
+
+  <rule id="108016" level="14">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$|^4688$</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?i)reg\s+delete.*(hklm|hkcu|hku)\\\\(SOFTWARE|SYSTEM|SAM|SECURITY).*\/f</field>
+    <description>reg.exe: system registry hive deleted — registry destruction for system disruption (T1485)</description>
+    <mitre><id>T1485</id></mitre>
+    <group>impact,registry_delete,critical,</group>
+  </rule>
+
+  <!-- ── Restore point deletion (SystemRestore) ────────────────────────────── -->
+
+  <rule id="108017" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^4103$|^4104$</field>
+    <field name="win.eventdata.scriptBlockText" type="pcre2">(?i)(Remove-RestorePoint|Disable-ComputerRestore|SystemRestore.*disable|vssadmin.*delete)</field>
+    <description>PowerShell: system restore points deleted — backup and recovery disruption (T1490)</description>
+    <mitre><id>T1490</id></mitre>
+    <group>impact,restore_delete,critical,</group>
+  </rule>
+
+  <!-- ── Disable Windows Backup tasks ──────────────────────────────────────── -->
+
+  <rule id="108018" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$|^4688$</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?i)schtasks\s+.*/delete\s+.*(WindowsBackup|BackupTask|SystemBackup)</field>
+    <description>schtasks: backup scheduled task deleted — preventing automatic backups (T1490)</description>
+    <mitre><id>T1490</id></mitre>
+    <group>impact,backup_disable,high_confidence,</group>
+  </rule>
+
+  <!-- ── Known ransomware binary names ─────────────────────────────────────── -->
+
+  <rule id="108019" level="14">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$|^4688$</field>
+    <field name="win.eventdata.image|win.eventdata.newProcessName" type="pcre2">(?i)(ryuk|conti|revil|sodinokibi|lockbit|blackcat|alphv|babuk|hive|darkside|blackmatter|egregor|clop|maze|ragnar)\.exe$</field>
+    <description>Known ransomware binary: named ransomware family executable detected (T1486)</description>
+    <mitre><id>T1486</id></mitre>
+    <group>impact,ransomware,known_family,critical,</group>
+  </rule>
+
+  <!-- ── Rapid file modification (encryption rate) ─────────────────────────── -->
+
+  <rule id="108020" level="14">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^11$</field>
+    <same_field>win.eventdata.image</same_field>
+    <frequency>100</frequency>
+    <timeframe>30</timeframe>
+    <description>Sysmon: process creating 100+ files in 30 seconds — mass file encryption pattern (T1486)</description>
+    <mitre><id>T1486</id></mitre>
+    <group>impact,ransomware,mass_encrypt,critical,</group>
+  </rule>
+
+  <!-- ── Disable Windows Defender real-time ────────────────────────────────── -->
+
+  <rule id="108021" level="14">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^4103$|^4104$</field>
+    <field name="win.eventdata.scriptBlockText" type="pcre2">(?i)(Set-MpPreference.*DisableRealtimeMonitoring.*\$true|Add-MpPreference.*ExclusionPath|DisableBehaviorMonitoring.*\$true)</field>
+    <description>PowerShell: Defender real-time protection disabled — pre-encryption AV defeat (T1562.001)</description>
+    <mitre><id>T1562.001</id></mitre>
+    <group>defense_evasion,impact,av_disable,critical,</group>
+  </rule>
+
+  <!-- ── Account lockout (ransomware cleanup) ──────────────────────────────── -->
+
+  <rule id="108022" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^4103$|^4104$</field>
+    <field name="win.eventdata.scriptBlockText" type="pcre2">(?i)(Disable-LocalUser|net\s+user.*\/active:no|Set-ADUser.*Enabled\s+\$false)</field>
+    <description>PowerShell: user accounts disabled — victim lockout after ransomware deployment (T1531)</description>
+    <mitre><id>T1531</id></mitre>
+    <group>impact,account_lockout,high_confidence,</group>
+  </rule>
+
+  <!-- ── Password change for all users ─────────────────────────────────────── -->
+
+  <rule id="108023" level="14">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^4723$|^4724$</field>
+    <frequency>5</frequency>
+    <timeframe>60</timeframe>
+    <description>Windows Security: multiple password changes in 60 seconds — bulk credential reset (T1531)</description>
+    <mitre><id>T1531</id></mitre>
+    <group>impact,bulk_password_change,critical,</group>
+  </rule>
+
+  <!-- ── UEFI / Firmware attack indicator ──────────────────────────────────── -->
+
+  <rule id="108024" level="14">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$|^4688$</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?i)(flashrom|afuwin|afuefi|efiflash|fpt\.exe|fwupdate|FirmwareUpdate)</field>
+    <description>UEFI flash tool: firmware update utility invoked — possible UEFI rootkit installation (T1542.001)</description>
+    <mitre><id>T1542.001</id></mitre>
+    <group>impact,uefi_flash,critical,</group>
+  </rule>
+
+  <!-- ── HDD wiper (sdelete / eraser) ──────────────────────────────────────── -->
+
+  <rule id="108025" level="14">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$|^4688$</field>
+    <field name="win.eventdata.image|win.eventdata.newProcessName" type="pcre2">(?i)(\\sdelete(64)?\.exe|\\eraser\.exe|\\dban\.exe|\\cleanmgr\.exe|\\nwipe\.exe)$</field>
+    <description>Wiper tool: secure data erasure utility executed — intentional data destruction (T1485, T1561)</description>
+    <mitre><id>T1485</id></mitre>
+    <group>impact,disk_wipe,wiper_tool,critical,</group>
+  </rule>
+
+  <!-- ── Ransomware note registry (common persistence for note) ────────────── -->
+
+  <rule id="108026" level="14">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^13$</field>
+    <field name="win.eventdata.details" type="pcre2">(?i)(decrypt|ransom|bitcoin|monero|payment|tor\.browser|onion|your files)</field>
+    <description>Sysmon: registry value with ransom/payment text set — ransomware configuration or persistence (T1486)</description>
+    <mitre><id>T1486</id></mitre>
+    <group>impact,ransomware,registry_note,critical,</group>
+  </rule>
+
+  <!-- ── Wallpaper change to ransom note ───────────────────────────────────── -->
+
+  <rule id="108027" level="14">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^13$</field>
+    <field name="win.eventdata.targetObject" type="pcre2">(?i)\\Control Panel\\Desktop\\Wallpaper</field>
+    <field name="win.eventdata.details" type="pcre2">(?i)(decrypt|ransom|locked|recover|payment)</field>
+    <description>Sysmon: desktop wallpaper changed to ransom-related image — ransomware victim notification (T1486)</description>
+    <mitre><id>T1486</id></mitre>
+    <group>impact,ransomware,wallpaper,critical,</group>
+  </rule>
+
+  <!-- ── Remote ransomware (encrypting network shares) ─────────────────────── -->
+
+  <rule id="108028" level="14">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^11$</field>
+    <field name="win.eventdata.targetFilename" type="pcre2">(?i)^\\\\.*\.(locked|encrypted|crypt|wncry|ryuk)$</field>
+    <description>Sysmon: ransomware-encrypted file on network share — remote encryption attack (T1486)</description>
+    <mitre><id>T1486</id></mitre>
+    <group>impact,ransomware,network_encrypt,critical,</group>
+  </rule>
+
+  <!-- ── Safe mode boot (ransomware evasion) ────────────────────────────────── -->
+
+  <rule id="108029" level="14">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$|^4688$</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?i)bcdedit.*(safeboot\s+minimal|safeboot\s+network)</field>
+    <description>bcdedit: safe mode configured — ransomware rebooting into safe mode to bypass AV (T1562.009)</description>
+    <mitre><id>T1562.009</id></mitre>
+    <group>impact,ransomware,safe_mode_boot,critical,</group>
+  </rule>
+
+  <!-- ── Multiple persistence keys set (ransomware ensuring execution) ─────── -->
+
+  <rule id="108030" level="14">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^13$</field>
+    <field name="win.eventdata.targetObject" type="pcre2">(?i)\\CurrentVersion\\Run\\</field>
+    <field name="win.eventdata.details" type="pcre2">(?i)(\\appdata\\|\\temp\\|\\public\\|\\programdata\\)</field>
+    <frequency>3</frequency>
+    <timeframe>60</timeframe>
+    <description>Sysmon: 3+ Run key entries set from staging paths in 60s — mass persistence installation (T1547.001, T1486)</description>
+    <mitre><id>T1547.001</id></mitre>
+    <group>impact,ransomware,mass_persistence,critical,</group>
+  </rule>
+
+</group>

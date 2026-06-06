@@ -1,0 +1,771 @@
+// ============================================================
+// HuntingThreats — Google SecOps YARA-L 2.0 Hunt Rules
+// Category : Execution — WMI Abuse / Office Macros (T1047, T1566, T1204)
+// Batch    : 03 / Execution
+// Rules    : GS-100061 – GS-100100
+// Platform : Google SecOps / Chronicle SIEM
+// ============================================================
+
+rule ht_gs_100061_wmi_process_creation_event {
+  meta:
+    rule_id         = "GS-100061"
+    author          = "HuntingThreats"
+    description     = "WMI Win32_Process.Create — process spawned via WMI subscription"
+    mitre_tactic    = "Execution"
+    mitre_technique = "T1047"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.principal.process.file.full_path, `(?i)\\wmiprvse\.exe$`)
+    re.regex($e.target.process.file.full_path, `(?i)\\(cmd|powershell|wscript|cscript|mshta|rundll32|regsvr32)\.exe$`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_100062_wmi_event_subscription_create {
+  meta:
+    rule_id         = "GS-100062"
+    author          = "HuntingThreats"
+    description     = "WMI EventFilter + CommandLineEventConsumer — WMI persistence subscription"
+    mitre_tactic    = "Persistence"
+    mitre_technique = "T1546.003"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.command_line, `(?i)(EventFilter|EventConsumer|FilterToConsumerBinding)`)
+    re.regex($e.target.process.command_line, `(?i)(CommandLineEventConsumer|ActiveScriptEventConsumer)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_100063_wmi_lateral_movement_node {
+  meta:
+    rule_id         = "GS-100063"
+    author          = "HuntingThreats"
+    description     = "WMIC with /node: and remote command — WMI lateral movement"
+    mitre_tactic    = "Lateral Movement"
+    mitre_technique = "T1021.006"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.file.full_path, `(?i)\\wmic\.exe$`)
+    re.regex($e.target.process.command_line, `(?i)/node:`)
+    re.regex($e.target.process.command_line, `(?i)process\s+call\s+create`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_100064_wmi_invoke_wmimethod_ps {
+  meta:
+    rule_id         = "GS-100064"
+    author          = "HuntingThreats"
+    description     = "PowerShell Invoke-WmiMethod or Get-WmiObject to create process"
+    mitre_tactic    = "Execution"
+    mitre_technique = "T1047"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.command_line, `(?i)(invoke-wmimethod|get-wmiobject)`)
+    re.regex($e.target.process.command_line, `(?i)(win32_process|create)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_100065_wmi_scrcons_script {
+  meta:
+    rule_id         = "GS-100065"
+    author          = "HuntingThreats"
+    description     = "Scrcons.exe spawning child — WMI ActiveScript event consumer"
+    mitre_tactic    = "Persistence"
+    mitre_technique = "T1546.003"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.principal.process.file.full_path, `(?i)\\scrcons\.exe$`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_100066_office_macro_cmd_spawn {
+  meta:
+    rule_id         = "GS-100066"
+    author          = "HuntingThreats"
+    description     = "Office application spawning cmd.exe — macro executing shell command"
+    mitre_tactic    = "Execution"
+    mitre_technique = "T1059.003"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.file.full_path, `(?i)\\cmd\.exe$`)
+    re.regex($e.principal.process.file.full_path, `(?i)\\(winword|excel|powerpnt|onenote|outlook)\.exe$`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_100067_office_macro_wscript_spawn {
+  meta:
+    rule_id         = "GS-100067"
+    author          = "HuntingThreats"
+    description     = "Office spawning WScript/CScript — macro dropping and executing VBScript"
+    mitre_tactic    = "Execution"
+    mitre_technique = "T1059.005"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.file.full_path, `(?i)\\(wscript|cscript)\.exe$`)
+    re.regex($e.principal.process.file.full_path, `(?i)\\(winword|excel|powerpnt|onenote|outlook)\.exe$`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_100068_office_macro_mshta_spawn {
+  meta:
+    rule_id         = "GS-100068"
+    author          = "HuntingThreats"
+    description     = "Office spawning mshta.exe — HTA-based payload execution from macro"
+    mitre_tactic    = "Execution"
+    mitre_technique = "T1218.005"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.file.full_path, `(?i)\\mshta\.exe$`)
+    re.regex($e.principal.process.file.full_path, `(?i)\\(winword|excel|powerpnt|onenote|outlook)\.exe$`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_100069_office_executable_write {
+  meta:
+    rule_id         = "GS-100069"
+    author          = "HuntingThreats"
+    description     = "Office writing EXE/DLL to disk — macro dropping executable payload"
+    mitre_tactic    = "Execution"
+    mitre_technique = "T1204.002"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "FILE_CREATION"
+    re.regex($e.principal.process.file.full_path, `(?i)\\(winword|excel|powerpnt|onenote|outlook)\.exe$`)
+    re.regex($e.target.file.full_path, `(?i)\.(exe|dll|bat|ps1|vbs|js|hta)$`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_100070_office_xlm_macro4 {
+  meta:
+    rule_id         = "GS-100070"
+    author          = "HuntingThreats"
+    description     = "Excel XLM Macro 4.0 execution — Excel4 macro auto-open pattern"
+    mitre_tactic    = "Execution"
+    mitre_technique = "T1204.002"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.principal.process.file.full_path, `(?i)\\excel\.exe$`)
+    re.regex($e.target.process.command_line, `(?i)(xlm|macro4|auto_open|auto_close)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_100071_onenote_attachment_execute {
+  meta:
+    rule_id         = "GS-100071"
+    author          = "HuntingThreats"
+    description     = "OneNote spawning process — embedded attachment execution"
+    mitre_tactic    = "Execution"
+    mitre_technique = "T1566.001"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.principal.process.file.full_path, `(?i)\\onenote\.exe$`)
+    re.regex($e.target.process.file.full_path, `(?i)\\(cmd|powershell|wscript|cscript|mshta|rundll32)\.exe$`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_100072_office_dde_execute {
+  meta:
+    rule_id         = "GS-100072"
+    author          = "HuntingThreats"
+    description     = "Office DDE execution — Dynamic Data Exchange code injection"
+    mitre_tactic    = "Execution"
+    mitre_technique = "T1559.002"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.principal.process.file.full_path, `(?i)\\(winword|excel)\.exe$`)
+    re.regex($e.target.process.file.full_path, `(?i)\\cmd\.exe$`)
+    re.regex($e.target.process.command_line, `(?i)/c\s+.*\bDDE\b`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_100073_office_vba_shell_function {
+  meta:
+    rule_id         = "GS-100073"
+    author          = "HuntingThreats"
+    description     = "Office running Shell() via VBA — process execution from macro"
+    mitre_tactic    = "Execution"
+    mitre_technique = "T1204.002"
+    severity        = "HIGH"
+    confidence      = "MEDIUM"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.principal.process.file.full_path, `(?i)\\(winword|excel|powerpnt)\.exe$`)
+    re.regex($e.target.process.file.full_path, `(?i)\\(rundll32|regsvr32|msiexec|cmstp)\.exe$`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_100074_office_xll_addin {
+  meta:
+    rule_id         = "GS-100074"
+    author          = "HuntingThreats"
+    description     = "Excel loading XLL add-in from Downloads — malicious XLL execution"
+    mitre_tactic    = "Execution"
+    mitre_technique = "T1137.006"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.principal.process.file.full_path, `(?i)\\excel\.exe$`)
+    re.regex($e.target.process.command_line, `(?i)(\\downloads\\|\\temp\\).*\.xll`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_100075_office_com_object_abuse {
+  meta:
+    rule_id         = "GS-100075"
+    author          = "HuntingThreats"
+    description     = "Office spawning rundll32 with wbemdisp or DCOM — COM object abuse"
+    mitre_tactic    = "Execution"
+    mitre_technique = "T1559.001"
+    severity        = "HIGH"
+    confidence      = "MEDIUM"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.principal.process.file.full_path, `(?i)\\(winword|excel|powerpnt)\.exe$`)
+    re.regex($e.target.process.file.full_path, `(?i)\\rundll32\.exe$`)
+    re.regex($e.target.process.command_line, `(?i)(wbemdisp|dcom|ole32)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_100076_wmi_class_modification {
+  meta:
+    rule_id         = "GS-100076"
+    author          = "HuntingThreats"
+    description     = "WMI class modification via mofcomp — new WMI class for persistence"
+    mitre_tactic    = "Persistence"
+    mitre_technique = "T1546.003"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.file.full_path, `(?i)\\mofcomp\.exe$`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_100077_wmi_powershell_ciminstance {
+  meta:
+    rule_id         = "GS-100077"
+    author          = "HuntingThreats"
+    description     = "PowerShell New-CimInstance or Invoke-CimMethod on Win32_Process"
+    mitre_tactic    = "Execution"
+    mitre_technique = "T1047"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.command_line, `(?i)(new-ciminstance|invoke-cimmethod)`)
+    re.regex($e.target.process.command_line, `(?i)win32_process`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_100078_office_write_to_startup {
+  meta:
+    rule_id         = "GS-100078"
+    author          = "HuntingThreats"
+    description     = "Office writing file to Startup folder — macro persistence via startup"
+    mitre_tactic    = "Persistence"
+    mitre_technique = "T1547.001"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "FILE_CREATION"
+    re.regex($e.principal.process.file.full_path, `(?i)\\(winword|excel|powerpnt|onenote|outlook)\.exe$`)
+    re.regex($e.target.file.full_path, `(?i)\\(startup|autostart)\\`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_100079_wmic_alias_shadowcopy {
+  meta:
+    rule_id         = "GS-100079"
+    author          = "HuntingThreats"
+    description     = "WMIC Shadowcopy delete — backup destruction before ransomware"
+    mitre_tactic    = "Impact"
+    mitre_technique = "T1490"
+    severity        = "CRITICAL"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.file.full_path, `(?i)\\wmic\.exe$`)
+    re.regex($e.target.process.command_line, `(?i)(shadowcopy.*delete|delete.*shadowcopy)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_100080_office_outlook_spawn_shell {
+  meta:
+    rule_id         = "GS-100080"
+    author          = "HuntingThreats"
+    description     = "Outlook spawning shell — email-based payload execution or rule abuse"
+    mitre_tactic    = "Execution"
+    mitre_technique = "T1566.001"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.principal.process.file.full_path, `(?i)\\outlook\.exe$`)
+    re.regex($e.target.process.file.full_path, `(?i)\\(cmd|powershell|mshta|wscript|cscript|rundll32|regsvr32)\.exe$`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_100081_wmi_namespace_enumeration {
+  meta:
+    rule_id         = "GS-100081"
+    author          = "HuntingThreats"
+    description     = "WMI namespace enumeration — discovery via WMI class queries"
+    mitre_tactic    = "Discovery"
+    mitre_technique = "T1082"
+    severity        = "MEDIUM"
+    confidence      = "MEDIUM"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.file.full_path, `(?i)\\wmic\.exe$`)
+    re.regex($e.target.process.command_line, `(?i)(os\s+get|computersystem\s+get|bios\s+get|cpu\s+get)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_100082_office_macro_registry_write {
+  meta:
+    rule_id         = "GS-100082"
+    author          = "HuntingThreats"
+    description     = "Office process writing Run registry key — macro persistence"
+    mitre_tactic    = "Persistence"
+    mitre_technique = "T1547.001"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "REGISTRY_MODIFICATION"
+    re.regex($e.principal.process.file.full_path, `(?i)\\(winword|excel|powerpnt|onenote|outlook)\.exe$`)
+    re.regex($e.target.registry.registry_key, `(?i)\\(Run|RunOnce)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_100083_wmi_antivirus_query {
+  meta:
+    rule_id         = "GS-100083"
+    author          = "HuntingThreats"
+    description     = "WMI antivirus product query — security product discovery via WMI"
+    mitre_tactic    = "Discovery"
+    mitre_technique = "T1518.001"
+    severity        = "MEDIUM"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.file.full_path, `(?i)\\wmic\.exe$`)
+    re.regex($e.target.process.command_line, `(?i)(antivirusproduct|securitycenter)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_100084_office_net_download {
+  meta:
+    rule_id         = "GS-100084"
+    author          = "HuntingThreats"
+    description     = "Office spawning process that downloads from the internet"
+    mitre_tactic    = "Execution"
+    mitre_technique = "T1204.002"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.principal.process.file.full_path, `(?i)\\(winword|excel|powerpnt|onenote|outlook)\.exe$`)
+    re.regex($e.target.process.command_line, `(?i)(http://|https://|ftp://)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_100085_wmi_service_stop_query {
+  meta:
+    rule_id         = "GS-100085"
+    author          = "HuntingThreats"
+    description     = "WMIC service stop via StopService — service disruption via WMI"
+    mitre_tactic    = "Impact"
+    mitre_technique = "T1489"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.file.full_path, `(?i)\\wmic\.exe$`)
+    re.regex($e.target.process.command_line, `(?i)(service.*call\s+stopservice|win32_service.*stopservice)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_100086_office_vba_regwrite {
+  meta:
+    rule_id         = "GS-100086"
+    author          = "HuntingThreats"
+    description     = "Registry write from Office parent — macro RegWrite for persistence"
+    mitre_tactic    = "Persistence"
+    mitre_technique = "T1547.001"
+    severity        = "HIGH"
+    confidence      = "MEDIUM"
+
+  events:
+    $e.metadata.event_type = "REGISTRY_MODIFICATION"
+    re.regex($e.principal.process.file.full_path, `(?i)\\(winword|excel|powerpnt)\.exe$`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_100087_wmi_class_creation_persistence {
+  meta:
+    rule_id         = "GS-100087"
+    author          = "HuntingThreats"
+    description     = "WMI class creation with __EventFilter — WMI subscription persistence"
+    mitre_tactic    = "Persistence"
+    mitre_technique = "T1546.003"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.command_line, `(?i)(__EventFilter|__FilterToConsumerBinding)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_100088_office_doc_from_temp_execute {
+  meta:
+    rule_id         = "GS-100088"
+    author          = "HuntingThreats"
+    description     = "Office opening file from Temp/Downloads path — likely phishing delivery"
+    mitre_tactic    = "Initial Access"
+    mitre_technique = "T1566.001"
+    severity        = "MEDIUM"
+    confidence      = "MEDIUM"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.file.full_path, `(?i)\\(winword|excel|powerpnt|onenote)\.exe$`)
+    re.regex($e.target.process.command_line, `(?i)(\\temp\\|\\downloads\\|\\appdata\\local\\temp\\)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_100089_wmi_defender_disable {
+  meta:
+    rule_id         = "GS-100089"
+    author          = "HuntingThreats"
+    description     = "WMIC or WMI query to disable Defender via Win32_Process — AV kill"
+    mitre_tactic    = "Defense Evasion"
+    mitre_technique = "T1562.001"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.command_line, `(?i)(disablerealtimemonitoring|set-mppreference|add-mppreference)`)
+    re.regex($e.principal.process.file.full_path, `(?i)\\wmiprvse\.exe$`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_100090_wmi_remote_subscription {
+  meta:
+    rule_id         = "GS-100090"
+    author          = "HuntingThreats"
+    description     = "WMI remote subscription with /namespace and /node — remote WMI persistence"
+    mitre_tactic    = "Persistence"
+    mitre_technique = "T1546.003"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.file.full_path, `(?i)\\wmic\.exe$`)
+    re.regex($e.target.process.command_line, `(?i)/namespace.*subscription`)
+    re.regex($e.target.process.command_line, `(?i)/node:`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_100091_office_follina_msdt {
+  meta:
+    rule_id         = "GS-100091"
+    author          = "HuntingThreats"
+    description     = "Office spawning msdt.exe — Follina CVE-2022-30190 exploitation"
+    mitre_tactic    = "Execution"
+    mitre_technique = "T1203"
+    severity        = "CRITICAL"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.file.full_path, `(?i)\\msdt\.exe$`)
+    re.regex($e.principal.process.file.full_path, `(?i)\\(winword|excel|powerpnt|sdiagnhost)\.exe$`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_100092_wmi_query_logsource_voluminous {
+  meta:
+    rule_id         = "GS-100092"
+    author          = "HuntingThreats"
+    description     = "High-frequency WMI process launches — threshold: 10+ in 5 minutes"
+    mitre_tactic    = "Discovery"
+    mitre_technique = "T1047"
+    severity        = "MEDIUM"
+    confidence      = "MEDIUM"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.file.full_path, `(?i)\\wmic\.exe$`)
+
+  match:
+    $e.principal.hostname over 5m
+
+  condition:
+    #e > 10
+}
+
+rule ht_gs_100093_office_powerpnt_spawn {
+  meta:
+    rule_id         = "GS-100093"
+    author          = "HuntingThreats"
+    description     = "PowerPoint spawning shell process — malicious PPTX macro execution"
+    mitre_tactic    = "Execution"
+    mitre_technique = "T1204.002"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.principal.process.file.full_path, `(?i)\\powerpnt\.exe$`)
+    re.regex($e.target.process.file.full_path, `(?i)\\(cmd|powershell|wscript|mshta|rundll32)\.exe$`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_100094_wmi_info_win32_useraccount {
+  meta:
+    rule_id         = "GS-100094"
+    author          = "HuntingThreats"
+    description     = "WMIC querying Win32_UserAccount — user enumeration via WMI"
+    mitre_tactic    = "Discovery"
+    mitre_technique = "T1087.001"
+    severity        = "MEDIUM"
+    confidence      = "MEDIUM"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.file.full_path, `(?i)\\wmic\.exe$`)
+    re.regex($e.target.process.command_line, `(?i)(useraccount|win32_useraccount)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_100095_office_macro_rundll32_spawn {
+  meta:
+    rule_id         = "GS-100095"
+    author          = "HuntingThreats"
+    description     = "Office spawning rundll32 with non-system DLL — macro DLL execution"
+    mitre_tactic    = "Execution"
+    mitre_technique = "T1218.011"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.principal.process.file.full_path, `(?i)\\(winword|excel|powerpnt)\.exe$`)
+    re.regex($e.target.process.file.full_path, `(?i)\\rundll32\.exe$`)
+    re.regex($e.target.process.command_line, `(?i)(\\temp\\|\\appdata\\|\\programdata\\)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_100096_wmi_start_service {
+  meta:
+    rule_id         = "GS-100096"
+    author          = "HuntingThreats"
+    description     = "WMIC starting suspicious service — service abuse for execution"
+    mitre_tactic    = "Execution"
+    mitre_technique = "T1543.003"
+    severity        = "HIGH"
+    confidence      = "MEDIUM"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.file.full_path, `(?i)\\wmic\.exe$`)
+    re.regex($e.target.process.command_line, `(?i)service.*call\s+startservice`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_100097_office_spawns_net_exe {
+  meta:
+    rule_id         = "GS-100097"
+    author          = "HuntingThreats"
+    description     = "Office spawning net.exe — macro running net commands for recon or persistence"
+    mitre_tactic    = "Discovery"
+    mitre_technique = "T1087.002"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.principal.process.file.full_path, `(?i)\\(winword|excel|powerpnt|onenote|outlook)\.exe$`)
+    re.regex($e.target.process.file.full_path, `(?i)\\net\.exe$`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_100098_wmi_logon_trigger_subscription {
+  meta:
+    rule_id         = "GS-100098"
+    author          = "HuntingThreats"
+    description     = "WMI subscription triggered at logon — __InstanceCreationEvent on Win32_LogonSession"
+    mitre_tactic    = "Persistence"
+    mitre_technique = "T1546.003"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.command_line, `(?i)(Win32_LogonSession|InstanceCreationEvent)`)
+    re.regex($e.target.process.command_line, `(?i)(EventConsumer|EventFilter)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_100099_office_cmd_encoded {
+  meta:
+    rule_id         = "GS-100099"
+    author          = "HuntingThreats"
+    description     = "Office spawning cmd /c powershell -enc — multi-stage macro execution"
+    mitre_tactic    = "Execution"
+    mitre_technique = "T1059.001"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.principal.process.file.full_path, `(?i)\\(winword|excel|powerpnt|onenote|outlook)\.exe$`)
+    re.regex($e.target.process.file.full_path, `(?i)\\cmd\.exe$`)
+    re.regex($e.target.process.command_line, `(?i)powershell.*-enc`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_100100_wmi_powershell_script_event {
+  meta:
+    rule_id         = "GS-100100"
+    author          = "HuntingThreats"
+    description     = "PowerShell script block containing WMI subscription creation — WMI implant via PS"
+    mitre_tactic    = "Persistence"
+    mitre_technique = "T1546.003"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.file.full_path, `(?i)\\powershell\.exe$`)
+    re.regex($e.target.process.command_line, `(?i)(Register-WmiEvent|New-Object.*WbemScripting|EventFilter|FilterToConsumerBinding)`)
+
+  condition:
+    $e
+}

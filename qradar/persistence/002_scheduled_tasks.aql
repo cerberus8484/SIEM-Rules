@@ -1,0 +1,583 @@
+-- ============================================================
+-- HuntingThreats — QRadar AQL Hunt Rules
+-- Category : Persistence — Scheduled Tasks (T1053.005)
+-- Batch    : 5 / Persistence
+-- Rules    : QR-101026 – QR-101055
+-- Platform : QRadar 7.4+ / AQL
+-- Sources  : Windows Security (4698-4702), Sysmon (1), WinCollect
+-- ============================================================
+
+-- ==================================================
+-- QR-101026 | T1053.005 | Schtasks Create with Script Engine
+-- Severity: High | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE (LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+    OR LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%')
+  AND UTF8(payload) ILIKE '%schtasks%'
+  AND UTF8(payload) ILIKE '%/create%'
+  AND (UTF8(payload) ILIKE '%powershell%'
+    OR UTF8(payload) ILIKE '%cmd%'
+    OR UTF8(payload) ILIKE '%wscript%'
+    OR UTF8(payload) ILIKE '%mshta%'
+    OR UTF8(payload) ILIKE '%cscript%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-101027 | T1053.005 | Schtasks Create with SYSTEM Privilege
+-- Severity: High | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE (LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+    OR LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%')
+  AND UTF8(payload) ILIKE '%schtasks%'
+  AND UTF8(payload) ILIKE '%/create%'
+  AND (UTF8(payload) ILIKE '%/ru system%'
+    OR UTF8(payload) ILIKE '%/ru SYSTEM%'
+    OR UTF8(payload) ILIKE '%/RU SYSTEM%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-101028 | T1053.005 | Schtasks Create from Writable Path
+-- Severity: High | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE (LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+    OR LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%')
+  AND UTF8(payload) ILIKE '%schtasks%'
+  AND UTF8(payload) ILIKE '%/create%'
+  AND (UTF8(payload) ILIKE '%\Temp\%'
+    OR UTF8(payload) ILIKE '%\AppData\%'
+    OR UTF8(payload) ILIKE '%\Downloads\%'
+    OR UTF8(payload) ILIKE '%\Public\%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-101029 | T1053.005 | Schtasks with Encoded Command
+-- Severity: High | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE (LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+    OR LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%')
+  AND UTF8(payload) ILIKE '%schtasks%'
+  AND (UTF8(payload) ILIKE '%-encodedcommand%'
+    OR UTF8(payload) ILIKE '%-enc %'
+    OR UTF8(payload) ILIKE '%frombase64string%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-101030 | T1053.005 | Windows Security Event 4698 — Task Created
+-- Severity: High | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+  AND (UTF8(payload) ILIKE '%EventID>4698<%'
+    OR UTF8(payload) ILIKE '%EventID">"4698"%')
+  AND (UTF8(payload) ILIKE '%powershell%'
+    OR UTF8(payload) ILIKE '%cmd%'
+    OR UTF8(payload) ILIKE '%wscript%'
+    OR UTF8(payload) ILIKE '%mshta%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-101031 | T1053.005 | Task Created with Content in Writable Path (4698)
+-- Severity: High | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+  AND (UTF8(payload) ILIKE '%EventID>4698<%'
+    OR UTF8(payload) ILIKE '%EventID">"4698"%')
+  AND (UTF8(payload) ILIKE '%\Temp\%'
+    OR UTF8(payload) ILIKE '%\AppData\%'
+    OR UTF8(payload) ILIKE '%\Downloads\%'
+    OR UTF8(payload) ILIKE '%\Public\%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-101032 | T1053.005 | Task Modified (Event 4702)
+-- Severity: High | Confidence: Medium
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+  AND (UTF8(payload) ILIKE '%EventID>4702<%'
+    OR UTF8(payload) ILIKE '%EventID">"4702"%')
+  AND (UTF8(payload) ILIKE '%powershell%'
+    OR UTF8(payload) ILIKE '%cmd%'
+    OR UTF8(payload) ILIKE '%http%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-101033 | T1053.005 | Task Deleted (Event 4699)
+-- Severity: Medium | Confidence: Medium
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+  AND (UTF8(payload) ILIKE '%EventID>4699<%'
+    OR UTF8(payload) ILIKE '%EventID">"4699"%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-101034 | T1053.005 | Schtasks Delete (Cleanup After Execution)
+-- Severity: High | Confidence: Medium
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE (LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+    OR LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%')
+  AND UTF8(payload) ILIKE '%schtasks%'
+  AND (UTF8(payload) ILIKE '%/delete%'
+    OR UTF8(payload) ILIKE '%/change%')
+  AND UTF8(payload) ILIKE '%/f%'
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-101035 | T1053 | at.exe Legacy Task Scheduler Used
+-- Severity: High | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE (LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+    OR LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%')
+  AND UTF8(payload) ILIKE '%\at.exe%'
+  AND NOT UTF8(payload) ILIKE '%\nat.exe%'
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-101036 | T1053.005 | Task XML Written to Tasks Directory (Sysmon 11)
+-- Severity: High | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%'
+  AND UTF8(payload) ILIKE '%FileCreate%'
+  AND (UTF8(payload) ILIKE '%\Windows\System32\Tasks\%'
+    OR UTF8(payload) ILIKE '%\Windows\SysWOW64\Tasks\%')
+  AND NOT UTF8(payload) ILIKE '%taskhost%'
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-101037 | T1053.005 | PS New-ScheduledTask with Script Action
+-- Severity: High | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%PowerShell%'
+  AND (UTF8(payload) ILIKE '%New-ScheduledTaskAction%'
+    OR UTF8(payload) ILIKE '%Register-ScheduledTask%')
+  AND (UTF8(payload) ILIKE '%powershell%'
+    OR UTF8(payload) ILIKE '%cmd%'
+    OR UTF8(payload) ILIKE '%wscript%'
+    OR UTF8(payload) ILIKE '%mshta%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-101038 | T1053.005 | Schtasks Executing from Network Share
+-- Severity: Critical | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE (LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+    OR LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%')
+  AND UTF8(payload) ILIKE '%schtasks%'
+  AND UTF8(payload) ILIKE '%\\\\%'
+  AND (UTF8(payload) ILIKE '%/tr%'
+    OR UTF8(payload) ILIKE '%/create%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-101039 | T1053.005 | Task with Logon Trigger (Persistence Pattern)
+-- Severity: High | Confidence: Medium
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE (LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+    OR LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%')
+  AND UTF8(payload) ILIKE '%schtasks%'
+  AND (UTF8(payload) ILIKE '%ONLOGON%'
+    OR UTF8(payload) ILIKE '%/sc onlogon%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-101040 | T1053.005 | Short Task Interval (1-5 Min Beaconing via Task)
+-- Severity: High | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE (LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+    OR LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%')
+  AND UTF8(payload) ILIKE '%schtasks%'
+  AND (UTF8(payload) ILIKE '%/mo 1%'
+    OR UTF8(payload) ILIKE '%/mo 2%'
+    OR UTF8(payload) ILIKE '%/mo 3%'
+    OR UTF8(payload) ILIKE '%/mo 4%'
+    OR UTF8(payload) ILIKE '%/mo 5%')
+  AND UTF8(payload) ILIKE '%/sc minute%'
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-101041 | T1053.005 | Office Macro Spawning Schtasks
+-- Severity: High | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE (LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+    OR LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%')
+  AND (UTF8(payload) ILIKE '%WINWORD%'
+    OR UTF8(payload) ILIKE '%EXCEL%'
+    OR UTF8(payload) ILIKE '%POWERPNT%')
+  AND UTF8(payload) ILIKE '%schtasks%'
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-101042 | T1053.005 | Task Masquerading as Microsoft System Task
+-- Severity: High | Confidence: Medium
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+  AND (UTF8(payload) ILIKE '%EventID>4698<%'
+    OR UTF8(payload) ILIKE '%EventID">"4698"%')
+  AND (UTF8(payload) ILIKE '%Windows Update%'
+    OR UTF8(payload) ILIKE '%Microsoft%'
+    OR UTF8(payload) ILIKE '%WindowsDefender%')
+  AND (UTF8(payload) ILIKE '%\Temp\%'
+    OR UTF8(payload) ILIKE '%\AppData\%'
+    OR UTF8(payload) ILIKE '%powershell%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-101043 | T1053.005 | Schtasks with Hidden Window Flag
+-- Severity: High | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE (LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+    OR LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%')
+  AND UTF8(payload) ILIKE '%schtasks%'
+  AND (UTF8(payload) ILIKE '%-windowstyle hidden%'
+    OR UTF8(payload) ILIKE '%-w hidden%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-101044 | T1053.005 | Task with IEX / DownloadCradle in Content
+-- Severity: Critical | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+  AND (UTF8(payload) ILIKE '%EventID>4698<%'
+    OR UTF8(payload) ILIKE '%EventID">"4698"%')
+  AND (UTF8(payload) ILIKE '%IEX%'
+    OR UTF8(payload) ILIKE '%Invoke-Expression%'
+    OR UTF8(payload) ILIKE '%DownloadString%'
+    OR UTF8(payload) ILIKE '%DownloadFile%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-101045 | T1053.005 | Task Executing COM Scriptlet
+-- Severity: Critical | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+  AND (UTF8(payload) ILIKE '%EventID>4698<%'
+    OR UTF8(payload) ILIKE '%EventID">"4698"%')
+  AND (UTF8(payload) ILIKE '%.sct%'
+    OR UTF8(payload) ILIKE '%regsvr32%'
+    OR UTF8(payload) ILIKE '%scrobj%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-101046 | T1053.005 | Schtasks Force /F /Z Flags
+-- Severity: Medium | Confidence: Medium
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE (LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+    OR LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%')
+  AND UTF8(payload) ILIKE '%schtasks%'
+  AND UTF8(payload) ILIKE '%/create%'
+  AND (UTF8(payload) ILIKE '% /f%'
+    OR UTF8(payload) ILIKE '% /z%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-101047 | T1053.005 | Task Enabled from Disabled State (Event 4700/4701)
+-- Severity: Medium | Confidence: Medium
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+  AND (UTF8(payload) ILIKE '%EventID>4700<%'
+    OR UTF8(payload) ILIKE '%EventID">"4700"%'
+    OR UTF8(payload) ILIKE '%EventID>4701<%'
+    OR UTF8(payload) ILIKE '%EventID">"4701"%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-101048 | T1053.005 | Security-Relevant Task Deleted (Cleanup)
+-- Severity: High | Confidence: Medium
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+  AND (UTF8(payload) ILIKE '%EventID>4699<%'
+    OR UTF8(payload) ILIKE '%EventID">"4699"%')
+  AND (UTF8(payload) ILIKE '%Windows Defender%'
+    OR UTF8(payload) ILIKE '%Security%'
+    OR UTF8(payload) ILIKE '%Backup%'
+    OR UTF8(payload) ILIKE '%Update%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-101049 | T1053.005 | PS Unregister-ScheduledTask (Cleanup)
+-- Severity: Medium | Confidence: Medium
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%PowerShell%'
+  AND (UTF8(payload) ILIKE '%Unregister-ScheduledTask%'
+    OR UTF8(payload) ILIKE '%Disable-ScheduledTask%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-101050 | T1053.005 | Schtasks with PS Stealth Flags Combo
+-- Severity: Critical | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE (LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+    OR LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%')
+  AND UTF8(payload) ILIKE '%schtasks%'
+  AND UTF8(payload) ILIKE '%powershell%'
+  AND UTF8(payload) ILIKE '%-noprofile%'
+  AND UTF8(payload) ILIKE '%-windowstyle hidden%'
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-101051 | T1053.005 | Non-Standard Parent Spawning Schtasks
+-- Severity: High | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE (LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+    OR LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%')
+  AND UTF8(payload) ILIKE '%schtasks%'
+  AND (UTF8(payload) ILIKE '%WINWORD%'
+    OR UTF8(payload) ILIKE '%EXCEL%'
+    OR UTF8(payload) ILIKE '%wscript%'
+    OR UTF8(payload) ILIKE '%mshta%'
+    OR UTF8(payload) ILIKE '%powershell%')
+  AND NOT UTF8(payload) ILIKE '%services.exe%'
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-101052 | T1053.005 | Task /RUN Force Trigger
+-- Severity: Medium | Confidence: Medium
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE (LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+    OR LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%')
+  AND UTF8(payload) ILIKE '%schtasks%'
+  AND UTF8(payload) ILIKE '%/run%'
+  AND NOT UTF8(payload) ILIKE '%taskschd%'
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-101053 | T1053.005 | PS Get-ScheduledTask Enumeration from Script
+-- Severity: Low | Confidence: Medium
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%PowerShell%'
+  AND (UTF8(payload) ILIKE '%Get-ScheduledTask%'
+    OR UTF8(payload) ILIKE '%schtasks /query%')
+  AND (UTF8(payload) ILIKE '%wscript%'
+    OR UTF8(payload) ILIKE '%cmd%'
+    OR UTF8(payload) ILIKE '%mshta%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-101054 | T1053.005 | Task Created with Remote /S Flag
+-- Severity: High | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE (LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+    OR LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%')
+  AND UTF8(payload) ILIKE '%schtasks%'
+  AND UTF8(payload) ILIKE '%/create%'
+  AND (UTF8(payload) ILIKE '% /s %'
+    OR UTF8(payload) ILIKE '% /S %')
+  AND NOT UTF8(payload) ILIKE '%localhost%'
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-101055 | T1053.005 | Multiple Tasks Created in 60 Seconds (Bulk)
+-- Severity: Critical | Confidence: High
+-- Threshold: 3+ new tasks in 60 seconds from same host
+-- ==================================================
+SELECT
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  COUNT(*) AS TaskCreateCount
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+  AND (UTF8(payload) ILIKE '%EventID>4698<%'
+    OR UTF8(payload) ILIKE '%EventID">"4698"%')
+GROUP BY LOGSOURCENAME(logsourceid)
+HAVING COUNT(*) >= 3
+LAST 60 MINUTES;

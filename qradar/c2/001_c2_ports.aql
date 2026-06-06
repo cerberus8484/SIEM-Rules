@@ -1,0 +1,744 @@
+-- ============================================================
+-- HuntingThreats — QRadar AQL Hunt Rules
+-- Category : Command & Control — Ports / Tunneling / Frameworks (T1071, T1095, T1571)
+-- Batch    : 8 / C2
+-- Rules    : QR-104001 – QR-104035
+-- Platform : QRadar 7.4+ / AQL
+-- Sources  : Sysmon (Event 3/22), Windows Firewall, Netflow, WinCollect
+-- ============================================================
+
+-- ==================================================
+-- QR-104001 | T1571 | Known C2 Port Used (4444/1337/31337)
+-- Severity: High | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  sourceip,
+  destinationip,
+  destinationport,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE (LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%'
+    OR LOGSOURCETYPENAME(logsourceid) ILIKE '%Firewall%'
+    OR LOGSOURCETYPENAME(logsourceid) ILIKE '%Netflow%')
+  AND destinationport IN (1234, 1337, 4242, 4444, 4445, 4446, 31337, 65535)
+  AND NOT (destinationip ILIKE '10.%'
+    OR destinationip ILIKE '192.168.%'
+    OR destinationip ILIKE '172.16.%'
+    OR destinationip ILIKE '172.17.%'
+    OR destinationip ILIKE '172.18.%'
+    OR destinationip ILIKE '172.19.%'
+    OR destinationip ILIKE '172.2%.%'
+    OR destinationip ILIKE '172.30.%'
+    OR destinationip ILIKE '172.31.%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-104002 | T1571 | Non-Browser Process Using Port 443 (HTTPS C2)
+-- Severity: High | Confidence: Medium
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  sourceip,
+  destinationip,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%'
+  AND UTF8(payload) ILIKE '%NetworkConnect%'
+  AND destinationport = 443
+  AND (UTF8(payload) ILIKE '%powershell%'
+    OR UTF8(payload) ILIKE '%wscript%'
+    OR UTF8(payload) ILIKE '%cscript%'
+    OR UTF8(payload) ILIKE '%mshta%'
+    OR UTF8(payload) ILIKE '%rundll32%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-104003 | T1571 | Cobalt Strike Default Ports (50050/7443/2222)
+-- Severity: Critical | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  sourceip,
+  destinationip,
+  destinationport,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE (LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%'
+    OR LOGSOURCETYPENAME(logsourceid) ILIKE '%Firewall%'
+    OR LOGSOURCETYPENAME(logsourceid) ILIKE '%Netflow%')
+  AND destinationport IN (50050, 50051, 50052, 50053, 7443, 2222, 8443)
+  AND NOT (destinationip ILIKE '10.%'
+    OR destinationip ILIKE '192.168.%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-104004 | T1090.001 | Ngrok / Frpc Tunnel Detected
+-- Severity: Critical | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  destinationip,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE (LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+    OR LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%')
+  AND (UTF8(payload) ILIKE '%ngrok%'
+    OR UTF8(payload) ILIKE '%frpc%'
+    OR UTF8(payload) ILIKE '%cloudflared%'
+    OR UTF8(payload) ILIKE '%bore.pub%'
+    OR UTF8(payload) ILIKE '%serveo.net%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-104005 | T1071.001 | DNS to Non-Standard Port from Non-DNS Process
+-- Severity: High | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  sourceip,
+  destinationip,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%'
+  AND UTF8(payload) ILIKE '%NetworkConnect%'
+  AND destinationport = 53
+  AND NOT (UTF8(payload) ILIKE '%svchost%'
+    OR UTF8(payload) ILIKE '%dns%'
+    OR UTF8(payload) ILIKE '%resolver%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-104006 | T1071.004 | DNS Tunneling — Long Subdomain Query
+-- Severity: High | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  sourceip,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%'
+  AND UTF8(payload) ILIKE '%DnsQuery%'
+  AND LEN(UTF8(payload)) > 400
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-104007 | T1071.004 | DNS TXT Record Query (Data Exfil / C2 Config)
+-- Severity: High | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  sourceip,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%'
+  AND UTF8(payload) ILIKE '%DnsQuery%'
+  AND UTF8(payload) ILIKE '%QueryType>16<%'
+  AND NOT (UTF8(payload) ILIKE '%svchost%'
+    OR UTF8(payload) ILIKE '%dns%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-104008 | T1095 | Netcat with Shell Execution
+-- Severity: Critical | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE (LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+    OR LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%')
+  AND (UTF8(payload) ILIKE '%nc.exe%'
+    OR UTF8(payload) ILIKE '%ncat%'
+    OR UTF8(payload) ILIKE '%netcat%')
+  AND (UTF8(payload) ILIKE '%-e %'
+    OR UTF8(payload) ILIKE '%-exec %'
+    OR UTF8(payload) ILIKE '%cmd%'
+    OR UTF8(payload) ILIKE '%powershell%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-104009 | T1090.001 | SSH Reverse Tunnel (-R Flag)
+-- Severity: High | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE (LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+    OR LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%')
+  AND UTF8(payload) ILIKE '%ssh%'
+  AND (UTF8(payload) ILIKE '% -R %'
+    OR UTF8(payload) ILIKE '% -L %'
+    OR UTF8(payload) ILIKE '% -D %')
+  AND NOT UTF8(payload) ILIKE '%openssh%windows%'
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-104010 | T1090 | Socat with Exec Option
+-- Severity: Critical | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE (LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+    OR LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%')
+  AND UTF8(payload) ILIKE '%socat%'
+  AND (UTF8(payload) ILIKE '%EXEC%'
+    OR UTF8(payload) ILIKE '%system%'
+    OR UTF8(payload) ILIKE '%pty%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-104011 | T1571 | Tor Network Ports (9001/9030/9050/9150)
+-- Severity: High | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  sourceip,
+  destinationip,
+  destinationport,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE (LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%'
+    OR LOGSOURCETYPENAME(logsourceid) ILIKE '%Firewall%'
+    OR LOGSOURCETYPENAME(logsourceid) ILIKE '%Netflow%')
+  AND destinationport IN (9001, 9030, 9050, 9051, 9150)
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-104012 | T1571 | Metasploit Default Ports (4444-4446/5555/6200/7788)
+-- Severity: Critical | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  sourceip,
+  destinationip,
+  destinationport,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE (LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%'
+    OR LOGSOURCETYPENAME(logsourceid) ILIKE '%Firewall%'
+    OR LOGSOURCETYPENAME(logsourceid) ILIKE '%Netflow%')
+  AND destinationport IN (4444, 4445, 4446, 5555, 6200, 7788)
+  AND NOT (destinationip ILIKE '10.%'
+    OR destinationip ILIKE '192.168.%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-104013 | T1071.001 | Cmd.exe Outbound to Non-RFC1918 IP
+-- Severity: High | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  sourceip,
+  destinationip,
+  destinationport,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%'
+  AND UTF8(payload) ILIKE '%NetworkConnect%'
+  AND UTF8(payload) ILIKE '%cmd.exe%'
+  AND NOT (destinationip ILIKE '10.%'
+    OR destinationip ILIKE '192.168.%'
+    OR destinationip ILIKE '172.1%.%'
+    OR destinationip ILIKE '127.%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-104014 | T1071.001 | HTTP Traffic on Alternate Ports from Script
+-- Severity: High | Confidence: Medium
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  sourceip,
+  destinationip,
+  destinationport,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%'
+  AND UTF8(payload) ILIKE '%NetworkConnect%'
+  AND destinationport IN (8080, 8443, 8888, 9090, 9443, 10443)
+  AND (UTF8(payload) ILIKE '%powershell%'
+    OR UTF8(payload) ILIKE '%wscript%'
+    OR UTF8(payload) ILIKE '%python%'
+    OR UTF8(payload) ILIKE '%cmd%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-104015 | T1571 | Cobalt Strike via Svchost / Rundll32 Network
+-- Severity: Critical | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  sourceip,
+  destinationip,
+  destinationport,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%'
+  AND UTF8(payload) ILIKE '%NetworkConnect%'
+  AND (UTF8(payload) ILIKE '%svchost%'
+    OR UTF8(payload) ILIKE '%rundll32%'
+    OR UTF8(payload) ILIKE '%dllhost%')
+  AND destinationport IN (80, 443, 8080, 8443)
+  AND NOT (destinationip ILIKE '10.%'
+    OR destinationip ILIKE '192.168.%'
+    OR destinationip ILIKE '172.16.%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-104016 | T1568.002 | Pastebin / GitHub / Hastebin C2 Callback
+-- Severity: High | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%'
+  AND UTF8(payload) ILIKE '%DnsQuery%'
+  AND (UTF8(payload) ILIKE '%pastebin.com%'
+    OR UTF8(payload) ILIKE '%raw.githubusercontent.com%'
+    OR UTF8(payload) ILIKE '%hastebin.com%'
+    OR UTF8(payload) ILIKE '%gofile.io%'
+    OR UTF8(payload) ILIKE '%transfer.sh%')
+  AND NOT (UTF8(payload) ILIKE '%chrome%'
+    OR UTF8(payload) ILIKE '%firefox%'
+    OR UTF8(payload) ILIKE '%msedge%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-104017 | T1071.001 | Empire / Covenant Ports (5000/7777/8888)
+-- Severity: Critical | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  sourceip,
+  destinationip,
+  destinationport,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE (LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%'
+    OR LOGSOURCETYPENAME(logsourceid) ILIKE '%Firewall%'
+    OR LOGSOURCETYPENAME(logsourceid) ILIKE '%Netflow%')
+  AND destinationport IN (5000, 7777, 8888, 10048, 31338)
+  AND NOT (destinationip ILIKE '10.%'
+    OR destinationip ILIKE '192.168.%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-104018 | T1071.001 | Sliver / Havoc C2 Framework Ports
+-- Severity: Critical | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  sourceip,
+  destinationip,
+  destinationport,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE (LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%'
+    OR LOGSOURCETYPENAME(logsourceid) ILIKE '%Firewall%'
+    OR LOGSOURCETYPENAME(logsourceid) ILIKE '%Netflow%')
+  AND destinationport IN (31337, 8888, 9001, 40000, 40001)
+  AND (UTF8(payload) ILIKE '%sliver%'
+    OR UTF8(payload) ILIKE '%havoc%'
+    OR UTF8(payload) ILIKE '%brute_ratel%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-104019 | T1071 | Beaconing Pattern — 5+ Connections to Same IP (Threshold)
+-- Severity: High | Confidence: High
+-- Threshold: 5+ outbound connections to same external IP in 6 minutes
+-- ==================================================
+SELECT
+  destinationip,
+  COUNT(*) AS ConnectionCount
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%'
+  AND UTF8(payload) ILIKE '%NetworkConnect%'
+  AND NOT (destinationip ILIKE '10.%'
+    OR destinationip ILIKE '192.168.%'
+    OR destinationip ILIKE '172.1%.%'
+    OR destinationip ILIKE '127.%')
+  AND destinationport IN (80, 443, 8080, 8443)
+GROUP BY destinationip
+HAVING COUNT(*) >= 5
+LAST 360 MINUTES;
+
+
+-- ==================================================
+-- QR-104020 | T1090 | Chisel / Bore Tunnel Tool Executed
+-- Severity: High | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE (LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+    OR LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%')
+  AND (UTF8(payload) ILIKE '%chisel%'
+    OR UTF8(payload) ILIKE '%bore%'
+    OR UTF8(payload) ILIKE '%Ligolo%'
+    OR UTF8(payload) ILIKE '%rpivot%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-104021 | T1071.001 | BITS Transfer to External Executable URL
+-- Severity: High | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE (LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+    OR LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%')
+  AND UTF8(payload) ILIKE '%bitsadmin%'
+  AND (UTF8(payload) ILIKE '%http%'
+    OR UTF8(payload) ILIKE '%https%')
+  AND (UTF8(payload) ILIKE '%.exe%'
+    OR UTF8(payload) ILIKE '%.dll%'
+    OR UTF8(payload) ILIKE '%.ps1%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-104022 | T1071.002 | SMB Outbound from Script Process
+-- Severity: High | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  sourceip,
+  destinationip,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%'
+  AND UTF8(payload) ILIKE '%NetworkConnect%'
+  AND destinationport = 445
+  AND (UTF8(payload) ILIKE '%powershell%'
+    OR UTF8(payload) ILIKE '%wscript%'
+    OR UTF8(payload) ILIKE '%python%'
+    OR UTF8(payload) ILIKE '%cmd.exe%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-104023 | T1071 | DNS-over-HTTPS (DoH) to Public Resolver (Non-Browser)
+-- Severity: High | Confidence: Medium
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  sourceip,
+  destinationip,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%'
+  AND UTF8(payload) ILIKE '%DnsQuery%'
+  AND (UTF8(payload) ILIKE '%dns.google%'
+    OR UTF8(payload) ILIKE '%cloudflare-dns.com%'
+    OR UTF8(payload) ILIKE '%9.9.9.9%'
+    OR UTF8(payload) ILIKE '%1.1.1.1%'
+    OR UTF8(payload) ILIKE '%8.8.8.8%')
+  AND NOT (UTF8(payload) ILIKE '%chrome%'
+    OR UTF8(payload) ILIKE '%firefox%'
+    OR UTF8(payload) ILIKE '%msedge%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-104024 | T1105 | WinRM Port 5985/5986 Outbound from Non-Admin Tools
+-- Severity: High | Confidence: Medium
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  sourceip,
+  destinationip,
+  destinationport,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%'
+  AND UTF8(payload) ILIKE '%NetworkConnect%'
+  AND destinationport IN (5985, 5986)
+  AND NOT (UTF8(payload) ILIKE '%powershell%'
+    OR UTF8(payload) ILIKE '%wsmprovhost%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-104025 | T1095 | ICMP from Non-Standard Process
+-- Severity: Medium | Confidence: Medium
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  sourceip,
+  destinationip,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%'
+  AND UTF8(payload) ILIKE '%NetworkConnect%'
+  AND UTF8(payload) ILIKE '%icmp%'
+  AND NOT (UTF8(payload) ILIKE '%ping%'
+    OR UTF8(payload) ILIKE '%pathping%'
+    OR UTF8(payload) ILIKE '%tracert%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-104026 | T1132 | Base64 in DNS Subdomain (C2 over DNS)
+-- Severity: High | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  sourceip,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%'
+  AND UTF8(payload) ILIKE '%DnsQuery%'
+  AND LEN(UTF8(payload)) > 300
+  AND NOT (UTF8(payload) ILIKE '%microsoft.com%'
+    OR UTF8(payload) ILIKE '%windows.com%'
+    OR UTF8(payload) ILIKE '%windowsupdate.com%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-104027 | T1071 | Proxy Settings Changed — AiTM Indicator
+-- Severity: High | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%'
+  AND UTF8(payload) ILIKE '%RegistryEvent%'
+  AND (UTF8(payload) ILIKE '%Internet Settings%'
+    OR UTF8(payload) ILIKE '%ProxyServer%'
+    OR UTF8(payload) ILIKE '%ProxyEnable%'
+    OR UTF8(payload) ILIKE '%AutoConfigURL%')
+  AND NOT (UTF8(payload) ILIKE '%chrome%'
+    OR UTF8(payload) ILIKE '%msedge%'
+    OR UTF8(payload) ILIKE '%iexplore%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-104028 | T1071 | Commercial RAT Tool Network Activity
+-- Severity: High | Confidence: Medium
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  destinationip,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE (LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+    OR LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%')
+  AND (UTF8(payload) ILIKE '%AnyDesk%'
+    OR UTF8(payload) ILIKE '%TeamViewer%'
+    OR UTF8(payload) ILIKE '%RemotePC%'
+    OR UTF8(payload) ILIKE '%Ammyy%'
+    OR UTF8(payload) ILIKE '%Radmin%')
+  AND NOT UTF8(payload) ILIKE '%authorized%'
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-104029 | T1071 | Non-Standard RDP Port Outbound
+-- Severity: High | Confidence: Medium
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  sourceip,
+  destinationip,
+  destinationport,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE (LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%'
+    OR LOGSOURCETYPENAME(logsourceid) ILIKE '%Firewall%')
+  AND destinationport IN (3389, 3388, 33890, 4489, 3391)
+  AND NOT (destinationip ILIKE '10.%'
+    OR destinationip ILIKE '192.168.%')
+  AND destinationport != 3389
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-104030 | T1071 | UDP High Port from Script Engine (C2 via UDP)
+-- Severity: High | Confidence: Medium
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  sourceip,
+  destinationip,
+  destinationport,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%'
+  AND UTF8(payload) ILIKE '%NetworkConnect%'
+  AND UTF8(payload) ILIKE '%udp%'
+  AND destinationport > 49152
+  AND (UTF8(payload) ILIKE '%powershell%'
+    OR UTF8(payload) ILIKE '%wscript%'
+    OR UTF8(payload) ILIKE '%python%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-104031 | T1568 | Ngrok / Serveo Domain in DNS Query
+-- Severity: High | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  sourceip,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%'
+  AND UTF8(payload) ILIKE '%DnsQuery%'
+  AND (UTF8(payload) ILIKE '%ngrok.io%'
+    OR UTF8(payload) ILIKE '%serveo.net%'
+    OR UTF8(payload) ILIKE '%pagekite.me%'
+    OR UTF8(payload) ILIKE '%localtunnel.me%'
+    OR UTF8(payload) ILIKE '%bore.pub%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-104032 | T1071 | Process in TEMP Path Making Outbound Connection
+-- Severity: High | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  sourceip,
+  destinationip,
+  destinationport,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%'
+  AND UTF8(payload) ILIKE '%NetworkConnect%'
+  AND (UTF8(payload) ILIKE '%\Temp\%'
+    OR UTF8(payload) ILIKE '%\AppData\Local\Temp\%')
+  AND NOT (destinationip ILIKE '10.%'
+    OR destinationip ILIKE '192.168.%'
+    OR destinationip ILIKE '127.%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-104033 | T1071 | Keep-Alive Beaconing — 10+ Same-Host Same-Port (Threshold)
+-- Severity: High | Confidence: High
+-- Threshold: 10+ connections to same ip:port in 5 min
+-- ==================================================
+SELECT
+  destinationip,
+  destinationport,
+  COUNT(*) AS BeaconCount
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%'
+  AND UTF8(payload) ILIKE '%NetworkConnect%'
+  AND NOT (destinationip ILIKE '10.%'
+    OR destinationip ILIKE '192.168.%'
+    OR destinationip ILIKE '127.%')
+GROUP BY destinationip, destinationport
+HAVING COUNT(*) >= 10
+LAST 300 MINUTES;
+
+
+-- ==================================================
+-- QR-104034 | T1071 | VNC Port 5900-5909 Non-Enterprise Connection
+-- Severity: High | Confidence: Medium
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  sourceip,
+  destinationip,
+  destinationport,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE (LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%'
+    OR LOGSOURCETYPENAME(logsourceid) ILIKE '%Firewall%'
+    OR LOGSOURCETYPENAME(logsourceid) ILIKE '%Netflow%')
+  AND destinationport BETWEEN 5900 AND 5909
+  AND NOT (destinationip ILIKE '10.%'
+    OR destinationip ILIKE '192.168.%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-104035 | T1571 | BitTorrent Ports 6881-6890 from Non-Torrent Process
+-- Severity: Medium | Confidence: Medium
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  sourceip,
+  destinationip,
+  destinationport,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%'
+  AND UTF8(payload) ILIKE '%NetworkConnect%'
+  AND destinationport BETWEEN 6881 AND 6890
+  AND NOT (UTF8(payload) ILIKE '%bittorrent%'
+    OR UTF8(payload) ILIKE '%qbittorrent%'
+    OR UTF8(payload) ILIKE '%utorrent%')
+LAST 1440 MINUTES;

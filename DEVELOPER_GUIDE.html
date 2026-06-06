@@ -1,0 +1,1067 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Developer Guide — Enterprise Hunt Pack | HuntingThreats</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg-primary: #080c14;
+    --bg-secondary: #0d1117;
+    --bg-card: #141824;
+    --border: #1e2d40;
+    --accent-cyan: #00d4ff;
+    --accent-green: #00ff88;
+    --accent-orange: #ff8c00;
+    --accent-purple: #b06aff;
+    --text-primary: #e8edf5;
+    --text-secondary: #8899aa;
+    --text-muted: #556677;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body { background: var(--bg-primary); color: var(--text-primary); font-family: 'Inter', sans-serif; font-size: 15px; line-height: 1.7; display: flex; }
+
+  nav { width: 270px; min-width: 270px; height: 100vh; position: sticky; top: 0; overflow-y: auto; background: var(--bg-secondary); border-right: 1px solid var(--border); padding: 24px 0; scrollbar-width: thin; scrollbar-color: var(--border) transparent; }
+  nav::-webkit-scrollbar { width: 4px; }
+  nav::-webkit-scrollbar-thumb { background: var(--border); }
+  .nav-brand { padding: 0 20px 20px; border-bottom: 1px solid var(--border); margin-bottom: 16px; }
+  .nav-brand .logo { font-size: 11px; font-weight: 700; letter-spacing: 2px; color: var(--accent-cyan); text-transform: uppercase; }
+  .nav-brand .subtitle { font-size: 11px; color: var(--text-muted); margin-top: 3px; }
+  .nav-label { padding: 10px 20px 4px; font-size: 10px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; }
+  .nav-label.wazuh { color: var(--accent-cyan); }
+  .nav-label.qradar { color: var(--accent-purple); }
+  .nav-label.secops { color: var(--accent-green); }
+  nav a { display: block; padding: 6px 20px; color: var(--text-secondary); text-decoration: none; font-size: 12.5px; transition: all .15s; border-left: 2px solid transparent; }
+  nav a:hover, nav a.active { color: var(--accent-cyan); border-left-color: var(--accent-cyan); background: rgba(0,212,255,.05); }
+  nav a.qr:hover, nav a.qr.active { color: var(--accent-purple); border-left-color: var(--accent-purple); background: rgba(176,106,255,.05); }
+  nav a.gs:hover, nav a.gs.active { color: var(--accent-green); border-left-color: var(--accent-green); background: rgba(0,255,136,.05); }
+
+  main { flex: 1; max-width: 920px; padding: 48px 56px; overflow-x: hidden; }
+
+  .page-header { margin-bottom: 48px; padding-bottom: 32px; border-bottom: 1px solid var(--border); }
+  .badge { display: inline-block; background: rgba(0,212,255,.1); color: var(--accent-cyan); border: 1px solid rgba(0,212,255,.2); font-size: 11px; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase; padding: 4px 12px; border-radius: 4px; margin-bottom: 16px; }
+  .page-header h1 { font-size: 32px; font-weight: 700; line-height: 1.2; margin-bottom: 12px; }
+  .page-header p { color: var(--text-secondary); font-size: 15px; }
+
+  .platform-divider { margin: 60px 0 40px; padding: 20px 24px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; display: flex; align-items: center; gap: 16px; }
+  .platform-divider .icon { font-size: 24px; }
+  .platform-divider h2 { font-size: 20px; font-weight: 700; }
+  .platform-divider p { font-size: 13px; color: var(--text-secondary); margin: 0; }
+  .platform-divider.wazuh { border-left: 4px solid var(--accent-cyan); }
+  .platform-divider.qradar { border-left: 4px solid var(--accent-purple); }
+  .platform-divider.secops { border-left: 4px solid var(--accent-green); }
+  .platform-divider.wazuh h2 { color: var(--accent-cyan); }
+  .platform-divider.qradar h2 { color: var(--accent-purple); }
+  .platform-divider.secops h2 { color: var(--accent-green); }
+  .sec-num.gs { color: var(--accent-green); background: rgba(0,255,136,.1); }
+
+  section { margin-bottom: 56px; }
+  section h2 { font-size: 20px; font-weight: 700; margin-bottom: 18px; padding-bottom: 10px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 10px; }
+  .sec-num { font-size: 12px; font-weight: 600; color: var(--accent-cyan); background: rgba(0,212,255,.1); padding: 2px 9px; border-radius: 4px; }
+  .sec-num.qr { color: var(--accent-purple); background: rgba(176,106,255,.1); }
+  section h3 { font-size: 16px; font-weight: 600; margin: 24px 0 10px; color: var(--text-primary); }
+  section h4 { font-size: 14px; font-weight: 600; color: var(--accent-cyan); margin: 18px 0 8px; }
+  p { margin-bottom: 14px; color: var(--text-secondary); }
+
+  pre { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 20px; overflow-x: auto; margin: 14px 0; font-family: 'JetBrains Mono', monospace; font-size: 13px; line-height: 1.6; color: #a8c4d8; }
+  code { font-family: 'JetBrains Mono', monospace; font-size: 13px; background: rgba(0,212,255,.07); color: var(--accent-cyan); padding: 2px 6px; border-radius: 3px; }
+  pre code { background: none; color: inherit; padding: 0; }
+
+  .table-wrap { overflow-x: auto; margin: 14px 0; }
+  table { width: 100%; border-collapse: collapse; }
+  th { background: var(--bg-card); color: var(--text-secondary); font-size: 11px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; padding: 10px 14px; text-align: left; border-bottom: 1px solid var(--border); }
+  td { padding: 10px 14px; font-size: 13px; color: var(--text-secondary); border-bottom: 1px solid rgba(30,45,64,.6); vertical-align: top; }
+  tr:hover td { background: rgba(0,212,255,.02); }
+  td:first-child { color: var(--text-primary); }
+  td code { font-size: 12px; }
+
+  .info-box { background: rgba(0,212,255,.05); border: 1px solid rgba(0,212,255,.15); border-left: 3px solid var(--accent-cyan); border-radius: 6px; padding: 16px 20px; margin: 14px 0; font-size: 13.5px; color: var(--text-secondary); }
+  .info-box strong { color: var(--text-primary); }
+  .info-box.qr { background: rgba(176,106,255,.05); border-color: rgba(176,106,255,.15); border-left-color: var(--accent-purple); }
+
+  .checklist { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 20px 24px; margin: 14px 0; list-style: none; }
+  .checklist li { padding: 6px 0; font-size: 13.5px; color: var(--text-secondary); border-bottom: 1px solid rgba(30,45,64,.4); font-family: 'JetBrains Mono', monospace; }
+  .checklist li:last-child { border-bottom: none; }
+
+  .threshold-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin: 14px 0; }
+  .t-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 16px; }
+  .t-card h4 { font-size: 12px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; margin: 0 0 10px; }
+  .t-row { display: flex; justify-content: space-between; padding: 4px 0; font-size: 12px; border-bottom: 1px solid rgba(30,45,64,.4); }
+  .t-row:last-child { border-bottom: none; }
+  .t-label { color: var(--text-secondary); }
+  .t-val { color: var(--accent-cyan); font-family: 'JetBrains Mono', monospace; font-weight: 600; }
+
+  footer { margin-top: 80px; padding-top: 24px; border-top: 1px solid var(--border); font-size: 12px; color: var(--text-muted); }
+</style>
+</head>
+<body>
+
+<nav id="sidebar">
+  <div class="nav-brand">
+    <div class="logo">HuntingThreats</div>
+    <div class="subtitle">Developer Guide v0.3.0</div>
+  </div>
+
+  <div class="nav-label wazuh">Wazuh XML</div>
+  <a href="#prerequisites">1. Voraussetzungen</a>
+  <a href="#structure">2. Verzeichnisstruktur</a>
+  <a href="#wazuh-rule">3. Wazuh-Regel schreiben</a>
+  <a href="#rule-id">4. Rule-ID vergeben</a>
+  <a href="#severity">5. Severity wählen</a>
+  <a href="#mitre">6. MITRE referenzieren</a>
+  <a href="#fields">7. Feldnamen-Referenz</a>
+  <a href="#pcre2">8. PCRE2-Muster</a>
+  <a href="#threshold">9. Threshold-Regeln</a>
+  <a href="#tags">10. Tags (group)</a>
+  <a href="#checklist">11. Qualitätscheckliste</a>
+  <a href="#testing">12. Testing</a>
+  <a href="#deploy-wazuh">13. Deployment Wazuh</a>
+  <a href="#fp-rate">14. FP-Rate messen</a>
+  <a href="#cheatsheet">15. Cheat Sheet Wazuh</a>
+
+  <div class="nav-label qradar">QRadar AQL</div>
+  <a href="#qr-rule" class="qr">16. AQL-Regel schreiben</a>
+  <a href="#qr-fields" class="qr">17. AQL Feldnamen</a>
+  <a href="#qr-patterns" class="qr">18. AQL Muster-Bibliothek</a>
+  <a href="#qr-threshold" class="qr">19. Threshold (AQL)</a>
+  <a href="#qr-checklist" class="qr">20. Checkliste QRadar</a>
+  <a href="#qr-deploy" class="qr">21. Deployment QRadar</a>
+  <a href="#qr-cheatsheet" class="qr">22. Cheat Sheet QRadar</a>
+
+  <div class="nav-label secops">Google SecOps YARA-L</div>
+  <a href="#gs-rule" class="gs">23. YARA-L-Regel schreiben</a>
+  <a href="#gs-fields" class="gs">24. UDM-Feldnamen-Referenz</a>
+  <a href="#gs-patterns" class="gs">25. YARA-L Muster-Bibliothek</a>
+  <a href="#gs-threshold" class="gs">26. Threshold (YARA-L)</a>
+  <a href="#gs-chain" class="gs">27. Multi-Event-Korrelation</a>
+  <a href="#gs-checklist" class="gs">28. Checkliste SecOps</a>
+  <a href="#gs-deploy" class="gs">29. Deployment SecOps</a>
+  <a href="#gs-cheatsheet" class="gs">30. Cheat Sheet SecOps</a>
+</nav>
+
+<main>
+  <div class="page-header">
+    <div class="badge">Developer Guide</div>
+    <h1>Developer Guide — Enterprise Hunt Pack</h1>
+    <p>Schritt-für-Schritt-Anleitung zum Entwickeln, Testen und Deployen neuer Hunt-Regeln für <strong>Wazuh</strong>, <strong>QRadar AQL</strong> und <strong>Google SecOps YARA-L 2.0</strong>. Grundregel: Immer nur <strong>eine neue Regel pro Commit</strong>.</p>
+  </div>
+
+  <!-- WAZUH SECTION DIVIDER -->
+  <div class="platform-divider wazuh">
+    <div class="icon">🔵</div>
+    <div>
+      <h2>Wazuh — XML / PCRE2</h2>
+      <p>500 Regeln · 15 Dateien · Abschnitte 1–15</p>
+    </div>
+  </div>
+
+  <section id="prerequisites">
+    <h2><span class="sec-num">1</span> Voraussetzungen</h2>
+    <pre>- VS Code mit XML-Extension
+- xmllint für lokale Validierung
+- SSH-Zugriff auf Wazuh Manager
+- Sysmon-Testumgebung oder evtx_dump
+
+# Wazuh Manager — Deployment-Berechtigung
+sudo -u ossec /var/ossec/bin/ossec-control reload</pre>
+  </section>
+
+  <section id="structure">
+    <h2><span class="sec-num">2</span> Verzeichnisstruktur</h2>
+    <pre>hunts/
+├── ARCHITECTURE.md / .html
+├── DEVELOPER_GUIDE.md / .html
+├── wazuh/                    ← 500 Regeln ✅
+│   ├── initial_access/001_phishing.xml
+│   ├── execution/{001_powershell,002_lolbins,003_wmi_office}.xml
+│   ├── persistence/{001_registry,002_scheduled_tasks,003_services}.xml
+│   ├── privilege_escalation/001_privesc.xml
+│   ├── defense_evasion/001_process_injection.xml
+│   ├── credential_access/001_lsass.xml
+│   ├── discovery/001_enumeration.xml
+│   ├── lateral_movement/001_lateral_movement.xml
+│   ├── c2/001_c2_ports.xml
+│   ├── exfiltration/001_exfiltration.xml
+│   └── impact/001_ransomware.xml
+├── qradar/                   ← 500 Regeln ✅ (gleiche Struktur, .aql)
+└── secops/                   ← 500 Regeln ✅ (gleiche Struktur, .yaral)</pre>
+  </section>
+
+  <section id="wazuh-rule">
+    <h2><span class="sec-num">3</span> Neue Wazuh-Regel schreiben</h2>
+    <h3>3.1 Template — Einfache Regel</h3>
+    <pre>&lt;rule id="XXXXXX" level="12"&gt;
+  &lt;if_group&gt;windows&lt;/if_group&gt;
+  &lt;field name="win.system.eventID" type="pcre2"&gt;^1$|^4688$&lt;/field&gt;
+  &lt;field name="win.eventdata.image" type="pcre2"&gt;(?i)\\tool\.exe$&lt;/field&gt;
+  &lt;field name="win.eventdata.commandLine" type="pcre2"&gt;(?i)verdächtiges-muster&lt;/field&gt;
+  &lt;description&gt;tool.exe: kurze Erklärung — Angriffskontext (T1XXX)&lt;/description&gt;
+  &lt;mitre&gt;&lt;id&gt;T1XXX&lt;/id&gt;&lt;/mitre&gt;
+  &lt;group&gt;taktik,technik,konfidenz,&lt;/group&gt;
+&lt;/rule&gt;</pre>
+
+    <h3>3.2 Multi-Field AND / OR</h3>
+    <pre>&lt;!-- AND: alle Felder müssen matchen --&gt;
+&lt;field name="win.system.eventID" type="pcre2"&gt;^1$|^4688$&lt;/field&gt;
+&lt;field name="win.eventdata.image" type="pcre2"&gt;(?i)\\powershell\.exe$&lt;/field&gt;
+&lt;field name="win.eventdata.commandLine" type="pcre2"&gt;(?i)-encodedcommand&lt;/field&gt;
+
+&lt;!-- OR über Feldnamen-Pipe: commandLine ODER scriptBlockText --&gt;
+&lt;field name="win.eventdata.commandLine|win.eventdata.scriptBlockText" type="pcre2"&gt;
+  (?i)invoke-expression
+&lt;/field&gt;</pre>
+
+    <h3>3.3 Negative Lookahead (FP-Reduktion)</h3>
+    <pre>&lt;!-- Alles AUSSER svchost, lsass, taskmgr --&gt;
+&lt;field name="win.eventdata.image" type="pcre2"&gt;
+  (?i)(?!.*\\(svchost|lsass|taskmgr)\.exe)
+&lt;/field&gt;</pre>
+  </section>
+
+  <section id="rule-id">
+    <h2><span class="sec-num">4</span> Rule-ID vergeben</h2>
+    <div class="table-wrap"><table>
+      <tr><th>Taktik</th><th>Bereich</th><th>Nächste freie ID</th></tr>
+      <tr><td>Initial Access</td><td>110000–110999</td><td>110041</td></tr>
+      <tr><td>Execution</td><td>100000–100999</td><td>100101</td></tr>
+      <tr><td>Persistence</td><td>101000–101999</td><td>101081</td></tr>
+      <tr><td>Privilege Escalation</td><td>109000–109999</td><td>109041</td></tr>
+      <tr><td>Defense Evasion</td><td>102000–102999</td><td>102036</td></tr>
+      <tr><td>Credential Access</td><td>103000–103999</td><td>103036</td></tr>
+      <tr><td>Discovery</td><td>106000–106999</td><td>106036</td></tr>
+      <tr><td>Lateral Movement</td><td>105000–105999</td><td>105041</td></tr>
+      <tr><td>C2 &amp; Network</td><td>104000–104999</td><td>104036</td></tr>
+      <tr><td>Exfiltration</td><td>107000–107999</td><td>107031</td></tr>
+      <tr><td>Impact</td><td>108000–108999</td><td>108031</td></tr>
+    </table></div>
+    <pre># Duplikat-Check
+grep -r 'id="XXXXXX"' hunts/wazuh/   # kein Output = ID frei</pre>
+  </section>
+
+  <section id="severity">
+    <h2><span class="sec-num">5</span> Severity wählen</h2>
+    <div class="table-wrap"><table>
+      <tr><th>Level</th><th>Bedeutung</th><th>Wann verwenden</th></tr>
+      <tr><td>6</td><td>Informational</td><td>Enumeration, Discovery — Kontext nötig</td></tr>
+      <tr><td>8</td><td>Low / Suspicious</td><td>Häufig legitim (whoami, systeminfo)</td></tr>
+      <tr><td>10</td><td>Medium</td><td>Selten legitim im Unternehmenskontext</td></tr>
+      <tr><td>12</td><td>High</td><td>Fast immer bösartig</td></tr>
+      <tr><td>14</td><td>Critical</td><td>Nahezu ausschließlich bösartig</td></tr>
+    </table></div>
+  </section>
+
+  <section id="mitre">
+    <h2><span class="sec-num">6</span> MITRE-Technik referenzieren</h2>
+    <pre>&lt;!-- Sub-Techniken bevorzugen --&gt;
+&lt;mitre&gt;&lt;id&gt;T1059.001&lt;/id&gt;&lt;/mitre&gt;   &lt;!-- PowerShell --&gt;
+&lt;mitre&gt;&lt;id&gt;T1059.005&lt;/id&gt;&lt;/mitre&gt;   &lt;!-- VBA --&gt;
+
+&lt;!-- Mehrere Techniken --&gt;
+&lt;mitre&gt;&lt;id&gt;T1053.005&lt;/id&gt;&lt;/mitre&gt;   &lt;!-- Scheduled Task --&gt;
+&lt;mitre&gt;&lt;id&gt;T1027&lt;/id&gt;&lt;/mitre&gt;       &lt;!-- Obfuscation --&gt;</pre>
+  </section>
+
+  <section id="fields">
+    <h2><span class="sec-num">7</span> Feldnamen-Referenz Wazuh/Sysmon</h2>
+    <div class="table-wrap"><table>
+      <tr><th>Feldname</th><th>Event</th><th>Beschreibung</th></tr>
+      <tr><td><code>win.eventdata.image</code></td><td>Sysmon 1</td><td>Vollpfad Executable</td></tr>
+      <tr><td><code>win.eventdata.commandLine</code></td><td>Sysmon 1 / 4688</td><td>Komplette Commandline</td></tr>
+      <tr><td><code>win.eventdata.parentImage</code></td><td>Sysmon 1</td><td>Parent-Prozess Vollpfad</td></tr>
+      <tr><td><code>win.eventdata.destinationIp</code></td><td>Sysmon 3</td><td>Ziel-IP-Adresse</td></tr>
+      <tr><td><code>win.eventdata.destinationPort</code></td><td>Sysmon 3</td><td>Ziel-Port</td></tr>
+      <tr><td><code>win.eventdata.targetObject</code></td><td>Sysmon 13</td><td>Registry-Pfad</td></tr>
+      <tr><td><code>win.eventdata.targetFilename</code></td><td>Sysmon 11</td><td>Erstellte Datei</td></tr>
+      <tr><td><code>win.eventdata.imageLoaded</code></td><td>Sysmon 7</td><td>Geladene DLL</td></tr>
+      <tr><td><code>win.eventdata.queryName</code></td><td>Sysmon 22</td><td>DNS-Domain</td></tr>
+      <tr><td><code>win.eventdata.scriptBlockText</code></td><td>PS 4104</td><td>Entschlüsselter Script-Block</td></tr>
+      <tr><td><code>win.eventdata.grantedAccess</code></td><td>Sysmon 10</td><td>Zugriffsmaske (Hex)</td></tr>
+    </table></div>
+  </section>
+
+  <section id="pcre2">
+    <h2><span class="sec-num">8</span> PCRE2-Muster schreiben</h2>
+    <pre>(?i)powershell          → Case-insensitiv (immer verwenden!)
+(?i)\\powershell\.exe$  → Endet auf \powershell.exe
+(?i)\\(cmd|powershell)\.exe$  → cmd.exe ODER powershell.exe
+^1$|^4688$              → Exakt "1" ODER "4688"
+^(4444|31337)$          → Port-Liste
+[A-Za-z0-9+/]{80,}={0,2}  → Base64-String &gt;= 80 Zeichen
+(?!.*\\svchost\.exe)    → Negativer Lookahead: NICHT svchost
+(?!^10\.|^192\.168\.)   → NICHT private IPs</pre>
+  </section>
+
+  <section id="threshold">
+    <h2><span class="sec-num">9</span> Threshold-Regeln (Wazuh)</h2>
+    <pre>&lt;rule id="XXXXXX" level="12"&gt;
+  &lt;if_group&gt;windows&lt;/if_group&gt;
+  &lt;field name="win.system.eventID" type="pcre2"&gt;^4625$&lt;/field&gt;
+  &lt;same_field&gt;win.eventdata.ipAddress&lt;/same_field&gt;
+  &lt;frequency&gt;5&lt;/frequency&gt;
+  &lt;timeframe&gt;60&lt;/timeframe&gt;
+  &lt;description&gt;5+ Fehlversuche von gleicher IP in 60s — Brute Force (T1110)&lt;/description&gt;
+  &lt;mitre&gt;&lt;id&gt;T1110&lt;/id&gt;&lt;/mitre&gt;
+  &lt;group&gt;credential_access,brute_force,threshold,&lt;/group&gt;
+&lt;/rule&gt;</pre>
+    <div class="threshold-grid">
+      <div class="t-card">
+        <h4>Wazuh — frequency/timeframe</h4>
+        <div class="t-row"><span class="t-label">Brute Force</span><span class="t-val">5 / 60s</span></div>
+        <div class="t-row"><span class="t-label">Port Scan</span><span class="t-val">10–20 / 30s</span></div>
+        <div class="t-row"><span class="t-label">Beaconing Medium</span><span class="t-val">5 / 360s</span></div>
+        <div class="t-row"><span class="t-label">Mass-Encrypt</span><span class="t-val">100 / 30s</span></div>
+        <div class="t-row"><span class="t-label">Service Mass-Stop</span><span class="t-val">5 / 30s</span></div>
+      </div>
+      <div class="t-card">
+        <h4>Wichtig</h4>
+        <div class="t-row"><span class="t-label">same_field</span><span class="t-val">Korrelations-Feld</span></div>
+        <div class="t-row"><span class="t-label">Tag</span><span class="t-val">threshold,</span></div>
+        <div class="t-row"><span class="t-label">FP-Check</span><span class="t-val">7 Tage Level 6</span></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="tags">
+    <h2><span class="sec-num">10</span> Tags (group-Element)</h2>
+    <pre>&lt;group&gt;credential_access,lsass_access,vm_read,critical,&lt;/group&gt;
+
+Taktik-Tags:  execution · persistence · privilege_escalation
+              defense_evasion · credential_access · discovery
+              lateral_movement · c2 · exfiltration · impact
+
+Konfidenz-Tags:
+  high_confidence  → ~10% FP-Rate
+  critical         → ~1% FP-Rate
+  threshold        → Nur mit Frequency+Timeframe</pre>
+  </section>
+
+  <section id="checklist">
+    <h2><span class="sec-num">11</span> Qualitätscheckliste Wazuh</h2>
+    <ul class="checklist">
+      <li>□ Rule-ID eindeutig (grep -r 'id="XXXXXX"' hunts/wazuh/ → kein Treffer)</li>
+      <li>□ Level passt zur Schwere (6/8/10/12/14 Schema)</li>
+      <li>□ MITRE-ID korrekt und aktuell (Sub-Technik bevorzugen)</li>
+      <li>□ (?i) bei allen Pfad/Tool-Matches gesetzt</li>
+      <li>□ Keine echten IP-Adressen oder Hostnamen im Pattern</li>
+      <li>□ Beschreibung: "tool.exe: Aktion — Kontext (T1XXX)"</li>
+      <li>□ Tags vollständig (Taktik + Technik + Konfidenz)</li>
+      <li>□ Negative Lookaheads für legitime Tools gesetzt</li>
+      <li>□ Bei Threshold: same_field, frequency, timeframe korrekt</li>
+      <li>□ XML syntaktisch valid: xmllint --noout datei.xml</li>
+      <li>□ Keine Panik-Formulierungen in Description</li>
+    </ul>
+  </section>
+
+  <section id="testing">
+    <h2><span class="sec-num">12</span> Testing &amp; Validation</h2>
+    <h3>12.1 XML-Validierung</h3>
+    <pre>xmllint --noout hunts/wazuh/execution/001_powershell.xml && echo "OK"
+find hunts/wazuh -name "*.xml" -exec xmllint --noout {} \; && echo "Alle OK"</pre>
+
+    <h3>12.2 Duplikat-Check</h3>
+    <pre>grep -h 'rule id=' hunts/wazuh/**/*.xml \
+  | grep -o 'id="[0-9]*"' | sort | uniq -d
+# → kein Output = keine Duplikate</pre>
+
+    <h3>12.3 Wazuh-Test-Modus</h3>
+    <pre>/var/ossec/bin/ossec-logtest -V
+# JSON-Event eingeben:
+{
+  "win": {
+    "system": { "eventID": "1" },
+    "eventdata": {
+      "image": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
+      "commandLine": "powershell.exe -EncodedCommand AAAA..."
+    }
+  }
+}</pre>
+  </section>
+
+  <section id="deploy-wazuh">
+    <h2><span class="sec-num">13</span> Deployment auf Wazuh</h2>
+    <pre># Einzelne Datei deployen:
+scp hunts/wazuh/execution/001_powershell.xml \
+  user@wazuh-manager:/var/ossec/rules/ht_execution_001.xml
+
+# Alle Dateien:
+rsync -av hunts/wazuh/ user@wazuh-manager:/var/ossec/rules/huntingthreats/
+
+# Rechte setzen + reload:
+chown ossec:ossec /var/ossec/rules/huntingthreats/*.xml
+chmod 640 /var/ossec/rules/huntingthreats/*.xml
+systemctl restart wazuh-manager</pre>
+
+    <h3>13.1 ossec.conf eintragen</h3>
+    <pre>&lt;ruleset&gt;
+  &lt;rule_dir&gt;rules/huntingthreats&lt;/rule_dir&gt;
+&lt;/ruleset&gt;</pre>
+  </section>
+
+  <section id="fp-rate">
+    <h2><span class="sec-num">14</span> FP-Rate messen</h2>
+    <pre>/* OpenSearch / Kibana Query — Alerts der letzten 7 Tage */
+{
+  "query": {
+    "bool": {
+      "must": [
+        { "range": { "rule.id": { "gte": 100001, "lte": 100999 } } },
+        { "range": { "@timestamp": { "gte": "now-7d" } } }
+      ]
+    }
+  },
+  "aggs": { "by_rule": { "terms": { "field": "rule.id", "size": 50 } } }
+}
+
+/* Ziel: &lt; 5% False-Positive-Rate */
+/* Bei &gt; 5%: Pattern verfeinern, Parent-Filter hinzufügen, Level absenken */</pre>
+  </section>
+
+  <section id="cheatsheet">
+    <h2><span class="sec-num">15</span> Cheat Sheet Wazuh</h2>
+    <h3>Regel-Skelett</h3>
+    <pre>&lt;rule id="XXXXXX" level="12"&gt;
+  &lt;if_group&gt;windows&lt;/if_group&gt;
+  &lt;field name="win.system.eventID" type="pcre2"&gt;^1$|^4688$&lt;/field&gt;
+  &lt;field name="win.eventdata.image" type="pcre2"&gt;(?i)\\BINARY\.exe$&lt;/field&gt;
+  &lt;field name="win.eventdata.commandLine" type="pcre2"&gt;(?i)PATTERN&lt;/field&gt;
+  &lt;description&gt;BINARY: AKTION — KONTEXT (T1XXX)&lt;/description&gt;
+  &lt;mitre&gt;&lt;id&gt;T1XXX&lt;/id&gt;&lt;/mitre&gt;
+  &lt;group&gt;TAKTIK,TECHNIK,KONFIDENZ,&lt;/group&gt;
+&lt;/rule&gt;</pre>
+
+    <h3>Wichtigste Event-IDs</h3>
+    <div class="table-wrap"><table>
+      <tr><th>Event</th><th>Beschreibung</th><th>Wichtigste Felder</th></tr>
+      <tr><td>Sysmon 1</td><td>Process Create</td><td>image, commandLine, parentImage</td></tr>
+      <tr><td>Sysmon 3</td><td>Network Connect</td><td>destinationIp, destinationPort</td></tr>
+      <tr><td>Sysmon 7</td><td>Image Load</td><td>imageLoaded, signed</td></tr>
+      <tr><td>Sysmon 8</td><td>CreateRemoteThread</td><td>sourceImage, targetImage</td></tr>
+      <tr><td>Sysmon 10</td><td>Process Access</td><td>sourceImage, targetImage, grantedAccess</td></tr>
+      <tr><td>Sysmon 11</td><td>File Create</td><td>targetFilename</td></tr>
+      <tr><td>Sysmon 13</td><td>Registry Set</td><td>targetObject, details</td></tr>
+      <tr><td>Sysmon 22</td><td>DNS Query</td><td>queryName, queryType</td></tr>
+      <tr><td>Win 4624</td><td>Logon Success</td><td>logonType, ipAddress</td></tr>
+      <tr><td>Win 4688</td><td>Process Created</td><td>newProcessName, commandLine</td></tr>
+      <tr><td>Win 4698</td><td>Task Created</td><td>taskName, taskContent</td></tr>
+      <tr><td>Win 7045</td><td>Service Installed</td><td>serviceName, imagePath</td></tr>
+      <tr><td>PS 4104</td><td>Script Block</td><td>scriptBlockText</td></tr>
+    </table></div>
+  </section>
+
+  <!-- QRADAR SECTION DIVIDER -->
+  <div class="platform-divider qradar">
+    <div class="icon">🟣</div>
+    <div>
+      <h2>QRadar — AQL (Ariel Query Language)</h2>
+      <p>500 Regeln · 15 Dateien · Abschnitte 16–22</p>
+    </div>
+  </div>
+
+  <section id="qr-rule">
+    <h2><span class="sec-num qr">16</span> Neue QRadar-Regel schreiben</h2>
+    <div class="info-box qr">
+      <strong>Universaler Ansatz:</strong> Alle QRadar-Regeln nutzen <code>UTF8(payload) ILIKE '%muster%'</code> — kein Custom Event Property nötig, funktioniert in jedem Standard-QRadar-Deployment mit WinCollect.
+    </div>
+
+    <h3>16.1 Template — Einfache AQL-Regel</h3>
+    <pre>-- ==================================================
+-- QR-XXXXXX | T1XXX.XXX | Kurzbeschreibung
+-- Severity: High | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE (LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+    OR LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%')
+  AND UTF8(payload) ILIKE '%verdächtiges-muster%'
+LAST 1440 MINUTES;</pre>
+
+    <h3>16.2 Log-Source-Filter</h3>
+    <pre>-- Windows Security + Sysmon:
+WHERE (LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+    OR LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%')
+
+-- Nur PowerShell Script Block:
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%PowerShell%'
+
+-- Netzwerk (C2 / Exfiltration):
+WHERE (LOGSOURCETYPENAME(logsourceid) ILIKE '%Firewall%'
+    OR LOGSOURCETYPENAME(logsourceid) ILIKE '%Netflow%')</pre>
+
+    <h3>16.3 Nächste freie QRadar-IDs</h3>
+    <div class="table-wrap"><table>
+      <tr><th>Taktik</th><th>Letzter QR-Prefix</th><th>Nächste freie ID</th></tr>
+      <tr><td>Initial Access</td><td>QR-110040</td><td>QR-110041</td></tr>
+      <tr><td>Execution</td><td>QR-100100</td><td>QR-100101</td></tr>
+      <tr><td>Persistence</td><td>QR-101080</td><td>QR-101081</td></tr>
+      <tr><td>Privilege Escalation</td><td>QR-109040</td><td>QR-109041</td></tr>
+      <tr><td>Defense Evasion</td><td>QR-102035</td><td>QR-102036</td></tr>
+      <tr><td>Credential Access</td><td>QR-103035</td><td>QR-103036</td></tr>
+      <tr><td>Discovery</td><td>QR-106035</td><td>QR-106036</td></tr>
+      <tr><td>Lateral Movement</td><td>QR-105040</td><td>QR-105041</td></tr>
+      <tr><td>C2 &amp; Network</td><td>QR-104035</td><td>QR-104036</td></tr>
+      <tr><td>Exfiltration</td><td>QR-107030</td><td>QR-107031</td></tr>
+      <tr><td>Impact</td><td>QR-108030</td><td>QR-108031</td></tr>
+    </table></div>
+  </section>
+
+  <section id="qr-fields">
+    <h2><span class="sec-num qr">17</span> AQL Feldnamen-Referenz</h2>
+    <h3>17.1 Normalisierte QRadar-Felder</h3>
+    <div class="table-wrap"><table>
+      <tr><th>Feld</th><th>Bedeutung</th></tr>
+      <tr><td><code>sourceip</code></td><td>Quell-IP (normalisiert)</td></tr>
+      <tr><td><code>destinationip</code></td><td>Ziel-IP (normalisiert)</td></tr>
+      <tr><td><code>destinationport</code></td><td>Ziel-Port (Integer)</td></tr>
+      <tr><td><code>username</code></td><td>Benutzername (normalisiert)</td></tr>
+      <tr><td><code>startTime</code></td><td>Event-Zeitstempel (Unix-ms)</td></tr>
+      <tr><td><code>eventcount</code></td><td>Aggregierte Events (Netflow: Bytes)</td></tr>
+    </table></div>
+
+    <h3>17.2 AQL-Funktionen</h3>
+    <div class="table-wrap"><table>
+      <tr><th>Funktion</th><th>Beschreibung</th></tr>
+      <tr><td><code>LOGSOURCETYPENAME(logsourceid)</code></td><td>Log-Source-Typ-Name</td></tr>
+      <tr><td><code>LOGSOURCENAME(logsourceid)</code></td><td>Hostname / Asset-Name</td></tr>
+      <tr><td><code>DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss')</code></td><td>Formatierter Timestamp</td></tr>
+      <tr><td><code>UTF8(payload)</code></td><td>Roher Event-Payload als UTF-8</td></tr>
+    </table></div>
+
+    <h3>17.3 Event-ID-Suche im Payload</h3>
+    <pre>-- Windows Security / Sysmon Event-IDs
+UTF8(payload) ILIKE '%EventID&gt;4624&lt;%'    → EventID in XML-Format
+UTF8(payload) ILIKE '%EventID"&gt;"4624"%'  → EventID in JSON-Format
+
+-- Sysmon Event-Typen (direkt im Payload-String)
+'%ProcessCreate%'      → Sysmon 1
+'%NetworkConnect%'     → Sysmon 3
+'%FileCreate%'         → Sysmon 11
+'%RegistryEvent%'      → Sysmon 12/13
+'%ImageLoad%'          → Sysmon 7
+'%DnsQuery%'           → Sysmon 22
+'%ProcessTamper%'      → Sysmon 25
+'%PipeEvent%'          → Sysmon 17/18</pre>
+  </section>
+
+  <section id="qr-patterns">
+    <h2><span class="sec-num qr">18</span> AQL Muster-Bibliothek</h2>
+
+    <h3>18.1 Prozess-Erkennung</h3>
+    <pre>AND UTF8(payload) ILIKE '%powershell%'
+AND UTF8(payload) ILIKE '%-EncodedCommand%'
+AND (UTF8(payload) ILIKE '%winword%'
+  OR UTF8(payload) ILIKE '%excel%')</pre>
+
+    <h3>18.2 Netzwerkverbindungen</h3>
+    <pre>AND destinationport = 4444
+AND destinationport BETWEEN 50050 AND 50053
+AND destinationport IN (1234, 1337, 4444, 31337)</pre>
+
+    <h3>18.3 Standard Private-IP-Ausschluss</h3>
+    <pre>AND NOT (destinationip ILIKE '10.%'
+  OR destinationip ILIKE '192.168.%'
+  OR destinationip ILIKE '172.1%.%'
+  OR destinationip ILIKE '127.%'
+  OR destinationip ILIKE '::1')</pre>
+
+    <h3>18.4 Registry-Persistenz</h3>
+    <pre>AND UTF8(payload) ILIKE '%RegistryEvent%'
+AND UTF8(payload) ILIKE '%CurrentVersion\\Run%'
+AND UTF8(payload) ILIKE '%AppInit_DLLs%'</pre>
+
+    <h3>18.5 Datei-Operationen (Ransomware)</h3>
+    <pre>AND UTF8(payload) ILIKE '%FileCreate%'
+AND (UTF8(payload) ILIKE '%.locked%'
+  OR UTF8(payload) ILIKE '%.encrypted%'
+  OR UTF8(payload) ILIKE '%.wncry%'
+  OR UTF8(payload) ILIKE '%DECRYPT%')</pre>
+  </section>
+
+  <section id="qr-threshold">
+    <h2><span class="sec-num qr">19</span> Threshold-Regeln (AQL)</h2>
+    <h3>Brute Force</h3>
+    <pre>SELECT sourceip, COUNT(*) AS FailCount
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+  AND UTF8(payload) ILIKE '%EventID&gt;4625&lt;%'
+GROUP BY sourceip
+HAVING COUNT(*) >= 10
+LAST 15 MINUTES;</pre>
+
+    <h3>Lateral Movement (viele Ziele)</h3>
+    <pre>SELECT sourceip, COUNT(DISTINCT LOGSOURCENAME(logsourceid)) AS Targets
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+  AND UTF8(payload) ILIKE '%EventID&gt;4624&lt;%'
+GROUP BY sourceip
+HAVING COUNT(DISTINCT LOGSOURCENAME(logsourceid)) >= 3
+LAST 60 MINUTES;</pre>
+
+    <div class="threshold-grid">
+      <div class="t-card">
+        <h4>AQL — HAVING Schwellenwerte</h4>
+        <div class="t-row"><span class="t-label">Brute Force</span><span class="t-val">&gt;= 10 / 15 min</span></div>
+        <div class="t-row"><span class="t-label">Password Spray</span><span class="t-val">&gt;= 5 DISTINCT / 5 min</span></div>
+        <div class="t-row"><span class="t-label">Port Scan</span><span class="t-val">&gt;= 20 ports / 5 min</span></div>
+        <div class="t-row"><span class="t-label">Ping Sweep</span><span class="t-val">&gt;= 10 IPs / 2 min</span></div>
+        <div class="t-row"><span class="t-label">Beaconing</span><span class="t-val">&gt;= 5 / 360 min</span></div>
+        <div class="t-row"><span class="t-label">Ransomware</span><span class="t-val">&gt;= 100 / 5 min</span></div>
+        <div class="t-row"><span class="t-label">Lateral Movement</span><span class="t-val">&gt;= 3 targets / 60 min</span></div>
+      </div>
+      <div class="t-card">
+        <h4>Severity-Mapping</h4>
+        <div class="t-row"><span class="t-label">Critical</span><span class="t-val">Offense 9–10</span></div>
+        <div class="t-row"><span class="t-label">High</span><span class="t-val">Offense 7–8</span></div>
+        <div class="t-row"><span class="t-label">Medium</span><span class="t-val">Offense 5–6</span></div>
+        <div class="t-row"><span class="t-label">Low</span><span class="t-val">Offense 3–4</span></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="qr-checklist">
+    <h2><span class="sec-num qr">20</span> Qualitätscheckliste QRadar</h2>
+    <ul class="checklist">
+      <li>□ QR-ID eindeutig (grep -r 'QR-XXXXXX' hunts/qradar/ → kein Treffer)</li>
+      <li>□ Header-Kommentar vollständig (QR-ID, Technik, Severity, Confidence)</li>
+      <li>□ LOGSOURCETYPENAME-Filter passt zur Event-Quelle</li>
+      <li>□ UTF8(payload) ILIKE verwendet (nicht LIKE — ILIKE ist case-insensitiv)</li>
+      <li>□ LAST X MINUTES gesetzt (1440 = 24h Standard)</li>
+      <li>□ Netzwerk-Regeln: Private-IP-Ausschluss vorhanden</li>
+      <li>□ Threshold-Regeln: GROUP BY + HAVING + sinnvolles Zeitfenster</li>
+      <li>□ Keine echten IP-Adressen oder Hostnamen im Pattern</li>
+      <li>□ SQL-Syntax: SELECT vor WHERE, LAST am Ende mit Semikolon</li>
+      <li>□ Keine Panik-Formulierungen in Kommentaren</li>
+      <li>□ Sensitivity-Test: Wird bei Testabfrage etwas zurückgegeben?</li>
+      <li>□ Specificity-Check: Gibt es offensichtliche legitime FP-Quellen?</li>
+    </ul>
+  </section>
+
+  <section id="qr-deploy">
+    <h2><span class="sec-num qr">21</span> Deployment in QRadar</h2>
+    <h3>21.1 Manuelles Testing</h3>
+    <pre>QRadar UI → Log Activity → Advanced Search → AQL einfügen → Search
+# Zeitfenster zunächst LAST 60 MINUTES, dann auf LAST 1440 MINUTES erweitern</pre>
+
+    <h3>21.2 Saved Search anlegen</h3>
+    <pre>Log Activity → Advanced Search → Save Criteria
+  Name:     HT-QR-XXXXXX-[Kurzname]
+  Category: HuntingThreats
+  Shared:   Yes</pre>
+
+    <h3>21.3 REST API Import</h3>
+    <pre>curl -k -X POST \
+  "https://&lt;qradar-host&gt;/api/ariel/searches" \
+  -H "SEC: &lt;api_token&gt;" \
+  -H "Content-Type: application/json" \
+  -d '{"query_expression": "SELECT ... FROM events WHERE ... LAST 1440 MINUTES"}'</pre>
+
+    <h3>21.4 FP-Rate messen</h3>
+    <pre>-- Wie oft feuert eine Regel pro Tag? (7-Tage-Zeitfenster)
+SELECT DATEFORMAT(startTime, 'yyyy-MM-dd') AS Day, COUNT(*) AS HitCount
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+  AND UTF8(payload) ILIKE '%&lt;dein-muster&gt;%'
+GROUP BY Day
+LAST 10080 MINUTES;
+-- Ziel: &lt; 5% False-Positive-Rate in Produktion</pre>
+  </section>
+
+  <section id="qr-cheatsheet">
+    <h2><span class="sec-num qr">22</span> Cheat Sheet QRadar</h2>
+    <h3>AQL-Skelett (Copy-Paste)</h3>
+    <pre>-- QR-XXXXXX | T1XXX.XXX | Name
+-- Severity: High | Confidence: High
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE (LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+    OR LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%')
+  AND UTF8(payload) ILIKE '%MUSTER%'
+LAST 1440 MINUTES;</pre>
+
+    <h3>Threshold-Skelett (Copy-Paste)</h3>
+    <pre>-- QR-XXXXXX | T1XXX | Threshold-Name
+SELECT sourceip, COUNT(*) AS HitCount
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+  AND UTF8(payload) ILIKE '%MUSTER%'
+GROUP BY sourceip
+HAVING COUNT(*) >= N
+LAST M MINUTES;</pre>
+
+    <h3>Log-Source-Filter Kurzreferenz</h3>
+    <div class="table-wrap"><table>
+      <tr><th>Filter</th><th>Trifft auf</th></tr>
+      <tr><td><code>'%Windows%'</code></td><td>Windows Security + System + Application</td></tr>
+      <tr><td><code>'%Sysmon%'</code></td><td>Microsoft Windows Sysmon</td></tr>
+      <tr><td><code>'%PowerShell%'</code></td><td>PowerShell Script Block Logging</td></tr>
+      <tr><td><code>'%WinCollect%'</code></td><td>IBM WinCollect Agent</td></tr>
+      <tr><td><code>'%Firewall%'</code></td><td>Netzwerk-Firewall</td></tr>
+      <tr><td><code>'%Netflow%'</code></td><td>Netflow / IPFIX</td></tr>
+    </table></div>
+  </section>
+
+  <!-- GOOGLE SECOPS SECTION DIVIDER -->
+  <div class="platform-divider secops">
+    <div class="icon">🟢</div>
+    <div>
+      <h2>Google SecOps — YARA-L 2.0</h2>
+      <p>500 Regeln · 15 Dateien · UDM Unified Data Model · Abschnitte 23–30</p>
+    </div>
+  </div>
+
+  <section id="gs-rule">
+    <h2><span class="sec-num gs">23</span> Neue YARA-L-Regel schreiben</h2>
+    <div class="info-box">
+      <strong>UDM statt Rohfelder:</strong> Google SecOps normalisiert alle Logs auf das Unified Data Model. Sysmon Event 1 → <code>PROCESS_LAUNCH</code>, Feld <code>$e.target.process.command_line</code> — kein <code>win.eventdata.commandLine</code>.
+    </div>
+    <h3>23.1 Template — Einfache YARA-L Regel</h3>
+    <pre>rule ht_gs_XXXXXX_kurzname {
+  meta:
+    rule_id         = "GS-XXXXXX"
+    author          = "HuntingThreats"
+    description     = "BINARY: AKTION — KONTEXT"
+    mitre_tactic    = "Execution"
+    mitre_technique = "T1XXX.XXX"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.command_line, `(?i)verdächtiges-muster`) nocase
+
+  condition:
+    $e
+}</pre>
+
+    <h3>23.2 Nächste freie GS-Rule-IDs</h3>
+    <div class="table-wrap"><table>
+      <tr><th>Taktik</th><th>Letzter GS-Prefix</th><th>Nächste freie ID</th></tr>
+      <tr><td>Initial Access</td><td>GS-110040</td><td>GS-110041</td></tr>
+      <tr><td>Execution (3 Dateien)</td><td>GS-100100</td><td>GS-100101</td></tr>
+      <tr><td>Persistence (3 Dateien)</td><td>GS-101080</td><td>GS-101081</td></tr>
+      <tr><td>Privilege Escalation</td><td>GS-109040</td><td>GS-109041</td></tr>
+      <tr><td>Defense Evasion</td><td>GS-102035</td><td>GS-102036</td></tr>
+      <tr><td>Credential Access</td><td>GS-103035</td><td>GS-103036</td></tr>
+      <tr><td>Discovery</td><td>GS-106035</td><td>GS-106036</td></tr>
+      <tr><td>Lateral Movement</td><td>GS-105040</td><td>GS-105041</td></tr>
+      <tr><td>C2 &amp; Network</td><td>GS-104035</td><td>GS-104036</td></tr>
+      <tr><td>Exfiltration</td><td>GS-107030</td><td>GS-107031</td></tr>
+      <tr><td>Impact</td><td>GS-108030</td><td>GS-108031</td></tr>
+    </table></div>
+  </section>
+
+  <section id="gs-fields">
+    <h2><span class="sec-num gs">24</span> UDM-Feldnamen-Referenz</h2>
+    <h3>24.1 UDM Event-Typen</h3>
+    <div class="table-wrap"><table>
+      <tr><th>Event-Typ</th><th>Quelle</th><th>Primäre Felder</th></tr>
+      <tr><td><code>PROCESS_LAUNCH</code></td><td>Sysmon 1 / Win 4688</td><td><code>target.process.command_line</code>, <code>target.process.file.full_path</code></td></tr>
+      <tr><td><code>NETWORK_CONNECTION</code></td><td>Sysmon 3</td><td><code>target.ip</code>, <code>target.port</code>, <code>network.sent_bytes</code></td></tr>
+      <tr><td><code>FILE_CREATION</code></td><td>Sysmon 11</td><td><code>target.file.full_path</code></td></tr>
+      <tr><td><code>REGISTRY_MODIFICATION</code></td><td>Sysmon 13</td><td><code>target.registry.registry_key</code>, <code>target.registry.registry_value_data</code></td></tr>
+      <tr><td><code>USER_LOGIN</code></td><td>Win 4624/4625</td><td><code>principal.ip</code>, <code>extensions.auth.auth_details</code></td></tr>
+      <tr><td><code>SERVICE_CREATION</code></td><td>Win 7045</td><td><code>target.application</code>, <code>target.file.full_path</code></td></tr>
+      <tr><td><code>NETWORK_DNS</code></td><td>Sysmon 22</td><td><code>network.dns.questions.name</code>, <code>network.dns.questions.type</code></td></tr>
+      <tr><td><code>PROCESS_OPEN</code></td><td>Sysmon 10</td><td><code>target.process.file.full_path</code>, <code>principal.process.file.full_path</code></td></tr>
+      <tr><td><code>DRIVER_LOAD</code></td><td>Sysmon 6</td><td><code>target.file.full_path</code>, <code>target.file.signed</code></td></tr>
+      <tr><td><code>IMAGE_LOAD</code></td><td>Sysmon 7</td><td><code>target.file.full_path</code>, <code>target.file.signed</code></td></tr>
+    </table></div>
+
+    <h3>24.2 Wichtige UDM-Felder je Event-Typ</h3>
+    <pre>// PROCESS_LAUNCH
+$e.target.process.command_line           → Komplette Commandline
+$e.target.process.file.full_path         → Vollpfad Executable
+$e.principal.process.file.full_path      → Vollpfad Parent-Prozess
+$e.principal.user.userid                 → Ausführender User
+
+// NETWORK_CONNECTION
+$e.target.ip                             → Ziel-IP
+$e.target.port                           → Ziel-Port
+$e.network.sent_bytes                    → Gesendete Bytes
+$e.network.direction                     → OUTBOUND / INBOUND
+$e.principal.process.file.full_path      → Verbindender Prozess
+
+// USER_LOGIN
+$e.principal.ip                          → Anmelde-Quell-IP
+$e.target.hostname                       → Ziel-Hostname
+$e.extensions.auth.auth_details          → "Success" / "Failure"
+$e.extensions.auth.auth_type             → NTLM / Kerberos
+
+// NETWORK_DNS
+$e.network.dns.questions.name            → Angefragte Domain
+$e.network.dns.questions.type            → Record-Typ (1=A, 16=TXT)</pre>
+  </section>
+
+  <section id="gs-patterns">
+    <h2><span class="sec-num gs">25</span> YARA-L Muster-Bibliothek</h2>
+    <h3>Regex-Matching</h3>
+    <pre>// Case-insensitive (immer nocase anhängen)
+re.regex($e.target.process.command_line, `(?i)-encodedcommand`) nocase
+
+// Pfad-Match
+re.regex($e.target.process.file.full_path, `(?i)\\powershell\.exe$`) nocase
+
+// OR-Gruppe
+re.regex($e.target.process.file.full_path, `(?i)\\(cmd|powershell|wscript)\.exe$`) nocase
+
+// Staging-Pfade
+re.regex($e.target.process.file.full_path, `(?i)(\\appdata\\|\\temp\\|\\downloads\\)`) nocase</pre>
+
+    <h3>CIDR-Ausschlüsse (Standard für Netzwerk-Regeln)</h3>
+    <pre>NOT $e.target.ip in cidr "10.0.0.0/8"
+NOT $e.target.ip in cidr "192.168.0.0/16"
+NOT $e.target.ip in cidr "172.16.0.0/12"
+NOT $e.target.ip in cidr "127.0.0.0/8"
+NOT $e.target.ip in cidr "169.254.0.0/16"</pre>
+
+    <h3>Feldgleichheit (Multi-Event)</h3>
+    <pre>// Gleicher Host in beiden Events — PFLICHT bei Korrelation
+$e1.principal.hostname = $e2.principal.hostname
+
+// Gleicher User
+$e1.principal.user.userid = $e2.principal.user.userid</pre>
+  </section>
+
+  <section id="gs-threshold">
+    <h2><span class="sec-num gs">26</span> Threshold-Regeln (YARA-L)</h2>
+    <h3>26.1 Beaconing-Pattern</h3>
+    <pre>rule ht_gs_104004_beaconing_threshold {
+  meta:
+    rule_id         = "GS-104004"
+    mitre_technique = "T1071.001"
+    severity        = "HIGH"
+
+  events:
+    $e.metadata.event_type = "NETWORK_CONNECTION"
+    NOT $e.target.ip in cidr "10.0.0.0/8"
+    NOT $e.target.ip in cidr "192.168.0.0/16"
+    NOT $e.target.ip in cidr "172.16.0.0/12"
+
+  match:
+    $e.target.ip over 60m   // Zeitfenster: 60 Minuten
+
+  condition:
+    #e > 20                  // &gt; 20 Verbindungen = Beaconing
+}</pre>
+
+    <h3>26.2 Brute-Force-Pattern</h3>
+    <pre>rule ht_gs_110032_password_spray {
+  meta:
+    rule_id         = "GS-110032"
+    mitre_technique = "T1110.003"
+    severity        = "HIGH"
+
+  events:
+    $e.metadata.event_type = "USER_LOGIN"
+    $e.extensions.auth.auth_details = "Failure"
+    NOT $e.principal.ip in cidr "10.0.0.0/8"
+    NOT $e.principal.ip in cidr "192.168.0.0/16"
+
+  match:
+    $e.principal.ip over 5m
+
+  condition:
+    #e > 5
+}</pre>
+
+    <h3>26.3 Threshold-Referenzwerte</h3>
+    <div class="table-wrap"><table>
+      <tr><th>Szenario</th><th>match: over</th><th>condition: #e &gt;</th></tr>
+      <tr><td>Brute Force Login</td><td>5m</td><td>10</td></tr>
+      <tr><td>Password Spray</td><td>5m</td><td>5</td></tr>
+      <tr><td>Port Scan</td><td>5m</td><td>20</td></tr>
+      <tr><td>Beaconing Medium</td><td>60m</td><td>10</td></tr>
+      <tr><td>Beaconing High</td><td>60m</td><td>20</td></tr>
+      <tr><td>DNS Tunneling</td><td>10m</td><td>100</td></tr>
+      <tr><td>Ransomware Mass-Encrypt</td><td>5m</td><td>100</td></tr>
+      <tr><td>Discovery Burst</td><td>2m</td><td>10</td></tr>
+      <tr><td>Lateral Movement (Hosts)</td><td>10m</td><td>5</td></tr>
+    </table></div>
+  </section>
+
+  <section id="gs-chain">
+    <h2><span class="sec-num gs">27</span> Multi-Event-Korrelation (YARA-L)</h2>
+    <h3>27.1 Drei-Event-Angriffskette</h3>
+    <pre>rule ht_gs_110040_initial_access_chain {
+  meta:
+    rule_id         = "GS-110040"
+    mitre_technique = "T1566.001"
+    severity        = "CRITICAL"
+
+  events:
+    // Event 1: Externer erfolgreicher Login
+    $e1.metadata.event_type = "USER_LOGIN"
+    NOT $e1.principal.ip in cidr "10.0.0.0/8"
+    NOT $e1.principal.ip in cidr "192.168.0.0/16"
+    $e1.extensions.auth.auth_details = "Success"
+
+    // Event 2: Recon-Prozess auf gleichem Host
+    $e2.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e2.target.process.file.full_path, `(?i)(whoami|net\.exe|ipconfig)$`) nocase
+    $e2.principal.hostname = $e1.target.hostname
+
+    // Event 3: Registry Run-Key schreiben
+    $e3.metadata.event_type = "REGISTRY_MODIFICATION"
+    re.regex($e3.target.registry.registry_key, `(?i)\\Run$`) nocase
+    $e3.principal.hostname = $e1.target.hostname
+
+  match:
+    $e1.target.hostname over 30m
+
+  condition:
+    $e1 and $e2 and $e3
+}</pre>
+
+    <h3>27.2 Korrelationsfenster-Richtwerte</h3>
+    <div class="table-wrap"><table>
+      <tr><th>Angriffskette</th><th>match: over</th></tr>
+      <tr><td>Recon nach Login</td><td>5m</td></tr>
+      <tr><td>Persistenz nach Staging</td><td>10m</td></tr>
+      <tr><td>Lateral Move nach Credential Theft</td><td>30m–60m</td></tr>
+      <tr><td>C2 nach Initial Access</td><td>60m</td></tr>
+      <tr><td>Exfil nach Discovery</td><td>120m</td></tr>
+      <tr><td>Ransomware-Vorstufen (Shadow + Disable + Encrypt)</td><td>30m</td></tr>
+    </table></div>
+  </section>
+
+  <section id="gs-checklist">
+    <h2><span class="sec-num gs">28</span> Qualitätscheckliste Google SecOps</h2>
+    <ul class="checklist">
+      <li>□ GS-ID eindeutig (grep -r 'GS-XXXXXX' hunts/secops/ → kein Treffer)</li>
+      <li>□ Rule-Name: ht_gs_XXXXXX_kurzname (lowercase, underscores)</li>
+      <li>□ meta-Block vollständig: rule_id, author, description, mitre_tactic, mitre_technique, severity, confidence</li>
+      <li>□ metadata.event_type korrekt (PROCESS_LAUNCH / NETWORK_CONNECTION / ...)</li>
+      <li>□ re.regex() mit nocase am Ende</li>
+      <li>□ UDM-Feldnamen korrekt (nicht Sysmon-Rohfelder!)</li>
+      <li>□ Netzwerk-Regeln: CIDR-Ausschlüsse für private IPs vorhanden</li>
+      <li>□ Threshold-Regeln: match:-Block + #e &gt; N Condition</li>
+      <li>□ Multi-Event: Hostname-Gleichheit zwischen Events gesetzt</li>
+      <li>□ Keine echten IP-Adressen oder Hostnamen im Pattern</li>
+      <li>□ MITRE-Technik-ID aktuell (Sub-Technik bevorzugen)</li>
+      <li>□ condition: $e (oder $e1 and $e2 ...) nicht vergessen</li>
+      <li>□ YARA-L Syntax valid (Chronicle Rule Editor → Validate)</li>
+      <li>□ FP-Check: Legitime Enterprise-Tools die auslösen könnten?</li>
+      <li>□ Keine Panik-Formulierungen in Beschreibung</li>
+    </ul>
+  </section>
+
+  <section id="gs-deploy">
+    <h2><span class="sec-num gs">29</span> Deployment in Google SecOps</h2>
+    <h3>29.1 Chronicle UI — Manuelle Validierung</h3>
+    <pre>Security Operations → Detection Engine → Rules → New Rule
+  → YARA-L 2.0 auswählen
+  → Regelinhalt einfügen
+  → "Validate" klicken (Syntaxcheck)
+  → "Run Test" auf historischen Daten (initial: 1h)
+  → Alerting-Modus wählen:
+      LIVE              → Echtzeit-Alert (nur high_confidence)
+      ALERTING DISABLED → Einlaufbetrieb / FP-Baseline messen
+      RETROSPECTIVE     → Historische Analyse, kein Alert</pre>
+
+    <h3>29.2 Bulk-Validierung (lokal)</h3>
+    <pre>for f in hunts/secops/execution/*.yaral; do
+  echo "=== $f ==="
+  grep -E "rule_id|description|mitre_technique|severity" "$f"
+done</pre>
+
+    <h3>29.3 Severity-Mapping</h3>
+    <div class="table-wrap"><table>
+      <tr><th>meta.severity</th><th>Chronicle Alert Level</th><th>Empfohlene Aktion</th></tr>
+      <tr><td>CRITICAL</td><td>CRITICAL</td><td>Sofort eskalieren</td></tr>
+      <tr><td>HIGH</td><td>HIGH</td><td>Alert innerhalb 1h</td></tr>
+      <tr><td>MEDIUM</td><td>MEDIUM</td><td>Triage im SOC</td></tr>
+      <tr><td>LOW</td><td>LOW</td><td>Hunt Log / Beobachtung</td></tr>
+      <tr><td>INFO</td><td>INFORMATIONAL</td><td>Nur loggen</td></tr>
+    </table></div>
+  </section>
+
+  <section id="gs-cheatsheet">
+    <h2><span class="sec-num gs">30</span> Cheat Sheet Google SecOps</h2>
+    <h3>YARA-L-Skelett (Copy-Paste)</h3>
+    <pre>rule ht_gs_XXXXXX_kurzname {
+  meta:
+    rule_id         = "GS-XXXXXX"
+    author          = "HuntingThreats"
+    description     = "BINARY: AKTION — KONTEXT"
+    mitre_tactic    = "TAKTIK"
+    mitre_technique = "T1XXX.XXX"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.command_line, `(?i)MUSTER`) nocase
+
+  condition:
+    $e
+}</pre>
+
+    <h3>Threshold-Skelett (Copy-Paste)</h3>
+    <pre>rule ht_gs_XXXXXX_threshold_name {
+  meta:
+    rule_id = "GS-XXXXXX"
+    mitre_technique = "T1XXX"
+    severity = "HIGH"
+
+  events:
+    $e.metadata.event_type = "NETWORK_CONNECTION"
+    NOT $e.target.ip in cidr "10.0.0.0/8"
+    NOT $e.target.ip in cidr "192.168.0.0/16"
+    NOT $e.target.ip in cidr "172.16.0.0/12"
+
+  match:
+    $e.target.ip over Xm
+
+  condition:
+    #e > N
+}</pre>
+
+    <h3>UDM Event-Typen Kurzreferenz</h3>
+    <div class="table-wrap"><table>
+      <tr><th>Event-Typ</th><th>Quelle</th><th>Key-Felder</th></tr>
+      <tr><td><code>PROCESS_LAUNCH</code></td><td>Sysmon 1 / Win 4688</td><td>command_line, file.full_path</td></tr>
+      <tr><td><code>NETWORK_CONNECTION</code></td><td>Sysmon 3</td><td>target.ip, target.port</td></tr>
+      <tr><td><code>FILE_CREATION</code></td><td>Sysmon 11</td><td>target.file.full_path</td></tr>
+      <tr><td><code>REGISTRY_MODIFICATION</code></td><td>Sysmon 13</td><td>registry_key, registry_value_data</td></tr>
+      <tr><td><code>USER_LOGIN</code></td><td>Win 4624/4625</td><td>auth_details, principal.ip</td></tr>
+      <tr><td><code>SERVICE_CREATION</code></td><td>Win 7045</td><td>target.application, file.full_path</td></tr>
+      <tr><td><code>NETWORK_DNS</code></td><td>Sysmon 22</td><td>dns.questions.name, dns.questions.type</td></tr>
+    </table></div>
+
+    <h3>CIDR-Ausschluss Kurzreferenz</h3>
+    <pre>NOT $e.target.ip in cidr "10.0.0.0/8"       // Klasse A privat
+NOT $e.target.ip in cidr "192.168.0.0/16"   // Klasse C privat
+NOT $e.target.ip in cidr "172.16.0.0/12"    // Klasse B privat
+NOT $e.target.ip in cidr "127.0.0.0/8"      // Loopback
+NOT $e.target.ip in cidr "169.254.0.0/16"   // Link-Local</pre>
+  </section>
+
+  <footer>v0.3.0 · 2026-06-07 · HuntingThreats Enterprise Hunt Pack · Wazuh + QRadar + Google SecOps · 1500 Regeln</footer>
+</main>
+
+<script>
+  const sections = document.querySelectorAll('section[id]');
+  const links = document.querySelectorAll('nav a');
+  const obs = new IntersectionObserver(entries => {
+    entries.forEach(e => {
+      if (e.isIntersecting) {
+        links.forEach(l => l.classList.remove('active'));
+        const a = document.querySelector(`nav a[href="#${e.target.id}"]`);
+        if (a) a.classList.add('active');
+      }
+    });
+  }, { rootMargin: '-20% 0px -70% 0px' });
+  sections.forEach(s => obs.observe(s));
+</script>
+</body>
+</html>

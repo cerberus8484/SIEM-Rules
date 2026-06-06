@@ -1,0 +1,489 @@
+<!--
+  HuntingThreats — Wazuh Hunt Rules
+  Category:  Initial Access — Phishing & Drive-by (T1566, T1190, T1189)
+  Batch:     1 / Initial Access
+  Rules:     110001 – 110040
+  Platform:  Wazuh 4.x
+  Sources:   Sysmon Event 1 (Process Creation)
+             Sysmon Event 11 (File Create — email attachment dropped)
+             Sysmon Event 3 (Network Connection)
+             Windows Event 4688 (Process Creation)
+
+  T1566.001 — Phishing: Spearphishing Attachment
+  T1566.002 — Phishing: Spearphishing Link
+  T1204.001 — User Execution: Malicious Link
+  T1204.002 — User Execution: Malicious File
+  T1190     — Exploit Public-Facing Application
+  T1189     — Drive-by Compromise
+-->
+
+<group name="hunt_initial_access,phishing,windows,">
+
+  <!-- ── Executable opened from email client ───────────────────────────────── -->
+
+  <rule id="110001" level="14">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$</field>
+    <field name="win.eventdata.image" type="pcre2">(?i)\.(exe|dll|scr|pif|com)$</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?i)(\\Users\\.*\\AppData\\Local\\Temp\\.*|Outlook.*\\Content\\.OLK)</field>
+    <field name="win.eventdata.parentImage" type="pcre2">(?i)\\(OUTLOOK|thunderbird|eM Client|mailspring)\.exe$</field>
+    <description>Sysmon: executable spawned from email client — phishing attachment execution (T1566.001)</description>
+    <mitre><id>T1566.001</id></mitre>
+    <group>initial_access,phishing,attachment,critical,</group>
+  </rule>
+
+  <!-- ── Outlook temp folder script execution ──────────────────────────────── -->
+
+  <rule id="110002" level="14">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?i)\\Content\.Outlook\\[A-Z0-9]{8}\\.*\.(exe|vbs|js|hta|ps1|bat|cmd|lnk)$</field>
+    <description>Sysmon: file executed from Outlook Content temp cache — email attachment clicked (T1566.001)</description>
+    <mitre><id>T1566.001</id></mitre>
+    <group>initial_access,phishing,outlook_temp,critical,</group>
+  </rule>
+
+  <!-- ── LNK file execution from Downloads or email ────────────────────────── -->
+
+  <rule id="110003" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$</field>
+    <field name="win.eventdata.image" type="pcre2">(?i)\\(cmd|powershell|wscript|mshta)\.exe$</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?i)(\\Downloads\\|\\Temp\\|\\Desktop\\).*\.lnk</field>
+    <description>Sysmon: LNK shortcut executed from download path — weaponized LNK phishing (T1204.002)</description>
+    <mitre><id>T1204.002</id></mitre>
+    <group>initial_access,lnk,phishing,critical,</group>
+  </rule>
+
+  <!-- ── ISO / IMG mount + execution ───────────────────────────────────────── -->
+
+  <rule id="110004" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?i)[D-Z]:\\.*\.(exe|dll|lnk|bat|vbs|js|hta)$</field>
+    <field name="win.eventdata.parentImage" type="pcre2">(?i)\\(explorer|cmd|powershell)\.exe$</field>
+    <description>Sysmon: process executed from non-C drive — possible ISO/IMG-mounted malware (T1566.001)</description>
+    <mitre><id>T1566.001</id></mitre>
+    <group>initial_access,iso_mount,phishing,high_confidence,</group>
+  </rule>
+
+  <!-- ── ZIP attachment extraction + execution ─────────────────────────────── -->
+
+  <rule id="110005" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^11$</field>
+    <field name="win.eventdata.targetFilename" type="pcre2">(?i)\\(Downloads|Temp|Desktop)\\.*\.(exe|dll|vbs|js|hta|bat|ps1)$</field>
+    <field name="win.eventdata.image" type="pcre2">(?i)\\(7z|winrar|winzip|explorer)\.exe$</field>
+    <description>Sysmon: executable extracted from archive to staging path — phishing zip execution (T1566.001)</description>
+    <mitre><id>T1566.001</id></mitre>
+    <group>initial_access,phishing,zip_extract,high_confidence,</group>
+  </rule>
+
+  <!-- ── Browser download + immediate execution ────────────────────────────── -->
+
+  <rule id="110006" level="10">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^11$</field>
+    <field name="win.eventdata.targetFilename" type="pcre2">(?i)\\Downloads\\.*\.(exe|msi|dll|js|vbs|ps1|bat|hta|wsf|lnk)$</field>
+    <description>Sysmon: executable downloaded to Downloads folder — potentially malicious browser download (T1204.001)</description>
+    <mitre><id>T1204.001</id></mitre>
+    <group>initial_access,browser_download,</group>
+  </rule>
+
+  <!-- ── Zone.Identifier bypass (ADS deletion for MOTW removal) ────────────── -->
+
+  <rule id="110007" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$|^4688$</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?i)(attrib\s+.*:Zone\.Identifier|streams\.exe.*-d|Remove-Item.*Zone\.Identifier|[Ss]tream.*Zone)</field>
+    <description>Command: Zone Identifier (Mark of the Web) removed — bypassing MOTW security warning (T1553.005)</description>
+    <mitre><id>T1553.005</id></mitre>
+    <group>initial_access,motw_bypass,high_confidence,</group>
+  </rule>
+
+  <!-- ── PowerShell downloading from email-like domain ────────────────────── -->
+
+  <rule id="110008" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^4103$|^4104$</field>
+    <field name="win.eventdata.scriptBlockText" type="pcre2">(?i)(downloadstring|downloadfile|invoke-webrequest|curl|wget).*(\.xyz|\.top|\.site|\.online|\.click|\.work|\.gdn|\.date|\.download|\.stream)</field>
+    <description>PowerShell: download from suspicious TLD — phishing payload download from typosquat domain (T1566.002)</description>
+    <mitre><id>T1566.002</id></mitre>
+    <group>initial_access,phishing,suspicious_tld,high_confidence,</group>
+  </rule>
+
+  <!-- ── Browser spawning cmd after navigation ─────────────────────────────── -->
+
+  <rule id="110009" level="14">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$</field>
+    <field name="win.eventdata.image" type="pcre2">(?i)\\(cmd|powershell|wscript|mshta)\.exe$</field>
+    <field name="win.eventdata.parentImage" type="pcre2">(?i)\\(chrome|firefox|msedge|iexplore|opera|brave|vivaldi)\.exe$</field>
+    <description>Sysmon: script engine spawned by browser — drive-by exploit or malicious web page (T1189)</description>
+    <mitre><id>T1189</id></mitre>
+    <group>initial_access,drive_by,browser,critical,</group>
+  </rule>
+
+  <!-- ── ZIP password-protected attachment hint ────────────────────────────── -->
+
+  <rule id="110010" level="10">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^11$</field>
+    <field name="win.eventdata.targetFilename" type="pcre2">(?i)\\(Downloads|Temp|Desktop)\\.*password.*\.(zip|rar|7z)|.*invoice.*\.(zip|rar|7z)</field>
+    <description>Sysmon: password-protected or invoice-named archive downloaded — phishing social engineering lure (T1566.001)</description>
+    <mitre><id>T1566.001</id></mitre>
+    <group>initial_access,phishing,password_zip,</group>
+  </rule>
+
+  <!-- ── Macro-enabled document opened from temp ───────────────────────────── -->
+
+  <rule id="110011" level="10">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^11$</field>
+    <field name="win.eventdata.targetFilename" type="pcre2">(?i)(\\Downloads\\|\\Temp\\|\\Desktop\\).*\.(docm|xlsm|xlam|pptm|dotm|xltm)$</field>
+    <description>Sysmon: macro-enabled Office file saved to staging path — macro-enabled phishing attachment (T1566.001)</description>
+    <mitre><id>T1566.001</id></mitre>
+    <group>initial_access,phishing,macro_doc,</group>
+  </rule>
+
+  <!-- ── User opened Office doc from internet (Mark of the Web 3) ──────────── -->
+
+  <rule id="110012" level="10">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^11$</field>
+    <field name="win.eventdata.targetFilename" type="pcre2">(?i)\.(doc|docx|xls|xlsx|ppt|pptx|pdf|rtf):Zone\.Identifier$</field>
+    <description>Sysmon: Zone.Identifier created for Office/PDF file — document from internet with MOTW (T1204.002)</description>
+    <mitre><id>T1204.002</id></mitre>
+    <group>initial_access,motw,office_doc,</group>
+  </rule>
+
+  <!-- ── Exploitation of public-facing app — IIS/Apache spawn ─────────────── -->
+
+  <rule id="110013" level="14">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$</field>
+    <field name="win.eventdata.image" type="pcre2">(?i)\\(cmd|powershell|wscript)\.exe$</field>
+    <field name="win.eventdata.parentImage" type="pcre2">(?i)\\(w3wp|httpd|nginx|tomcat|catalina|java)\.exe$</field>
+    <description>Sysmon: shell spawned by web/app server — web shell or application exploitation (T1190)</description>
+    <mitre><id>T1190</id></mitre>
+    <group>initial_access,web_shell,server_exploit,critical,</group>
+  </rule>
+
+  <!-- ── Web shell file creation in web root ───────────────────────────────── -->
+
+  <rule id="110014" level="14">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^11$</field>
+    <field name="win.eventdata.targetFilename" type="pcre2">(?i)\\(inetpub|wwwroot|htdocs|webroot|www|public_html|web)\\.*\.(php|asp|aspx|jsp|cfm|shtml)$</field>
+    <field name="win.eventdata.image" type="pcre2">(?i)(?!.*\\(msiexec|TiWorker|wusa|devenv)\.exe)</field>
+    <description>Sysmon: web-executable file written to web root by non-installer — web shell deployment (T1505.003)</description>
+    <mitre><id>T1505.003</id></mitre>
+    <group>initial_access,web_shell,file_drop,critical,</group>
+  </rule>
+
+  <!-- ── w3wp.exe loading unsigned DLL ─────────────────────────────────────── -->
+
+  <rule id="110015" level="14">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^7$</field>
+    <field name="win.eventdata.image" type="pcre2">(?i)\\w3wp\.exe$</field>
+    <field name="win.eventdata.signed" type="pcre2">^false$</field>
+    <field name="win.eventdata.imageLoaded" type="pcre2">(?i)(\\temp\\|\\appdata\\|\\inetpub\\).*\.dll$</field>
+    <description>Sysmon: IIS w3wp loading unsigned DLL from staging path — IIS module web shell (T1505.004)</description>
+    <mitre><id>T1505.004</id></mitre>
+    <group>initial_access,web_shell,iis_module,critical,</group>
+  </rule>
+
+  <!-- ── Credential phishing page creation ─────────────────────────────────── -->
+
+  <rule id="110016" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^11$</field>
+    <field name="win.eventdata.targetFilename" type="pcre2">(?i)\\(inetpub|wwwroot)\\.*login.*\.(html|php|asp)$</field>
+    <field name="win.eventdata.image" type="pcre2">(?i)(?!.*\\(devenv|notepad|code|sublime|atom)\.exe)</field>
+    <description>Sysmon: login page created in web root by non-IDE — credential harvesting page (T1056.003)</description>
+    <mitre><id>T1056.003</id></mitre>
+    <group>initial_access,credential_phishing,web_root,high_confidence,</group>
+  </rule>
+
+  <!-- ── Supply chain: installer from unknown source ───────────────────────── -->
+
+  <rule id="110017" level="10">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$|^4688$</field>
+    <field name="win.eventdata.image|win.eventdata.newProcessName" type="pcre2">(?i)\\msiexec\.exe$</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?i)\/i\s+(http[s]?://|\\\\[0-9]|[D-Z]:\\)</field>
+    <description>msiexec.exe: MSI installed from non-C drive or network — untrusted installer source (T1195.002)</description>
+    <mitre><id>T1195.002</id></mitre>
+    <group>initial_access,supply_chain,msi_install,high_confidence,</group>
+  </rule>
+
+  <!-- ── Typosquatted domain connection ────────────────────────────────────── -->
+
+  <rule id="110018" level="10">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^22$</field>
+    <field name="win.eventdata.queryName" type="pcre2">(?i)(micros0ft|rnicrosoft|microsofft|apple-inc|googIe|paypa1|arnazon|faceb00k|linkedln)</field>
+    <description>Sysmon DNS: typosquatted brand domain queried — possible phishing site or malware C2 (T1566.002)</description>
+    <mitre><id>T1566.002</id></mitre>
+    <group>initial_access,typosquatting,phishing,high_confidence,</group>
+  </rule>
+
+  <!-- ── Recently created Office file opened from internet ─────────────────── -->
+
+  <rule id="110019" level="8">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$</field>
+    <field name="win.eventdata.parentImage" type="pcre2">(?i)\\(WINWORD|EXCEL|POWERPNT)\.exe$</field>
+    <field name="win.eventdata.image" type="pcre2">(?i)\\(cmd|powershell)\.exe$</field>
+    <description>Sysmon: Office spawning shell — suspicious document opened, macro executing payload (T1204.002)</description>
+    <mitre><id>T1204.002</id></mitre>
+    <group>initial_access,office_macro,shell,high_confidence,</group>
+  </rule>
+
+  <!-- ── MS Office Protected View bypass (registry) ────────────────────────── -->
+
+  <rule id="110020" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^13$</field>
+    <field name="win.eventdata.targetObject" type="pcre2">(?i)\\Microsoft\\Office\\.*\\Protected View\\.*(Enable|Disable|Trusted)</field>
+    <description>Sysmon: Office Protected View disabled via registry — reducing security for macro execution (T1562.001)</description>
+    <mitre><id>T1562.001</id></mitre>
+    <group>initial_access,protected_view_bypass,high_confidence,</group>
+  </rule>
+
+  <!-- ── Office macro setting enabled via registry ─────────────────────────── -->
+
+  <rule id="110021" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^13$</field>
+    <field name="win.eventdata.targetObject" type="pcre2">(?i)\\Microsoft\\Office\\.*\\Security\\VBAWarnings</field>
+    <field name="win.eventdata.details" type="pcre2">^1$|DWORD.*1</field>
+    <description>Sysmon: Office VBA macro warnings disabled — all macros enabled without prompts (T1562.001)</description>
+    <mitre><id>T1562.001</id></mitre>
+    <group>initial_access,macro_enable,high_confidence,</group>
+  </rule>
+
+  <!-- ── PDF JavaScript execution via Acrobat ──────────────────────────────── -->
+
+  <rule id="110022" level="14">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$</field>
+    <field name="win.eventdata.image" type="pcre2">(?i)\\(cmd|powershell|wscript|mshta)\.exe$</field>
+    <field name="win.eventdata.parentImage" type="pcre2">(?i)\\(AcroRd32|Acrobat|FoxitReader|SumatraPDF)\.exe$</field>
+    <description>Sysmon: shell spawned by PDF reader — malicious PDF with embedded script/exploit (T1204.002)</description>
+    <mitre><id>T1204.002</id></mitre>
+    <group>initial_access,pdf_malware,critical,</group>
+  </rule>
+
+  <!-- ── Cobalt Strike phishing link (mailto: shell spawn) ─────────────────── -->
+
+  <rule id="110023" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$</field>
+    <field name="win.eventdata.image" type="pcre2">(?i)\\(cmd|powershell)\.exe$</field>
+    <field name="win.eventdata.parentImage" type="pcre2">(?i)\\(chrome|msedge|firefox|iexplore)\.exe$</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?i)(-enc|-encodedcommand|iex|invoke-expression|downloadstring)</field>
+    <description>Sysmon: browser spawning encoded PS command — browser-based phishing link to PS payload (T1566.002)</description>
+    <mitre><id>T1566.002</id></mitre>
+    <group>initial_access,phishing_link,browser_to_ps,critical,</group>
+  </rule>
+
+  <!-- ── CHM delivered via email ───────────────────────────────────────────── -->
+
+  <rule id="110024" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^11$</field>
+    <field name="win.eventdata.targetFilename" type="pcre2">(?i)(\\Downloads\\|\\Temp\\|\\Desktop\\).*\.chm$</field>
+    <description>Sysmon: CHM help file in download path — malicious CHM phishing attachment (T1218.001)</description>
+    <mitre><id>T1218.001</id></mitre>
+    <group>initial_access,phishing,chm,high_confidence,</group>
+  </rule>
+
+  <!-- ── ISO delivered as phishing ─────────────────────────────────────────── -->
+
+  <rule id="110025" level="10">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^11$</field>
+    <field name="win.eventdata.targetFilename" type="pcre2">(?i)(\\Downloads\\|\\Temp\\|\\Desktop\\).*\.(iso|img|vhd|vhdx)$</field>
+    <description>Sysmon: disk image downloaded — phishing via ISO/VHD to bypass MOTW (T1566.001)</description>
+    <mitre><id>T1566.001</id></mitre>
+    <group>initial_access,phishing,iso_file,high_confidence,</group>
+  </rule>
+
+  <!-- ── Disk image mounted (vhd/vhdx) ─────────────────────────────────────── -->
+
+  <rule id="110026" level="10">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$|^4688$</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?i)(Diskpart.*attach|Mount-DiskImage|Attach-VHD).*\.(vhd|vhdx|iso|img)$</field>
+    <description>Command: virtual disk image mounted — possible phishing ISO/VHD delivery (T1553.005)</description>
+    <mitre><id>T1553.005</id></mitre>
+    <group>initial_access,disk_mount,phishing,high_confidence,</group>
+  </rule>
+
+  <!-- ── Office file executed directly from email temp ─────────────────────── -->
+
+  <rule id="110027" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?i)\\AppData\\Local\\Microsoft\\Windows\\(INetCache|Temporary Internet Files)\\.*\.(doc|xls|pdf|exe)</field>
+    <description>Sysmon: file executed from IE/Edge cache — document or EXE opened from phishing link (T1204.001)</description>
+    <mitre><id>T1204.001</id></mitre>
+    <group>initial_access,phishing,ie_cache,high_confidence,</group>
+  </rule>
+
+  <!-- ── MarkOfTheWeb bypass via renaming ──────────────────────────────────── -->
+
+  <rule id="110028" level="10">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$|^4688$</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?i)(copy|move|ren|rename).*(Downloads|Temp|Desktop).*(exe|dll|js|vbs|hta)</field>
+    <description>Command: file copied/moved from download location — possible MOTW bypass via copy (T1553.005)</description>
+    <mitre><id>T1553.005</id></mitre>
+    <group>initial_access,motw_bypass,copy,</group>
+  </rule>
+
+  <!-- ── MSDT / Follina exploit (CVE-2022-30190) ────────────────────────────── -->
+
+  <rule id="110029" level="14">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$</field>
+    <field name="win.eventdata.image" type="pcre2">(?i)\\(cmd|powershell)\.exe$</field>
+    <field name="win.eventdata.parentImage" type="pcre2">(?i)\\msdt\.exe$</field>
+    <description>Sysmon: cmd/PS spawned by msdt.exe — Follina/MSDT exploit (CVE-2022-30190) (T1190)</description>
+    <mitre><id>T1190</id></mitre>
+    <group>initial_access,follina,msdt_exploit,critical,</group>
+  </rule>
+
+  <!-- ── Exploitation: Exchange/IIS spawning process ───────────────────────── -->
+
+  <rule id="110030" level="14">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$</field>
+    <field name="win.eventdata.image" type="pcre2">(?i)\\(cmd|powershell|wscript)\.exe$</field>
+    <field name="win.eventdata.parentImage" type="pcre2">(?i)\\(MSExchangeOWAAppPool|MSExchangeECPAppPool|UMWorkerProcess|w3wp)\.exe$</field>
+    <description>Sysmon: shell spawned by Exchange/IIS worker — Exchange exploitation (ProxyLogon/ProxyShell) (T1190)</description>
+    <mitre><id>T1190</id></mitre>
+    <group>initial_access,exchange_exploit,critical,</group>
+  </rule>
+
+  <!-- ── VPN / remote access account compromise ─────────────────────────────── -->
+
+  <rule id="110031" level="10">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^4625$</field>
+    <field name="win.eventdata.logonType" type="pcre2">^3$|^10$</field>
+    <field name="win.eventdata.ipAddress" type="pcre2">(?!^10\.|^192\.168\.|^172\.(1[6-9]|2[0-9]|3[0-1])\.|^127\.)</field>
+    <frequency>5</frequency>
+    <timeframe>60</timeframe>
+    <description>Windows Security: 5+ failed external logon attempts in 60s — credential stuffing or brute force (T1078)</description>
+    <mitre><id>T1078</id></mitre>
+    <group>initial_access,brute_force,credential_stuffing,high_confidence,</group>
+  </rule>
+
+  <!-- ── Successful logon after multiple failures (same source) ────────────── -->
+
+  <rule id="110032" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^4624$</field>
+    <field name="win.eventdata.logonType" type="pcre2">^3$</field>
+    <field name="win.eventdata.ipAddress" type="pcre2">(?!^10\.|^192\.168\.|^172\.(1[6-9]|2[0-9]|3[0-1])\.|^127\.)</field>
+    <description>Windows Security: external network logon succeeded — verify if valid after prior failures (T1078)</description>
+    <mitre><id>T1078</id></mitre>
+    <group>initial_access,external_logon,valid_accounts,</group>
+  </rule>
+
+  <!-- ── LSASS/SAM file in email temp folder ───────────────────────────────── -->
+
+  <rule id="110033" level="14">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^11$</field>
+    <field name="win.eventdata.targetFilename" type="pcre2">(?i)\\(Downloads|Temp|Desktop|AppData)\\.*lsass.*\.(dmp|bin|zip|rar)$</field>
+    <description>Sysmon: LSASS dump file in user staging path — downloaded credential dump (T1003.001)</description>
+    <mitre><id>T1003.001</id></mitre>
+    <group>initial_access,credential_dump,download,critical,</group>
+  </rule>
+
+  <!-- ── HTM/HTML weaponized redirect ──────────────────────────────────────── -->
+
+  <rule id="110034" level="10">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^11$</field>
+    <field name="win.eventdata.targetFilename" type="pcre2">(?i)(\\Downloads\\|\\Temp\\|\\Desktop\\).*(invoice|payment|document|receipt|order|delivery).*\.(html|htm)$</field>
+    <description>Sysmon: social-engineering HTML file downloaded — phishing HTML redirect/credential page (T1566.001)</description>
+    <mitre><id>T1566.001</id></mitre>
+    <group>initial_access,phishing,html_lure,</group>
+  </rule>
+
+  <!-- ── Adversary-in-the-middle proxy indicators ───────────────────────────── -->
+
+  <rule id="110035" level="10">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^13$</field>
+    <field name="win.eventdata.targetObject" type="pcre2">(?i)\\Internet Settings\\.*(ProxyServer|ProxyEnable|AutoConfigURL)</field>
+    <description>Sysmon: browser proxy settings changed — AiTM proxy injection for credential theft (T1557.002)</description>
+    <mitre><id>T1557.002</id></mitre>
+    <group>initial_access,proxy_change,aitm,high_confidence,</group>
+  </rule>
+
+  <!-- ── SSH key drop from unknown source ──────────────────────────────────── -->
+
+  <rule id="110036" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^11$</field>
+    <field name="win.eventdata.targetFilename" type="pcre2">(?i)\\\.ssh\\authorized_keys$</field>
+    <field name="win.eventdata.image" type="pcre2">(?i)(?!.*\\(ssh|putty|pageant|winscp|openssh)\.exe)</field>
+    <description>Sysmon: authorized_keys written by non-SSH process — SSH persistence after initial compromise (T1098.004)</description>
+    <mitre><id>T1098.004</id></mitre>
+    <group>initial_access,ssh_key_add,high_confidence,</group>
+  </rule>
+
+  <!-- ── Shodan/Censys-indexed service responding anomalously ──────────────── -->
+
+  <rule id="110037" level="10">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$</field>
+    <field name="win.eventdata.image" type="pcre2">(?i)\\(cmd|powershell|wscript)\.exe$</field>
+    <field name="win.eventdata.parentImage" type="pcre2">(?i)\\(tomcat|catalina|glassfish|jboss|websphere|weblogic).*\.exe$</field>
+    <description>Sysmon: shell spawned by Java application server — Java deserialization or RCE exploit (T1190)</description>
+    <mitre><id>T1190</id></mitre>
+    <group>initial_access,java_exploit,rce,critical,</group>
+  </rule>
+
+  <!-- ── OneNote .one file with embedded script ────────────────────────────── -->
+
+  <rule id="110038" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^11$</field>
+    <field name="win.eventdata.targetFilename" type="pcre2">(?i)(\\Downloads\\|\\Temp\\|\\Desktop\\).*\.one$</field>
+    <description>Sysmon: OneNote file downloaded — OneNote-based phishing with embedded executable (T1566.001)</description>
+    <mitre><id>T1566.001</id></mitre>
+    <group>initial_access,phishing,onenote,high_confidence,</group>
+  </rule>
+
+  <!-- ── VBA stomping (macro without visible code) ─────────────────────────── -->
+
+  <rule id="110039" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$</field>
+    <field name="win.eventdata.image" type="pcre2">(?i)\\(cmd|powershell)\.exe$</field>
+    <field name="win.eventdata.parentImage" type="pcre2">(?i)\\WINWORD\.exe$</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?i)(?!.*\/c\s+echo)</field>
+    <description>Sysmon: cmd/PS spawned by Word without visible macro code — possible VBA stomping technique (T1204.002)</description>
+    <mitre><id>T1204.002</id></mitre>
+    <group>initial_access,vba_stomp,word,critical,</group>
+  </rule>
+
+  <!-- ── Excel XLSB (binary) with macro ────────────────────────────────────── -->
+
+  <rule id="110040" level="10">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^11$</field>
+    <field name="win.eventdata.targetFilename" type="pcre2">(?i)(\\Downloads\\|\\Temp\\|\\Desktop\\).*\.xlsb$</field>
+    <description>Sysmon: Excel binary format file downloaded — XLSB harder to inspect than XLSM for macros (T1566.001)</description>
+    <mitre><id>T1566.001</id></mitre>
+    <group>initial_access,phishing,xlsb,</group>
+  </rule>
+
+</group>

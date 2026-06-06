@@ -1,0 +1,484 @@
+<!--
+  HuntingThreats — Wazuh Hunt Rules
+  Category:  Lateral Movement (T1021, T1047, T1570, T1550)
+  Batch:     1 / Lateral Movement
+  Rules:     105001 – 105040
+  Platform:  Wazuh 4.x
+  Sources:   Windows Events 4624/4625/4648 (logon)
+             Windows Event 4688/Sysmon 1 (process creation)
+             Sysmon Event 3 (network connection)
+             Windows Event 4769 (Kerberos)
+             Windows Event 7045 (service install via SCM remote)
+
+  T1021.001 — Remote Desktop Protocol
+  T1021.002 — SMB/Windows Admin Shares
+  T1021.006 — Windows Remote Management (WinRM)
+  T1047     — Windows Management Instrumentation (WMI)
+  T1570     — Lateral Tool Transfer
+  T1550.002 — Pass the Hash
+  T1550.003 — Pass the Ticket
+-->
+
+<group name="hunt_lateral_movement,windows,">
+
+  <!-- ── Successful RDP logon from internal source ─────────────────────────── -->
+
+  <rule id="105001" level="8">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^4624$</field>
+    <field name="win.eventdata.logonType" type="pcre2">^10$</field>
+    <description>Windows Security: interactive remote logon (RDP/Type10) — monitor source for lateral movement context (T1021.001)</description>
+    <mitre><id>T1021.001</id></mitre>
+    <group>lateral_movement,rdp,logon,</group>
+  </rule>
+
+  <!-- ── RDP logon after hours / from new source ────────────────────────────── -->
+
+  <rule id="105002" level="10">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^4624$</field>
+    <field name="win.eventdata.logonType" type="pcre2">^10$</field>
+    <field name="win.eventdata.ipAddress" type="pcre2">(?!^127\.|^10\.|^192\.168\.|^172\.(1[6-9]|2[0-9]|3[0-1])\.)</field>
+    <description>Windows Security: RDP logon from non-RFC1918 address — external RDP access (T1021.001)</description>
+    <mitre><id>T1021.001</id></mitre>
+    <group>lateral_movement,rdp,external_source,high_confidence,</group>
+  </rule>
+
+  <!-- ── Network logon to admin shares (IPC$, C$, ADMIN$) ─────────────────── -->
+
+  <rule id="105003" level="10">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^4624$</field>
+    <field name="win.eventdata.logonType" type="pcre2">^3$</field>
+    <field name="win.eventdata.shareName" type="pcre2">(?i)(C\$|ADMIN\$|IPC\$|SYSVOL|NETLOGON)</field>
+    <description>Windows Security: network logon to admin share — SMB lateral movement or tool transfer (T1021.002)</description>
+    <mitre><id>T1021.002</id></mitre>
+    <group>lateral_movement,smb_admin,</group>
+  </rule>
+
+  <!-- ── PsExec remote service install ─────────────────────────────────────── -->
+
+  <rule id="105004" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^7045$</field>
+    <field name="win.eventdata.serviceName" type="pcre2">(?i)(psexecsvc|paexec|winexesvc|remcom)</field>
+    <description>System: PsExec-style service installed — remote command execution via SMB/service (T1569.002)</description>
+    <mitre><id>T1569.002</id></mitre>
+    <group>lateral_movement,psexec,high_confidence,</group>
+  </rule>
+
+  <!-- ── PsExec binary name pattern ────────────────────────────────────────── -->
+
+  <rule id="105005" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$|^4688$</field>
+    <field name="win.eventdata.image|win.eventdata.newProcessName" type="pcre2">(?i)(\\psexec(64)?\.exe|\\paexec\.exe|\\remcom\.exe)$</field>
+    <description>PsExec/PAExec: remote execution tool invoked — remote process execution (T1569.002)</description>
+    <mitre><id>T1569.002</id></mitre>
+    <group>lateral_movement,psexec,high_confidence,</group>
+  </rule>
+
+  <!-- ── WMI remote process creation ───────────────────────────────────────── -->
+
+  <rule id="105006" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$|^4688$</field>
+    <field name="win.eventdata.image|win.eventdata.newProcessName" type="pcre2">(?i)\\wmic\.exe$</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?i)/node:.*(process\s+call\s+create|os\s+get|product\s+get)</field>
+    <description>wmic.exe: remote WMI command issued with /node: — lateral movement via WMI remote execution (T1047)</description>
+    <mitre><id>T1047</id></mitre>
+    <group>lateral_movement,wmi,remote,high_confidence,</group>
+  </rule>
+
+  <!-- ── PowerShell WMI remote exec ────────────────────────────────────────── -->
+
+  <rule id="105007" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^4103$|^4104$</field>
+    <field name="win.eventdata.scriptBlockText" type="pcre2">(?i)(Invoke-WmiMethod|Get-WmiObject|[Nn]ew-CimSession|Invoke-CimMethod).*-ComputerName\s+[^$]</field>
+    <description>PowerShell: WMI method invoked against remote host — WMI-based lateral movement (T1047)</description>
+    <mitre><id>T1047</id></mitre>
+    <group>lateral_movement,wmi,powershell,high_confidence,</group>
+  </rule>
+
+  <!-- ── PowerShell Remoting to remote host ────────────────────────────────── -->
+
+  <rule id="105008" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^4103$|^4104$</field>
+    <field name="win.eventdata.scriptBlockText" type="pcre2">(?i)(Invoke-Command|New-PSSession|Enter-PSSession).*-ComputerName\s+[^$]|-HostName\s+[^$]</field>
+    <description>PowerShell: remote PS session established — WinRM-based lateral movement (T1021.006)</description>
+    <mitre><id>T1021.006</id></mitre>
+    <group>lateral_movement,winrm,powershell,high_confidence,</group>
+  </rule>
+
+  <!-- ── Net use to admin shares ────────────────────────────────────────────── -->
+
+  <rule id="105009" level="10">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$|^4688$</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?i)net\s+use\s+\\\\.*\\(C\$|ADMIN\$|IPC\$)</field>
+    <description>net.exe: connection to admin share established — SMB admin share access (T1021.002)</description>
+    <mitre><id>T1021.002</id></mitre>
+    <group>lateral_movement,net_use,smb_admin,</group>
+  </rule>
+
+  <!-- ── Copy file to admin share (tool transfer) ───────────────────────────── -->
+
+  <rule id="105010" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$|^4688$</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?i)(copy|xcopy|robocopy|move)\s+.*\.exe\s+\\\\|\\\\.*\\(C\$|ADMIN\$)\\.*\.(exe|dll|ps1|bat|vbs)</field>
+    <description>Command: executable copied to remote admin share — lateral tool transfer via SMB (T1570)</description>
+    <mitre><id>T1570</id></mitre>
+    <group>lateral_movement,tool_transfer,high_confidence,</group>
+  </rule>
+
+  <!-- ── WMI subscription (persistence + lateral execution) ───────────────── -->
+
+  <rule id="105011" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^4103$|^4104$</field>
+    <field name="win.eventdata.scriptBlockText" type="pcre2">(?i)(Set-WmiInstance|__EventFilter|__EventConsumer|__FilterToConsumerBinding|CommandLineEventConsumer)</field>
+    <description>PowerShell: WMI event subscription created — persistent WMI-based execution (T1546.003)</description>
+    <mitre><id>T1546.003</id></mitre>
+    <group>lateral_movement,wmi,persistence,high_confidence,</group>
+  </rule>
+
+  <!-- ── WMI MOF file drop ───────────────────────────────────────────────────── -->
+
+  <rule id="105012" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$|^4688$</field>
+    <field name="win.eventdata.image|win.eventdata.newProcessName" type="pcre2">(?i)\\mofcomp\.exe$</field>
+    <description>mofcomp.exe: MOF file compiled — WMI provider or subscription registered (T1546.003)</description>
+    <mitre><id>T1546.003</id></mitre>
+    <group>lateral_movement,wmi,mofcomp,high_confidence,</group>
+  </rule>
+
+  <!-- ── Pass the Hash (net use with hash) ─────────────────────────────────── -->
+
+  <rule id="105013" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^4624$</field>
+    <field name="win.eventdata.logonType" type="pcre2">^3$</field>
+    <field name="win.eventdata.authenticationPackageName" type="pcre2">^NTLM$</field>
+    <field name="win.eventdata.workstationName" type="pcre2">(?i)(?!.{0,0}$)</field>
+    <description>Windows Security: NTLM network logon with blank workstation — possible PTH attack (T1550.002)</description>
+    <mitre><id>T1550.002</id></mitre>
+    <group>lateral_movement,pass_the_hash,high_confidence,</group>
+  </rule>
+
+  <!-- ── Mimikatz PTH — sekurlsa::pth ─────────────────────────────────────── -->
+
+  <rule id="105014" level="14">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^4103$|^4104$</field>
+    <field name="win.eventdata.scriptBlockText" type="pcre2">(?i)(sekurlsa::pth|sekurlsa::krbtgt|Pass-the-Hash|Invoke-TheHash)</field>
+    <description>PowerShell: Pass-the-Hash technique in script — credential relay attack (T1550.002)</description>
+    <mitre><id>T1550.002</id></mitre>
+    <group>lateral_movement,pass_the_hash,powershell,critical,</group>
+  </rule>
+
+  <!-- ── Overpass-the-Hash (Kerberos ticket from NTLM hash) ────────────────── -->
+
+  <rule id="105015" level="14">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^4103$|^4104$</field>
+    <field name="win.eventdata.scriptBlockText" type="pcre2">(?i)(OverpasstheHash|overpass-the-hash|Get-TGTDelegation|Invoke-Kerberoast.*AsREP)</field>
+    <description>PowerShell: Overpass-the-Hash technique — converting NTLM hash to Kerberos TGT (T1550.002)</description>
+    <mitre><id>T1550.002</id></mitre>
+    <group>lateral_movement,overpass_hash,critical,</group>
+  </rule>
+
+  <!-- ── Pass the Ticket (klist / Rubeus) ──────────────────────────────────── -->
+
+  <rule id="105016" level="14">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$|^4688$|^4103$|^4104$</field>
+    <field name="win.eventdata.commandLine|win.eventdata.scriptBlockText" type="pcre2">(?i)(rubeus.*ptt|kerberos::ptt|Pass-the-Ticket|Invoke-PassTheTicket)</field>
+    <description>Kerberos ticket injected into session — Pass-the-Ticket lateral movement (T1550.003)</description>
+    <mitre><id>T1550.003</id></mitre>
+    <group>lateral_movement,pass_the_ticket,critical,</group>
+  </rule>
+
+  <!-- ── SMBExec / SmbClient lateral movement ──────────────────────────────── -->
+
+  <rule id="105017" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^4103$|^4104$</field>
+    <field name="win.eventdata.scriptBlockText" type="pcre2">(?i)(Invoke-SMBExec|Invoke-WMIExec|Invoke-NinjaCopy|Invoke-FileCopy)</field>
+    <description>PowerShell: SMB/WMI lateral movement function detected (Invoke-SMBExec/WMIExec) (T1021.002)</description>
+    <mitre><id>T1021.002</id></mitre>
+    <group>lateral_movement,smbexec,powershell,high_confidence,</group>
+  </rule>
+
+  <!-- ── Remote Registry access ─────────────────────────────────────────────── -->
+
+  <rule id="105018" level="10">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$|^4688$</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?i)reg\s+(query|add|export|save)\s+\\\\[a-zA-Z0-9]</field>
+    <description>reg.exe: remote registry access — reading or modifying remote host registry (T1112)</description>
+    <mitre><id>T1112</id></mitre>
+    <group>lateral_movement,remote_registry,high_confidence,</group>
+  </rule>
+
+  <!-- ── Remote service installation via sc ────────────────────────────────── -->
+
+  <rule id="105019" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$|^4688$</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?i)sc\s+\\\\[a-zA-Z0-9].*create</field>
+    <description>sc.exe: service created on remote host — remote service-based lateral movement (T1543.003)</description>
+    <mitre><id>T1543.003</id></mitre>
+    <group>lateral_movement,remote_service,high_confidence,</group>
+  </rule>
+
+  <!-- ── Remote schtasks creation ──────────────────────────────────────────── -->
+
+  <rule id="105020" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$|^4688$</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?i)schtasks\s+/create\s+/s\s+[a-zA-Z0-9]</field>
+    <description>schtasks.exe: task created on remote system — remote scheduled task lateral movement (T1053.005)</description>
+    <mitre><id>T1053.005</id></mitre>
+    <group>lateral_movement,remote_schtask,high_confidence,</group>
+  </rule>
+
+  <!-- ── DCOM lateral movement ──────────────────────────────────────────────── -->
+
+  <rule id="105021" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^4103$|^4104$</field>
+    <field name="win.eventdata.scriptBlockText" type="pcre2">(?i)(\[activator\]::CreateInstance|\[System\.Runtime\.InteropServices\.Marshal\]::GetActiveObject|DCOM.*lateral|ShellWindows|ShellBrowserWindow)</field>
+    <description>PowerShell: DCOM lateral movement technique — remote process execution via DCOM (T1021.003)</description>
+    <mitre><id>T1021.003</id></mitre>
+    <group>lateral_movement,dcom,powershell,high_confidence,</group>
+  </rule>
+
+  <!-- ── RDP hijacking (tscon) ──────────────────────────────────────────────── -->
+
+  <rule id="105022" level="14">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$|^4688$</field>
+    <field name="win.eventdata.image|win.eventdata.newProcessName" type="pcre2">(?i)\\tscon\.exe$</field>
+    <description>tscon.exe: RDP session takeover — hijacking existing RDP session without credentials (T1563.002)</description>
+    <mitre><id>T1563.002</id></mitre>
+    <group>lateral_movement,rdp_hijack,critical,</group>
+  </rule>
+
+  <!-- ── Impacket smbclient / wmiexec patterns ──────────────────────────────── -->
+
+  <rule id="105023" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^4624$</field>
+    <field name="win.eventdata.logonType" type="pcre2">^3$</field>
+    <field name="win.eventdata.workstationName" type="pcre2">(?i)(WORKGROUP|IMPACKET|KALI|PARROT|ATTACKER)</field>
+    <description>Windows Security: network logon from suspicious workstation name — Impacket or attacker machine (T1021.002)</description>
+    <mitre><id>T1021.002</id></mitre>
+    <group>lateral_movement,impacket,high_confidence,</group>
+  </rule>
+
+  <!-- ── net view / net session (lateral reconnaissance) ───────────────────── -->
+
+  <rule id="105024" level="8">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$|^4688$</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?i)net\s+(view|session|share|localgroup|group)(\s+\\\\|$)</field>
+    <field name="win.eventdata.parentImage" type="pcre2">(?i)(powershell|cmd|wscript|cscript)</field>
+    <description>net.exe: network resource/share enumeration from script — lateral movement reconnaissance (T1135)</description>
+    <mitre><id>T1135</id></mitre>
+    <group>discovery,net_share,enumeration,</group>
+  </rule>
+
+  <!-- ── BloodHound / SharpHound execution ─────────────────────────────────── -->
+
+  <rule id="105025" level="14">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$|^4688$</field>
+    <field name="win.eventdata.image|win.eventdata.newProcessName" type="pcre2">(?i)(bloodhound|sharphound|azurehound)\.exe$</field>
+    <description>BloodHound/SharpHound: AD enumeration tool executed — AD attack path mapping (T1087, T1069)</description>
+    <mitre><id>T1087</id></mitre>
+    <group>discovery,bloodhound,critical,</group>
+  </rule>
+
+  <!-- ── BloodHound via PowerShell ─────────────────────────────────────────── -->
+
+  <rule id="105026" level="14">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^4103$|^4104$</field>
+    <field name="win.eventdata.scriptBlockText" type="pcre2">(?i)(Invoke-BloodHound|Get-BloodHoundData|Invoke-AclScanner|Find-LocalAdminAccess|Find-DomainShare)</field>
+    <description>PowerShell: BloodHound/PowerView AD enumeration function — attack path reconnaissance (T1087.002)</description>
+    <mitre><id>T1087.002</id></mitre>
+    <group>discovery,bloodhound,powerview,critical,</group>
+  </rule>
+
+  <!-- ── Logon with explicit credentials (runas) ───────────────────────────── -->
+
+  <rule id="105027" level="8">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^4648$</field>
+    <description>Windows Security: logon with explicit credentials (Event 4648) — runas or lateral movement context (T1078)</description>
+    <mitre><id>T1078</id></mitre>
+    <group>lateral_movement,explicit_creds,</group>
+  </rule>
+
+  <!-- ── Suspicious logon + new process in quick succession ───────────────── -->
+
+  <rule id="105028" level="10">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^4624$</field>
+    <field name="win.eventdata.logonType" type="pcre2">^3$</field>
+    <same_field>win.eventdata.ipAddress</same_field>
+    <frequency>3</frequency>
+    <timeframe>30</timeframe>
+    <description>Windows Security: 3+ network logons from same source in 30s — automated lateral movement or tool sweep (T1021)</description>
+    <mitre><id>T1021</id></mitre>
+    <group>lateral_movement,rapid_logon,threshold,high_confidence,</group>
+  </rule>
+
+  <!-- ── xfreerdp / rdesktop from Windows (rare) ───────────────────────────── -->
+
+  <rule id="105029" level="10">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$|^4688$</field>
+    <field name="win.eventdata.image|win.eventdata.newProcessName" type="pcre2">(?i)(xfreerdp|rdesktop|wfreerdp)\.exe$</field>
+    <description>xfreerdp/rdesktop: Linux-origin RDP client on Windows — cross-platform RDP tool used for lateral movement (T1021.001)</description>
+    <mitre><id>T1021.001</id></mitre>
+    <group>lateral_movement,rdp,unusual_client,</group>
+  </rule>
+
+  <!-- ── NTLM relay indicators ─────────────────────────────────────────────── -->
+
+  <rule id="105030" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^4625$</field>
+    <field name="win.eventdata.authenticationPackageName" type="pcre2">^NTLM$</field>
+    <field name="win.eventdata.ipAddress" type="pcre2">(?!^127\.|^::1$)</field>
+    <same_field>win.eventdata.ipAddress</same_field>
+    <frequency>5</frequency>
+    <timeframe>30</timeframe>
+    <description>Windows Security: multiple NTLM failures from same IP — possible NTLM relay or spray (T1557.001)</description>
+    <mitre><id>T1557.001</id></mitre>
+    <group>lateral_movement,ntlm_relay,threshold,high_confidence,</group>
+  </rule>
+
+  <!-- ── Responder artifacts (poisoned DNS) ────────────────────────────────── -->
+
+  <rule id="105031" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^4624$</field>
+    <field name="win.eventdata.logonType" type="pcre2">^3$</field>
+    <field name="win.eventdata.workstationName" type="pcre2">(?i)^(WPAD|RESPONDER|LLMNR|ISATAP)$</field>
+    <description>Windows Security: logon with Responder-related workstation name — LLMNR/NBT-NS poisoning attack (T1557.001)</description>
+    <mitre><id>T1557.001</id></mitre>
+    <group>lateral_movement,responder,ntlm_relay,high_confidence,</group>
+  </rule>
+
+  <!-- ── Group Policy Object (GPO) modification ────────────────────────────── -->
+
+  <rule id="105032" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^5136$</field>
+    <field name="win.eventdata.objectClass" type="pcre2">(?i)groupPolicyContainer</field>
+    <description>Windows Security: Group Policy Object modified (Event 5136) — GPO tampering for domain-wide lateral movement (T1484.001)</description>
+    <mitre><id>T1484.001</id></mitre>
+    <group>lateral_movement,gpo,domain,high_confidence,</group>
+  </rule>
+
+  <!-- ── Lateral movement via Scheduled Task (remote) ──────────────────────── -->
+
+  <rule id="105033" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^4698$</field>
+    <field name="win.eventdata.subjectUserSid" type="pcre2">(?i)S-1-5-21-</field>
+    <field name="win.eventdata.taskName" type="pcre2">(?i)\\[a-zA-Z0-9_-]{1,20}$</field>
+    <description>Windows Security: task created by domain user with short name — remote task-based lateral movement (T1053.005)</description>
+    <mitre><id>T1053.005</id></mitre>
+    <group>lateral_movement,remote_schtask,high_confidence,</group>
+  </rule>
+
+  <!-- ── SMB file write to SYSVOL ──────────────────────────────────────────── -->
+
+  <rule id="105034" level="14">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^11$</field>
+    <field name="win.eventdata.targetFilename" type="pcre2">(?i)\\sysvol\\.*\.(exe|dll|ps1|bat|vbs|hta)$</field>
+    <description>Sysmon: executable dropped to SYSVOL — domain-wide delivery via Group Policy share (T1570)</description>
+    <mitre><id>T1570</id></mitre>
+    <group>lateral_movement,sysvol,domain,critical,</group>
+  </rule>
+
+  <!-- ── Net command targeting domain controller ────────────────────────────── -->
+
+  <rule id="105035" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$|^4688$</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?i)net\s+(user|group|localgroup).*(domain\s+admins|enterprise\s+admins|administrators)</field>
+    <description>net.exe: privileged AD group enumerated — domain admin group discovery (T1069.002)</description>
+    <mitre><id>T1069.002</id></mitre>
+    <group>discovery,net_group,domain,high_confidence,</group>
+  </rule>
+
+  <!-- ── CrackMapExec patterns ──────────────────────────────────────────────── -->
+
+  <rule id="105036" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^7045$</field>
+    <field name="win.eventdata.serviceName" type="pcre2">(?i)^[a-zA-Z]{6,8}$</field>
+    <field name="win.eventdata.imagePath" type="pcre2">(?i)%systemroot%\\.*cmd\.exe\s+/Q\s+/c</field>
+    <description>System: CrackMapExec-pattern service — random service name with cmd.exe wrapper (T1569.002)</description>
+    <mitre><id>T1569.002</id></mitre>
+    <group>lateral_movement,crackmapexec,high_confidence,</group>
+  </rule>
+
+  <!-- ── WPAD / LLMNR resolution to attacker ───────────────────────────────── -->
+
+  <rule id="105037" level="10">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^22$</field>
+    <field name="win.eventdata.queryName" type="pcre2">(?i)^(wpad|isatap|teredo|6to4)$</field>
+    <description>Sysmon DNS: WPAD/ISATAP name resolution — susceptible to LLMNR/mDNS poisoning (T1557.001)</description>
+    <mitre><id>T1557.001</id></mitre>
+    <group>lateral_movement,wpad,llmnr,</group>
+  </rule>
+
+  <!-- ── SSH lateral movement (internal) ───────────────────────────────────── -->
+
+  <rule id="105038" level="8">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^3$</field>
+    <field name="win.eventdata.image" type="pcre2">(?i)\\ssh\.exe$</field>
+    <field name="win.eventdata.destinationPort" type="pcre2">^22$</field>
+    <field name="win.eventdata.initiated" type="pcre2">^true$</field>
+    <description>Sysmon Network: SSH connection initiated — lateral movement candidate, check destination (T1021.004)</description>
+    <mitre><id>T1021.004</id></mitre>
+    <group>lateral_movement,ssh,</group>
+  </rule>
+
+  <!-- ── VNC lateral movement ───────────────────────────────────────────────── -->
+
+  <rule id="105039" level="10">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^3$</field>
+    <field name="win.eventdata.destinationPort" type="pcre2">^590[0-9]$|^5900$</field>
+    <field name="win.eventdata.initiated" type="pcre2">^true$</field>
+    <description>Sysmon Network: connection to VNC port — VNC-based remote access lateral movement (T1021.005)</description>
+    <mitre><id>T1021.005</id></mitre>
+    <group>lateral_movement,vnc,</group>
+  </rule>
+
+  <!-- ── Silver Ticket: Kerberos ST for service ────────────────────────────── -->
+
+  <rule id="105040" level="14">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^4769$</field>
+    <field name="win.eventdata.clientAddress" type="pcre2">^::1$|^127\.0\.0\.1$</field>
+    <field name="win.eventdata.serviceName" type="pcre2">(?i)(?!.*krbtgt)</field>
+    <description>Windows Security: Kerberos service ticket from localhost — possible Silver Ticket usage (T1558.002)</description>
+    <mitre><id>T1558.002</id></mitre>
+    <group>lateral_movement,silver_ticket,critical,</group>
+  </rule>
+
+</group>

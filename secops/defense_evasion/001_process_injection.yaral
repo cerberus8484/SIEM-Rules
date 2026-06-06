@@ -1,0 +1,665 @@
+// ============================================================
+// HuntingThreats — Google SecOps YARA-L 2.0 Hunt Rules
+// Category : Defense Evasion — Process Injection / Hollowing / AMSI Bypass (T1055, T1562)
+// Batch    : 09 / Defense Evasion
+// Rules    : GS-102001 – GS-102035
+// Platform : Google SecOps / Chronicle SIEM
+// ============================================================
+
+rule ht_gs_102001_injection_virtualalloc_exec {
+  meta:
+    rule_id         = "GS-102001"
+    author          = "HuntingThreats"
+    description     = "VirtualAlloc + WriteProcessMemory + CreateRemoteThread — classic injection pattern"
+    mitre_tactic    = "Defense Evasion"
+    mitre_technique = "T1055.001"
+    severity        = "CRITICAL"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.command_line, `(?i)(virtualalloc.*writeprocessmemory|createremotethread.*virtualalloc)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_102002_injection_process_hollow {
+  meta:
+    rule_id         = "GS-102002"
+    author          = "HuntingThreats"
+    description     = "Process hollowing — CreateProcessSuspended + UnmapViewOfSection + NtResumeThread"
+    mitre_tactic    = "Defense Evasion"
+    mitre_technique = "T1055.012"
+    severity        = "CRITICAL"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.command_line, `(?i)(unmapviewofsection|ntunmapviewofsection|resumethread)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_102003_injection_atompombing {
+  meta:
+    rule_id         = "GS-102003"
+    author          = "HuntingThreats"
+    description     = "AtomBombing technique — GlobalAddAtom + NtQueueApcThread pattern"
+    mitre_tactic    = "Defense Evasion"
+    mitre_technique = "T1055.015"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.command_line, `(?i)(globaladdatom|ntqueueapcthread|globalgetatomname)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_102004_injection_doppelganging {
+  meta:
+    rule_id         = "GS-102004"
+    author          = "HuntingThreats"
+    description     = "Process Doppelgänging — TxF transaction + NtCreateSection pattern"
+    mitre_tactic    = "Defense Evasion"
+    mitre_technique = "T1055.013"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.command_line, `(?i)(ntcreatesection.*txf|ntcreateprocessex|zavtransact)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_102005_injection_reflective_dll {
+  meta:
+    rule_id         = "GS-102005"
+    author          = "HuntingThreats"
+    description     = "Reflective DLL loading — ReflectiveDllInject or ReflectiveLoader export"
+    mitre_tactic    = "Defense Evasion"
+    mitre_technique = "T1055.001"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.command_line, `(?i)(reflectivedllinject|reflectiveloader|invoke-reflectivepeinject)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_102006_masquerade_svchost {
+  meta:
+    rule_id         = "GS-102006"
+    author          = "HuntingThreats"
+    description     = "Process named svchost.exe running from non-system path — masquerading"
+    mitre_tactic    = "Defense Evasion"
+    mitre_technique = "T1036.005"
+    severity        = "CRITICAL"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.file.full_path, `(?i)svchost\.exe$`)
+    NOT re.regex($e.target.process.file.full_path, `(?i)\\Windows\\System32\\svchost\.exe$`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_102007_masquerade_lsass {
+  meta:
+    rule_id         = "GS-102007"
+    author          = "HuntingThreats"
+    description     = "Process named lsass.exe running from non-system path — masquerade as LSASS"
+    mitre_tactic    = "Defense Evasion"
+    mitre_technique = "T1036.005"
+    severity        = "CRITICAL"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.file.full_path, `(?i)lsass\.exe$`)
+    NOT re.regex($e.target.process.file.full_path, `(?i)\\Windows\\System32\\lsass\.exe$`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_102008_masquerade_explorer {
+  meta:
+    rule_id         = "GS-102008"
+    author          = "HuntingThreats"
+    description     = "Explorer.exe running from non-standard path — masquerade as Windows shell"
+    mitre_tactic    = "Defense Evasion"
+    mitre_technique = "T1036.005"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.file.full_path, `(?i)explorer\.exe$`)
+    NOT re.regex($e.target.process.file.full_path, `(?i)\\Windows\\explorer\.exe$`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_102009_amsi_bypass_registry {
+  meta:
+    rule_id         = "GS-102009"
+    author          = "HuntingThreats"
+    description     = "AMSI disabled via registry — AmsiEnable set to 0"
+    mitre_tactic    = "Defense Evasion"
+    mitre_technique = "T1562.001"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "REGISTRY_MODIFICATION"
+    re.regex($e.target.registry.registry_key, `(?i)\\Software\\Microsoft\\Windows Script\\Settings\\AmsiEnable`)
+    $e.target.registry.registry_value_data = "0"
+
+  condition:
+    $e
+}
+
+rule ht_gs_102010_amsi_patch_memory {
+  meta:
+    rule_id         = "GS-102010"
+    author          = "HuntingThreats"
+    description     = "AMSI.dll patch in memory via PS — AmsiScanBuffer patch pattern"
+    mitre_tactic    = "Defense Evasion"
+    mitre_technique = "T1562.001"
+    severity        = "CRITICAL"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.command_line, `(?i)(amsi\.dll|amsiscanbuffer|amsiutils.*scan)`)
+    re.regex($e.target.process.command_line, `(?i)(0xb8|0x57|virtualpro|getprocaddress)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_102011_timestomp_touch_file {
+  meta:
+    rule_id         = "GS-102011"
+    author          = "HuntingThreats"
+    description     = "File timestamp modified via PowerShell or touch-like operation — timestomping"
+    mitre_tactic    = "Defense Evasion"
+    mitre_technique = "T1070.006"
+    severity        = "MEDIUM"
+    confidence      = "MEDIUM"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.command_line, `(?i)(\.lastwritetime|\.creationtime|\.lastaccesstime|set-itemproperty.*lastwrite)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_102012_disable_defender_ps {
+  meta:
+    rule_id         = "GS-102012"
+    author          = "HuntingThreats"
+    description     = "Set-MpPreference disabling Defender real-time monitoring via PowerShell"
+    mitre_tactic    = "Defense Evasion"
+    mitre_technique = "T1562.001"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.command_line, `(?i)set-mppreference`)
+    re.regex($e.target.process.command_line, `(?i)(-disablerealtimemonitoring\s+\$true|-disablebehaviormonitoring\s+\$true)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_102013_process_injection_syscall_ps {
+  meta:
+    rule_id         = "GS-102013"
+    author          = "HuntingThreats"
+    description     = "PowerShell using direct syscall for injection — NtOpenProcess/NtAllocate via PS"
+    mitre_tactic    = "Defense Evasion"
+    mitre_technique = "T1055"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.command_line, `(?i)(ntopenprocess|ntallocatevirtualmemory|ntwritevirtualmemory|ntcreatethread)`)
+    re.regex($e.target.process.file.full_path, `(?i)\\powershell\.exe$`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_102014_dll_sideloading_known_vuln {
+  meta:
+    rule_id         = "GS-102014"
+    author          = "HuntingThreats"
+    description     = "DLL dropped next to known vulnerable signed binary — DLL sideloading setup"
+    mitre_tactic    = "Defense Evasion"
+    mitre_technique = "T1574.002"
+    severity        = "HIGH"
+    confidence      = "MEDIUM"
+
+  events:
+    $e.metadata.event_type = "FILE_CREATION"
+    re.regex($e.target.file.full_path, `(?i)\\(WINWORD|EXCEL|chrome|teams|slack|onedrive)\\.*\.dll$`)
+    NOT re.regex($e.principal.process.file.full_path, `(?i)\\(msiexec|setup|install|update).*\.exe$`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_102015_etw_provider_disable {
+  meta:
+    rule_id         = "GS-102015"
+    author          = "HuntingThreats"
+    description     = "ETW provider disabled via logman or wevtutil — log evasion"
+    mitre_tactic    = "Defense Evasion"
+    mitre_technique = "T1562.006"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.file.full_path, `(?i)\\(logman|wevtutil)\.exe$`)
+    re.regex($e.target.process.command_line, `(?i)(stop|disable|delete|cl|clear-log)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_102016_sysmon_tampering {
+  meta:
+    rule_id         = "GS-102016"
+    author          = "HuntingThreats"
+    description     = "Sysmon driver or service tampered or stopped — EDR blind spot creation"
+    mitre_tactic    = "Defense Evasion"
+    mitre_technique = "T1562.001"
+    severity        = "CRITICAL"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.command_line, `(?i)(sysmon.*-u|sc\s+stop.*sysmon|sc\s+delete.*sysmon)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_102017_alternate_data_stream {
+  meta:
+    rule_id         = "GS-102017"
+    author          = "HuntingThreats"
+    description     = "File written to NTFS Alternate Data Stream — payload hidden in ADS"
+    mitre_tactic    = "Defense Evasion"
+    mitre_technique = "T1564.004"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "FILE_CREATION"
+    re.regex($e.target.file.full_path, `(?i)\:\w+$`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_102018_hidden_file_attribute {
+  meta:
+    rule_id         = "GS-102018"
+    author          = "HuntingThreats"
+    description     = "Attrib.exe setting hidden + system attributes on executable — file hiding"
+    mitre_tactic    = "Defense Evasion"
+    mitre_technique = "T1564.001"
+    severity        = "MEDIUM"
+    confidence      = "MEDIUM"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.file.full_path, `(?i)\\attrib\.exe$`)
+    re.regex($e.target.process.command_line, `(?i)\+h.*\+s`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_102019_event_log_clear {
+  meta:
+    rule_id         = "GS-102019"
+    author          = "HuntingThreats"
+    description     = "Windows event log cleared — wevtutil cl or Clear-EventLog (EID 1102/104)"
+    mitre_tactic    = "Defense Evasion"
+    mitre_technique = "T1070.001"
+    severity        = "CRITICAL"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.command_line, `(?i)(wevtutil\s+cl|clear-eventlog|wevtutil.*cl\s+(security|system|application))`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_102020_signed_binary_proxy {
+  meta:
+    rule_id         = "GS-102020"
+    author          = "HuntingThreats"
+    description     = "Microsoft-signed binary executing untrusted DLL — proxy execution via signed tool"
+    mitre_tactic    = "Defense Evasion"
+    mitre_technique = "T1218"
+    severity        = "HIGH"
+    confidence      = "MEDIUM"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.principal.process.file.full_path, `(?i)\\(wusa|pcalua|eudcedit|xwizard|syncappvpublishingserver)\.exe$`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_102021_parent_pid_spoofing {
+  meta:
+    rule_id         = "GS-102021"
+    author          = "HuntingThreats"
+    description     = "Explorer spawning suspicious process with mismatched grandparent — PPID spoofing"
+    mitre_tactic    = "Defense Evasion"
+    mitre_technique = "T1134.004"
+    severity        = "HIGH"
+    confidence      = "MEDIUM"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.principal.process.file.full_path, `(?i)\\explorer\.exe$`)
+    re.regex($e.target.process.file.full_path, `(?i)\\(powershell|cmd|wscript|mshta|rundll32)\.exe$`)
+    NOT re.regex($e.target.process.command_line, `(?i)(\\Users\\|Desktop|Documents|Downloads)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_102022_binary_padding {
+  meta:
+    rule_id         = "GS-102022"
+    author          = "HuntingThreats"
+    description     = "Very large executable in Temp path — binary padding to evade size-based hashing"
+    mitre_tactic    = "Defense Evasion"
+    mitre_technique = "T1027.001"
+    severity        = "MEDIUM"
+    confidence      = "LOW"
+
+  events:
+    $e.metadata.event_type = "FILE_CREATION"
+    re.regex($e.target.file.full_path, `(?i)(\\temp\\|\\appdata\\|\\programdata\\).*\.exe$`)
+    $e.target.file.size > 50000000
+
+  condition:
+    $e
+}
+
+rule ht_gs_102023_regsvcs_regasm_bypass {
+  meta:
+    rule_id         = "GS-102023"
+    author          = "HuntingThreats"
+    description     = "RegSvcs or RegAsm executing non-system DLL — AppLocker bypass"
+    mitre_tactic    = "Defense Evasion"
+    mitre_technique = "T1218.009"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.file.full_path, `(?i)\\(regsvcs|regasm)\.exe$`)
+    NOT re.regex($e.target.process.command_line, `(?i)\\(System32|SysWOW64|Program Files)\\`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_102024_compile_csharp_csc {
+  meta:
+    rule_id         = "GS-102024"
+    author          = "HuntingThreats"
+    description     = "Csc.exe compiling C# from Temp path — on-the-fly payload compilation"
+    mitre_tactic    = "Defense Evasion"
+    mitre_technique = "T1027.004"
+    severity        = "HIGH"
+    confidence      = "MEDIUM"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.file.full_path, `(?i)\\csc\.exe$`)
+    re.regex($e.target.process.command_line, `(?i)(\\temp\\|\\appdata\\|\\programdata\\)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_102025_wdac_bypass_pattern {
+  meta:
+    rule_id         = "GS-102025"
+    author          = "HuntingThreats"
+    description     = "WDAC / Device Guard bypass attempt — nircmd or PsExec via rundll32"
+    mitre_tactic    = "Defense Evasion"
+    mitre_technique = "T1553.001"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.command_line, `(?i)(wdac.*bypass|ci\.dll.*Uninstall|device.guard.*bypass)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_102026_sandbox_detection_vm_query {
+  meta:
+    rule_id         = "GS-102026"
+    author          = "HuntingThreats"
+    description     = "Malware sandbox/VM detection — CPUID VBOX/VMware registry check"
+    mitre_tactic    = "Defense Evasion"
+    mitre_technique = "T1497.001"
+    severity        = "MEDIUM"
+    confidence      = "MEDIUM"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.command_line, `(?i)(vbox|vmware|virtual|sandbox|cuckoosandbox|sandboxie)`)
+    re.regex($e.target.process.command_line, `(?i)(wmi|registry|env|get-item)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_102027_dll_hijack_search_order {
+  meta:
+    rule_id         = "GS-102027"
+    author          = "HuntingThreats"
+    description     = "DLL placed in same directory as privileged executable — search order hijacking"
+    mitre_tactic    = "Privilege Escalation"
+    mitre_technique = "T1574.001"
+    severity        = "HIGH"
+    confidence      = "MEDIUM"
+
+  events:
+    $e.metadata.event_type = "FILE_CREATION"
+    re.regex($e.target.file.full_path, `(?i)\\(Program Files|System32)\\.*\.dll$`)
+    NOT re.regex($e.principal.process.file.full_path, `(?i)\\(msiexec|setup|install|trustedinstaller|tiworker)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_102028_process_doppelganging_ntfs {
+  meta:
+    rule_id         = "GS-102028"
+    author          = "HuntingThreats"
+    description     = "Process using NTFS transactions to write payload — Transactional NTFS abuse"
+    mitre_tactic    = "Defense Evasion"
+    mitre_technique = "T1055.013"
+    severity        = "HIGH"
+    confidence      = "MEDIUM"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.command_line, `(?i)(createtransaction|committransaction|rollbacktransaction)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_102029_exclusion_path_add {
+  meta:
+    rule_id         = "GS-102029"
+    author          = "HuntingThreats"
+    description     = "Defender exclusion path added — Add-MpPreference -ExclusionPath for payload staging"
+    mitre_tactic    = "Defense Evasion"
+    mitre_technique = "T1562.001"
+    severity        = "CRITICAL"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.command_line, `(?i)add-mppreference`)
+    re.regex($e.target.process.command_line, `(?i)-exclusionpath`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_102030_unhook_api {
+  meta:
+    rule_id         = "GS-102030"
+    author          = "HuntingThreats"
+    description     = "EDR hook removal — Unhook or manual DLL reloading via WriteProcessMemory to ntdll"
+    mitre_tactic    = "Defense Evasion"
+    mitre_technique = "T1562.001"
+    severity        = "CRITICAL"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.command_line, `(?i)(unhook|freshen.*ntdll|load.*fresh.*ntdll)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_102031_process_injection_shellcode_blob {
+  meta:
+    rule_id         = "GS-102031"
+    author          = "HuntingThreats"
+    description     = "Shellcode blob in PowerShell command — hex-encoded or byte-array shellcode"
+    mitre_tactic    = "Defense Evasion"
+    mitre_technique = "T1055"
+    severity        = "CRITICAL"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.file.full_path, `(?i)\\powershell\.exe$`)
+    re.regex($e.target.process.command_line, `(?i)(\[byte\[\]\]|\[Byte\[\]\]|0x[0-9a-fA-F]{2},0x[0-9a-fA-F]{2},0x[0-9a-fA-F]{2})`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_102032_indicator_removal_prefetch {
+  meta:
+    rule_id         = "GS-102032"
+    author          = "HuntingThreats"
+    description     = "Prefetch files deleted via cmd — anti-forensics indicator removal"
+    mitre_tactic    = "Defense Evasion"
+    mitre_technique = "T1070.004"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.command_line, `(?i)(del|erase|remove-item).*\\prefetch\\`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_102033_wevtutil_export_delete {
+  meta:
+    rule_id         = "GS-102033"
+    author          = "HuntingThreats"
+    description     = "Wevtutil exporting then clearing security log — log export + cover tracks"
+    mitre_tactic    = "Defense Evasion"
+    mitre_technique = "T1070.001"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e1.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e1.target.process.command_line, `(?i)wevtutil.*epl`)
+
+    $e2.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e2.target.process.command_line, `(?i)wevtutil.*cl`)
+
+    $e1.principal.hostname = $e2.principal.hostname
+
+  match:
+    $e1.principal.hostname over 10m
+
+  condition:
+    $e1 and $e2
+}
+
+rule ht_gs_102034_deobfuscate_decode_chain {
+  meta:
+    rule_id         = "GS-102034"
+    author          = "HuntingThreats"
+    description     = "Multi-layer decode chain — certutil + base64 + iex in one command"
+    mitre_tactic    = "Defense Evasion"
+    mitre_technique = "T1140"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.command_line, `(?i)(certutil.*-decode|frombase64string)`)
+    re.regex($e.target.process.command_line, `(?i)(iex|invoke-expression|&\(|\.invoke\()`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_102035_userland_rootkit_driver {
+  meta:
+    rule_id         = "GS-102035"
+    author          = "HuntingThreats"
+    description     = "Known vulnerable driver loaded for BYOVD — gdrv/rtcore64/dbutil abuse"
+    mitre_tactic    = "Privilege Escalation"
+    mitre_technique = "T1068"
+    severity        = "CRITICAL"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "SERVICE_CREATION"
+    re.regex($e.target.resource.name, `(?i)(gdrv|rtcore64|dbutil_2_3|cpuz|mhyprot|iqvw64e|ntiolib)`)
+
+  condition:
+    $e
+}

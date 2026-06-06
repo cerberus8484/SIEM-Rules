@@ -1,0 +1,419 @@
+<!--
+  HuntingThreats — Wazuh Hunt Rules
+  Category:  Defense Evasion — Process Injection & Hollowing (T1055)
+  Batch:     1 / Defense Evasion
+  Rules:     102001 – 102035
+  Platform:  Wazuh 4.x
+  Sources:   Sysmon Event 8 (CreateRemoteThread)
+             Sysmon Event 10 (Process Access — inject prep)
+             Sysmon Event 25 (Process Tamper — hollowing)
+             Sysmon Event 7 (Image Load — injected DLL)
+             Sysmon Event 1 (Process Creation — injection tools)
+
+  T1055     — Process Injection
+  T1055.001 — DLL Injection
+  T1055.002 — Portable Executable Injection
+  T1055.003 — Thread Execution Hijacking
+  T1055.011 — Extra Window Memory Injection
+  T1055.012 — Process Hollowing
+  T1055.013 — Process Doppelgänging
+  T1620     — Reflective Code Loading
+-->
+
+<group name="hunt_defense_evasion,process_injection,windows,">
+
+  <!-- ── Sysmon 8: CreateRemoteThread ──────────────────────────────────────── -->
+
+  <rule id="102001" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^8$</field>
+    <description>Sysmon: CreateRemoteThread detected — thread injected into remote process (T1055.003)</description>
+    <mitre><id>T1055.003</id></mitre>
+    <group>defense_evasion,process_injection,remote_thread,</group>
+  </rule>
+
+  <!-- ── CreateRemoteThread into lsass ─────────────────────────────────────── -->
+
+  <rule id="102002" level="14">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^8$</field>
+    <field name="win.eventdata.targetImage" type="pcre2">(?i)\\lsass\.exe$</field>
+    <description>Sysmon: remote thread injected into LSASS — LSASS injection for credential access (T1055.003)</description>
+    <mitre><id>T1055.003</id></mitre>
+    <group>defense_evasion,process_injection,lsass,critical,</group>
+  </rule>
+
+  <!-- ── CreateRemoteThread into browser / Office process ─────────────────── -->
+
+  <rule id="102003" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^8$</field>
+    <field name="win.eventdata.targetImage" type="pcre2">(?i)(\\(chrome|firefox|msedge|iexplore|WINWORD|EXCEL|POWERPNT)\.exe$)</field>
+    <description>Sysmon: remote thread injected into browser/Office process — code injection for credential theft or evasion (T1055)</description>
+    <mitre><id>T1055</id></mitre>
+    <group>defense_evasion,process_injection,browser,high_confidence,</group>
+  </rule>
+
+  <!-- ── CreateRemoteThread from user-path process ─────────────────────────── -->
+
+  <rule id="102004" level="14">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^8$</field>
+    <field name="win.eventdata.sourceImage" type="pcre2">(?i)(\\appdata\\|\\temp\\|\\downloads\\|\\public\\)</field>
+    <description>Sysmon: process from user-writable path created remote thread — dropped malware injecting code (T1055.003)</description>
+    <mitre><id>T1055.003</id></mitre>
+    <group>defense_evasion,process_injection,suspicious_source,critical,</group>
+  </rule>
+
+  <!-- ── Sysmon 25: Process Tamper (hollowing) ─────────────────────────────── -->
+
+  <rule id="102005" level="14">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^25$</field>
+    <description>Sysmon: process image tampered — process hollowing or doppelgänging detected (T1055.012)</description>
+    <mitre><id>T1055.012</id></mitre>
+    <group>defense_evasion,process_hollowing,critical,</group>
+  </rule>
+
+  <!-- ── Mavinject DLL injection ────────────────────────────────────────────── -->
+
+  <rule id="102006" level="14">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$|^4688$</field>
+    <field name="win.eventdata.image|win.eventdata.newProcessName" type="pcre2">(?i)\\mavinject\.exe$</field>
+    <description>mavinject.exe: Microsoft signed DLL injector invoked — LOLBin DLL injection (T1055.001)</description>
+    <mitre><id>T1055.001</id></mitre>
+    <group>defense_evasion,process_injection,mavinject,critical,</group>
+  </rule>
+
+  <!-- ── VirtualAllocEx + WriteProcessMemory (PS reflection pattern) ─────────── -->
+
+  <rule id="102007" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^4103$|^4104$</field>
+    <field name="win.eventdata.scriptBlockText" type="pcre2">(?i)(VirtualAllocEx|WriteProcessMemory|CreateRemoteThread|NtCreateThreadEx|RtlCreateUserThread)</field>
+    <description>PowerShell: process injection API calls in script block — PS-based injection technique (T1055)</description>
+    <mitre><id>T1055</id></mitre>
+    <group>defense_evasion,process_injection,powershell,high_confidence,</group>
+  </rule>
+
+  <!-- ── Shellcode injection via PS (byte array + pointer) ────────────────── -->
+
+  <rule id="102008" level="14">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^4103$|^4104$</field>
+    <field name="win.eventdata.scriptBlockText" type="pcre2">(?i)(0x[0-9a-fA-F]{2},\s*){16,}|shellcode|[Bb]yte\[\]\s*\$[a-zA-Z]+\s*=\s*@\(0x</field>
+    <description>PowerShell: shellcode byte array in script block — shellcode injection preparation (T1055.002)</description>
+    <mitre><id>T1055.002</id></mitre>
+    <group>defense_evasion,shellcode,critical,</group>
+  </rule>
+
+  <!-- ── Reflective DLL loading (PowerShell) ───────────────────────────────── -->
+
+  <rule id="102009" level="14">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^4103$|^4104$</field>
+    <field name="win.eventdata.scriptBlockText" type="pcre2">(?i)(Invoke-ReflectivePEInjection|Invoke-Shellcode|Invoke-DllInjection|ReflectiveDLL|reflective_loader)</field>
+    <description>PowerShell: reflective PE/DLL injection function invoked (T1620)</description>
+    <mitre><id>T1620</id></mitre>
+    <group>defense_evasion,reflective_injection,critical,</group>
+  </rule>
+
+  <!-- ── Assembly.Load (C# execution in PS context) ────────────────────────── -->
+
+  <rule id="102010" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^4103$|^4104$</field>
+    <field name="win.eventdata.scriptBlockText" type="pcre2">(?i)\[Reflection\.Assembly\]::Load|Assembly::Load\(|[Ss]ystem\.Reflection\.Assembly.*Load</field>
+    <description>PowerShell: .NET assembly loaded via reflection — in-memory .NET execution (T1620)</description>
+    <mitre><id>T1620</id></mitre>
+    <group>defense_evasion,reflective_injection,assembly_load,high_confidence,</group>
+  </rule>
+
+  <!-- ── APC Queue injection (NtQueueApcThread) ────────────────────────────── -->
+
+  <rule id="102011" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^4103$|^4104$</field>
+    <field name="win.eventdata.scriptBlockText" type="pcre2">(?i)(NtQueueApcThread|QueueUserAPC|NtQueueApcThreadEx)</field>
+    <description>PowerShell: APC queue injection API called — asynchronous procedure call injection (T1055.004)</description>
+    <mitre><id>T1055.004</id></mitre>
+    <group>defense_evasion,apc_injection,high_confidence,</group>
+  </rule>
+
+  <!-- ── Process hollowing indicators (Sysmon 10 + 8 correlation) ──────────── -->
+
+  <rule id="102012" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^10$</field>
+    <field name="win.eventdata.grantedAccess" type="pcre2">0x1f3fff|0x1f0fff|0x001f1fff</field>
+    <field name="win.eventdata.targetImage" type="pcre2">(?i)\\(svchost|dllhost|taskhost|rundll32|msiexec|wuauclt)\.exe$</field>
+    <description>Sysmon: full access to legitimate Windows process — process hollowing preparation (T1055.012)</description>
+    <mitre><id>T1055.012</id></mitre>
+    <group>defense_evasion,process_hollowing,high_confidence,</group>
+  </rule>
+
+  <!-- ── DLL side-loading (unsigned DLL in application path) ──────────────── -->
+
+  <rule id="102013" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^7$</field>
+    <field name="win.eventdata.signed" type="pcre2">^false$</field>
+    <field name="win.eventdata.imageLoaded" type="pcre2">(?i)\\(Program Files|Program Files \(x86\))\\.*\.dll$</field>
+    <field name="win.eventdata.image" type="pcre2">(?i)(?!.*\\(svchost|MsMpEng|NisSrv|msiexec)\.exe)</field>
+    <description>Sysmon: unsigned DLL loaded from application directory — DLL side-loading or hijacking (T1574.002)</description>
+    <mitre><id>T1574.002</id></mitre>
+    <group>defense_evasion,dll_sideloading,high_confidence,</group>
+  </rule>
+
+  <!-- ── Unsigned DLL loaded from user-writable path ────────────────────────── -->
+
+  <rule id="102014" level="14">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^7$</field>
+    <field name="win.eventdata.signed" type="pcre2">^false$</field>
+    <field name="win.eventdata.imageLoaded" type="pcre2">(?i)(\\appdata\\|\\temp\\|\\downloads\\|\\public\\|\\programdata\\[^W])</field>
+    <description>Sysmon: unsigned DLL loaded from user-writable directory — dropped malware DLL (T1055.001)</description>
+    <mitre><id>T1055.001</id></mitre>
+    <group>defense_evasion,dll_injection,suspicious_path,critical,</group>
+  </rule>
+
+  <!-- ── Parent PID spoofing ────────────────────────────────────────────────── -->
+
+  <rule id="102015" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$</field>
+    <field name="win.eventdata.parentImage" type="pcre2">(?i)\\(WINWORD|EXCEL|POWERPNT|outlook|chrome|firefox|msedge)\.exe$</field>
+    <field name="win.eventdata.image" type="pcre2">(?i)\\(cmd|powershell|wscript|cscript|mshta|rundll32|regsvr32|certutil|bitsadmin|net|schtasks|at)\.exe$</field>
+    <description>Sysmon: suspicious child process spawned by browser/Office — possible PPID spoofing or macro (T1134.004)</description>
+    <mitre><id>T1134.004</id></mitre>
+    <group>defense_evasion,ppid_spoof,high_confidence,</group>
+  </rule>
+
+  <!-- ── Timestomping (file creation time mismatch) ────────────────────────── -->
+
+  <rule id="102016" level="10">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^2$</field>
+    <field name="win.eventdata.image" type="pcre2">(?i)(?!.*\\(svchost|msiexec|tiworker|trustedinstaller)\.exe)</field>
+    <description>Sysmon: file creation time changed — timestomping to evade forensic analysis (T1070.006)</description>
+    <mitre><id>T1070.006</id></mitre>
+    <group>defense_evasion,timestomping,</group>
+  </rule>
+
+  <!-- ── AMSI bypass via memory patching ───────────────────────────────────── -->
+
+  <rule id="102017" level="14">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^4103$|^4104$</field>
+    <field name="win.eventdata.scriptBlockText" type="pcre2">(?i)(amsiInitFailed|amsiContext|AmsiScanBuffer|amsi\.dll.*patch|0xB8,0x57,0x00,0x07,0x80)</field>
+    <description>PowerShell: AMSI bypass technique in script block — antimalware interface patched (T1562.001)</description>
+    <mitre><id>T1562.001</id></mitre>
+    <group>defense_evasion,amsi_bypass,critical,</group>
+  </rule>
+
+  <!-- ── ETW patching ───────────────────────────────────────────────────────── -->
+
+  <rule id="102018" level="14">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^4103$|^4104$</field>
+    <field name="win.eventdata.scriptBlockText" type="pcre2">(?i)(EtwEventWrite|ntdll.*patch|etw.*bypass|EventWrite.*0xc3)</field>
+    <description>PowerShell: ETW patching technique detected — event tracing disabled to evade detection (T1562.006)</description>
+    <mitre><id>T1562.006</id></mitre>
+    <group>defense_evasion,etw_bypass,critical,</group>
+  </rule>
+
+  <!-- ── Direct syscall (NtAllocateVirtualMemory etc.) ────────────────────── -->
+
+  <rule id="102019" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^4103$|^4104$</field>
+    <field name="win.eventdata.scriptBlockText" type="pcre2">(?i)(NtAllocateVirtualMemory|NtWriteVirtualMemory|NtCreateSection|NtMapViewOfSection|ZwCreateSection)</field>
+    <description>PowerShell: direct NT syscalls in script — bypassing Win32 API monitoring (T1055)</description>
+    <mitre><id>T1055</id></mitre>
+    <group>defense_evasion,direct_syscall,high_confidence,</group>
+  </rule>
+
+  <!-- ── Signed binary proxy — IntelliJ / JRE injecting code ──────────────── -->
+
+  <rule id="102020" level="10">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^8$</field>
+    <field name="win.eventdata.sourceImage" type="pcre2">(?i)\\(java|javaw|node|python|ruby|perl)\.exe$</field>
+    <description>Sysmon: interpreted runtime creating remote thread — runtime-based process injection (T1055.003)</description>
+    <mitre><id>T1055.003</id></mitre>
+    <group>defense_evasion,process_injection,runtime,</group>
+  </rule>
+
+  <!-- ── Token impersonation ────────────────────────────────────────────────── -->
+
+  <rule id="102021" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^4103$|^4104$</field>
+    <field name="win.eventdata.scriptBlockText" type="pcre2">(?i)(ImpersonateLoggedOnUser|DuplicateToken|OpenProcessToken.*TOKEN_DUPLICATE|Invoke-TokenManipulation|LogonUser)</field>
+    <description>PowerShell: token impersonation API used — privilege escalation via token manipulation (T1134)</description>
+    <mitre><id>T1134</id></mitre>
+    <group>defense_evasion,token_impersonation,high_confidence,</group>
+  </rule>
+
+  <!-- ── UAC bypass — fodhelper / eventvwr / sdclt ────────────────────────── -->
+
+  <rule id="102022" level="14">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$</field>
+    <field name="win.eventdata.image" type="pcre2">(?i)\\(fodhelper|eventvwr|sdclt|slui|cmstp|wsreset|computerdefaults)\.exe$</field>
+    <field name="win.eventdata.parentImage" type="pcre2">(?i)(?!.*\\(explorer|services|userinit)\.exe)</field>
+    <description>Sysmon: UAC bypass binary spawned — privilege escalation via autoelevated binary (T1548.002)</description>
+    <mitre><id>T1548.002</id></mitre>
+    <group>defense_evasion,uac_bypass,critical,</group>
+  </rule>
+
+  <!-- ── fodhelper spawning shell ───────────────────────────────────────────── -->
+
+  <rule id="102023" level="14">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$</field>
+    <field name="win.eventdata.parentImage" type="pcre2">(?i)\\fodhelper\.exe$</field>
+    <description>Sysmon: child process spawned by fodhelper.exe — UAC bypass exploitation confirmed (T1548.002)</description>
+    <mitre><id>T1548.002</id></mitre>
+    <group>defense_evasion,uac_bypass,fodhelper,critical,</group>
+  </rule>
+
+  <!-- ── Signed binary used as loader (proxy execution) ───────────────────── -->
+
+  <rule id="102024" level="10">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$</field>
+    <field name="win.eventdata.image" type="pcre2">(?i)\\(presentationhost|xwizard|infdefaultinstall|syncappvpublishingserver|appsyncpublishingserver)\.exe$</field>
+    <description>Sysmon: uncommon signed Windows binary launched — proxy execution via signed LOLBin (T1218)</description>
+    <mitre><id>T1218</id></mitre>
+    <group>defense_evasion,signed_proxy,lolbin,</group>
+  </rule>
+
+  <!-- ── Process access with NtOpenProcess (full access rights) ───────────── -->
+
+  <rule id="102025" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^10$</field>
+    <field name="win.eventdata.grantedAccess" type="pcre2">0x1f3fff|0x1f0fff</field>
+    <field name="win.eventdata.sourceImage" type="pcre2">(?i)(\\appdata\\|\\temp\\|\\downloads\\|\\public\\)</field>
+    <description>Sysmon: process from user-writable path opened FULL access handle to another process — injection prep (T1055)</description>
+    <mitre><id>T1055</id></mitre>
+    <group>defense_evasion,process_injection,full_access,critical,</group>
+  </rule>
+
+  <!-- ── Event log clearing (wevtutil) ─────────────────────────────────────── -->
+
+  <rule id="102026" level="14">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$|^4688$</field>
+    <field name="win.eventdata.image|win.eventdata.newProcessName" type="pcre2">(?i)\\wevtutil\.exe$</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?i)(cl\s+|clear-log\s+)</field>
+    <description>wevtutil.exe: event log cleared — attacker clearing forensic evidence (T1070.001)</description>
+    <mitre><id>T1070.001</id></mitre>
+    <group>defense_evasion,log_clear,critical,</group>
+  </rule>
+
+  <!-- ── PowerShell Clear-EventLog ─────────────────────────────────────────── -->
+
+  <rule id="102027" level="14">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^4103$|^4104$</field>
+    <field name="win.eventdata.scriptBlockText" type="pcre2">(?i)(Clear-EventLog|Remove-EventLog|Limit-EventLog.*0|wevtutil.*cl)</field>
+    <description>PowerShell: event log cleared via PS cmdlet — forensic evidence destruction (T1070.001)</description>
+    <mitre><id>T1070.001</id></mitre>
+    <group>defense_evasion,log_clear,critical,</group>
+  </rule>
+
+  <!-- ── Windows Event Log Service disabled ────────────────────────────────── -->
+
+  <rule id="102028" level="14">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$|^4688$</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?i)sc\s+(stop|config\s+.*disabled)\s+eventlog|net\s+stop\s+eventlog</field>
+    <description>Command: Windows Event Log service stopped or disabled — complete audit trail destruction (T1562.002)</description>
+    <mitre><id>T1562.002</id></mitre>
+    <group>defense_evasion,log_service,critical,</group>
+  </rule>
+
+  <!-- ── Binary signed with stolen/invalid cert ────────────────────────────── -->
+
+  <rule id="102029" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^7$</field>
+    <field name="win.eventdata.signatureStatus" type="pcre2">(?i)(Expired|Invalid|Revoked|Bad Image Hash)</field>
+    <field name="win.eventdata.imageLoaded" type="pcre2">(?i)(\\appdata\\|\\temp\\|\\downloads\\|\\programdata\\)</field>
+    <description>Sysmon: DLL with invalid/expired/revoked signature loaded — tampered or stolen signature (T1036.001)</description>
+    <mitre><id>T1036.001</id></mitre>
+    <group>defense_evasion,invalid_sig,high_confidence,</group>
+  </rule>
+
+  <!-- ── Masquerading — executable with double extension ───────────────────── -->
+
+  <rule id="102030" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$|^11$</field>
+    <field name="win.eventdata.image|win.eventdata.targetFilename" type="pcre2">(?i)\.(pdf|doc|docx|xls|xlsx|jpg|png|txt|zip)\.exe$</field>
+    <description>Sysmon: executable with double extension — file masquerading to deceive users (T1036.007)</description>
+    <mitre><id>T1036.007</id></mitre>
+    <group>defense_evasion,masquerade,double_extension,high_confidence,</group>
+  </rule>
+
+  <!-- ── Alternate Data Stream (ADS) execution ─────────────────────────────── -->
+
+  <rule id="102031" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$|^4688$</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?i)(:[a-zA-Z]+\.exe|wscript.*:.*\.js|powershell.*:.*Zone\.Identifier)</field>
+    <description>Command: execution from NTFS Alternate Data Stream — ADS-based steganographic execution (T1564.004)</description>
+    <mitre><id>T1564.004</id></mitre>
+    <group>defense_evasion,ads_execution,high_confidence,</group>
+  </rule>
+
+  <!-- ── Disable Windows Firewall (netsh) ──────────────────────────────────── -->
+
+  <rule id="102032" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$|^4688$</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?i)netsh.*firewall\s+set\s+opmode.*disabled|netsh.*advfirewall\s+set\s+.*state\s+off</field>
+    <description>netsh.exe: Windows Firewall disabled — firewall impairment (T1562.004)</description>
+    <mitre><id>T1562.004</id></mitre>
+    <group>defense_evasion,firewall_disable,high_confidence,</group>
+  </rule>
+
+  <!-- ── Long binary names / unicode tricks ────────────────────────────────── -->
+
+  <rule id="102033" level="10">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$</field>
+    <field name="win.eventdata.image" type="pcre2">(?i)(?:.{100,}\.exe$|[​-‏‪-‮﻿])</field>
+    <description>Sysmon: process with very long path or unicode direction characters — evasion via filename trick (T1036)</description>
+    <mitre><id>T1036</id></mitre>
+    <group>defense_evasion,masquerade,unicode_trick,</group>
+  </rule>
+
+  <!-- ── Rundll32 loading DLL from network ─────────────────────────────────── -->
+
+  <rule id="102034" level="14">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$|^4688$</field>
+    <field name="win.eventdata.image|win.eventdata.newProcessName" type="pcre2">(?i)\\rundll32\.exe$</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?i)(http[s]?://|\\\\[0-9]{1,3}\.[0-9]{1,3}|\\\\[a-zA-Z].*\\.*\.dll)</field>
+    <description>rundll32.exe: DLL loaded from network location — remote DLL injection (T1218.011, T1055.001)</description>
+    <mitre><id>T1218.011</id></mitre>
+    <group>defense_evasion,rundll32,remote_dll,critical,</group>
+  </rule>
+
+  <!-- ── Fake svchost.exe ───────────────────────────────────────────────────── -->
+
+  <rule id="102035" level="14">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$</field>
+    <field name="win.eventdata.image" type="pcre2">(?i)svchost\.exe$</field>
+    <field name="win.eventdata.image" type="pcre2">(?i)(?!.*\\windows\\system32\\svchost\.exe$)</field>
+    <description>Sysmon: svchost.exe running from non-System32 path — svchost process masquerading (T1036.005)</description>
+    <mitre><id>T1036.005</id></mitre>
+    <group>defense_evasion,masquerade,fake_svchost,critical,</group>
+  </rule>
+
+</group>

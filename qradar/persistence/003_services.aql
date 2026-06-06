@@ -1,0 +1,497 @@
+-- ============================================================
+-- HuntingThreats — QRadar AQL Hunt Rules
+-- Category : Persistence — Services (T1543.003)
+-- Batch    : 6 / Persistence
+-- Rules    : QR-101056 – QR-101080
+-- Platform : QRadar 7.4+ / AQL
+-- Sources  : Windows Security (7045/7036/7040), Sysmon (1/13), WinCollect
+-- ============================================================
+
+-- ==================================================
+-- QR-101056 | T1543.003 | New Service Installed (Event 7045)
+-- Severity: High | Confidence: Medium
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+  AND (UTF8(payload) ILIKE '%EventID>7045<%'
+    OR UTF8(payload) ILIKE '%EventID">"7045"%')
+  AND (UTF8(payload) ILIKE '%\Temp\%'
+    OR UTF8(payload) ILIKE '%\AppData\%'
+    OR UTF8(payload) ILIKE '%\Downloads\%'
+    OR UTF8(payload) ILIKE '%\Public\%'
+    OR UTF8(payload) ILIKE '%\\\\%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-101057 | T1543.003 | Service Binary is Script Interpreter
+-- Severity: Critical | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+  AND (UTF8(payload) ILIKE '%EventID>7045<%'
+    OR UTF8(payload) ILIKE '%EventID">"7045"%')
+  AND (UTF8(payload) ILIKE '%powershell%'
+    OR UTF8(payload) ILIKE '%cmd.exe%'
+    OR UTF8(payload) ILIKE '%wscript%'
+    OR UTF8(payload) ILIKE '%cscript%'
+    OR UTF8(payload) ILIKE '%mshta%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-101058 | T1543.003 | Sc.exe Create New Service
+-- Severity: High | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE (LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+    OR LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%')
+  AND UTF8(payload) ILIKE '%sc.exe%'
+  AND (UTF8(payload) ILIKE '% create %'
+    OR UTF8(payload) ILIKE '% config %')
+  AND (UTF8(payload) ILIKE '%binPath=%'
+    OR UTF8(payload) ILIKE '%binpath=%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-101059 | T1543.003 | Service Start Type Changed (7040)
+-- Severity: High | Confidence: Medium
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+  AND (UTF8(payload) ILIKE '%EventID>7040<%'
+    OR UTF8(payload) ILIKE '%EventID">"7040"%')
+  AND (UTF8(payload) ILIKE '%demand start%'
+    OR UTF8(payload) ILIKE '%auto start%')
+  AND (UTF8(payload) ILIKE '%Defender%'
+    OR UTF8(payload) ILIKE '%Security%'
+    OR UTF8(payload) ILIKE '%MSSec%'
+    OR UTF8(payload) ILIKE '%Firewall%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-101060 | T1543.003 | Security Service Stopped (7036)
+-- Severity: High | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+  AND (UTF8(payload) ILIKE '%EventID>7036<%'
+    OR UTF8(payload) ILIKE '%EventID">"7036"%')
+  AND UTF8(payload) ILIKE '%stopped%'
+  AND (UTF8(payload) ILIKE '%Defender%'
+    OR UTF8(payload) ILIKE '%MsMpEng%'
+    OR UTF8(payload) ILIKE '%SecurityHealth%'
+    OR UTF8(payload) ILIKE '%EventLog%'
+    OR UTF8(payload) ILIKE '%WinDefend%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-101061 | T1543.003 | Sc.exe Stop Security Services
+-- Severity: High | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE (LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+    OR LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%')
+  AND UTF8(payload) ILIKE '%sc.exe%'
+  AND UTF8(payload) ILIKE '% stop %'
+  AND (UTF8(payload) ILIKE '%Defender%'
+    OR UTF8(payload) ILIKE '%WinDefend%'
+    OR UTF8(payload) ILIKE '%MsSec%'
+    OR UTF8(payload) ILIKE '%MpsSvc%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-101062 | T1543.003 | Sc.exe Delete Service (Cleanup)
+-- Severity: Medium | Confidence: Medium
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE (LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+    OR LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%')
+  AND UTF8(payload) ILIKE '%sc.exe%'
+  AND UTF8(payload) ILIKE '% delete %'
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-101063 | T1543.003 | PsExecSVC Service Installed (Lateral Movement)
+-- Severity: High | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+  AND (UTF8(payload) ILIKE '%EventID>7045<%'
+    OR UTF8(payload) ILIKE '%EventID">"7045"%')
+  AND (UTF8(payload) ILIKE '%PSEXESVC%'
+    OR UTF8(payload) ILIKE '%paexec%'
+    OR UTF8(payload) ILIKE '%psexec%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-101064 | T1543.003 | Known Malware Service Names
+-- Severity: Critical | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+  AND (UTF8(payload) ILIKE '%EventID>7045<%'
+    OR UTF8(payload) ILIKE '%EventID">"7045"%')
+  AND (UTF8(payload) ILIKE '%svchost64%'
+    OR UTF8(payload) ILIKE '%svchost32%'
+    OR UTF8(payload) ILIKE '%svchosts%'
+    OR UTF8(payload) ILIKE '%spoolsv32%'
+    OR UTF8(payload) ILIKE '%winupdate%'
+    OR UTF8(payload) ILIKE '%winsvc%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-101065 | T1543.003 | Fake Svchost Path (not System32)
+-- Severity: Critical | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+  AND (UTF8(payload) ILIKE '%EventID>7045<%'
+    OR UTF8(payload) ILIKE '%EventID">"7045"%')
+  AND UTF8(payload) ILIKE '%svchost%'
+  AND NOT UTF8(payload) ILIKE '%\System32\svchost%'
+  AND NOT UTF8(payload) ILIKE '%\SysWOW64\svchost%'
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-101066 | T1543.003 | ServiceDll Registry Value Written (Sysmon 13)
+-- Severity: High | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%'
+  AND UTF8(payload) ILIKE '%RegistryEvent%'
+  AND UTF8(payload) ILIKE '%ServiceDll%'
+  AND (UTF8(payload) ILIKE '%\Temp\%'
+    OR UTF8(payload) ILIKE '%\AppData\%'
+    OR UTF8(payload) ILIKE '%\Downloads\%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-101067 | T1543.003 | PS New-Service from Script
+-- Severity: High | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%PowerShell%'
+  AND (UTF8(payload) ILIKE '%New-Service%'
+    OR UTF8(payload) ILIKE '%Set-Service%')
+  AND (UTF8(payload) ILIKE '%-StartupType Automatic%'
+    OR UTF8(payload) ILIKE '%-BinaryPathName%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-101068 | T1543.003 | WMI Win32_Service Create
+-- Severity: High | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE (LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+    OR LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%')
+  AND UTF8(payload) ILIKE '%Win32_Service%'
+  AND (UTF8(payload) ILIKE '%Create%'
+    OR UTF8(payload) ILIKE '%Change%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-101069 | T1543.003 | Service with UNC Binary Path
+-- Severity: Critical | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+  AND (UTF8(payload) ILIKE '%EventID>7045<%'
+    OR UTF8(payload) ILIKE '%EventID">"7045"%')
+  AND UTF8(payload) ILIKE '%\\\\%'
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-101070 | T1543.003 | Kernel Driver Service Installed
+-- Severity: Critical | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+  AND (UTF8(payload) ILIKE '%EventID>7045<%'
+    OR UTF8(payload) ILIKE '%EventID">"7045"%')
+  AND (UTF8(payload) ILIKE '%kernel driver%'
+    OR UTF8(payload) ILIKE '%KernelDriver%'
+    OR UTF8(payload) ILIKE '%.sys%')
+  AND (UTF8(payload) ILIKE '%\Temp\%'
+    OR UTF8(payload) ILIKE '%\AppData\%'
+    OR UTF8(payload) ILIKE '%\Downloads\%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-101071 | T1543.003 | Sc.exe Query — Enumeration of Services
+-- Severity: Informational | Confidence: Low
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE (LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+    OR LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%')
+  AND UTF8(payload) ILIKE '%sc.exe%'
+  AND (UTF8(payload) ILIKE '% qc %'
+    OR UTF8(payload) ILIKE '% query %')
+  AND (UTF8(payload) ILIKE '%wscript%'
+    OR UTF8(payload) ILIKE '%powershell%'
+    OR UTF8(payload) ILIKE '%cmd.exe%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-101072 | T1543.003 | Unusual Extension in Service Binary Path
+-- Severity: High | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+  AND (UTF8(payload) ILIKE '%EventID>7045<%'
+    OR UTF8(payload) ILIKE '%EventID">"7045"%')
+  AND (UTF8(payload) ILIKE '%.bat%'
+    OR UTF8(payload) ILIKE '%.vbs%'
+    OR UTF8(payload) ILIKE '%.ps1%'
+    OR UTF8(payload) ILIKE '%.jar%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-101073 | T1543.003 | Failure Action Command Set for Service
+-- Severity: High | Confidence: Medium
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE (LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+    OR LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%')
+  AND UTF8(payload) ILIKE '%sc.exe%'
+  AND (UTF8(payload) ILIKE '%failure%'
+    OR UTF8(payload) ILIKE '%failureflag%')
+  AND (UTF8(payload) ILIKE '%command=%'
+    OR UTF8(payload) ILIKE '%binPath=%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-101074 | T1543.003 | Mass Service Stop — Ransomware Precursor (Threshold)
+-- Severity: Critical | Confidence: High
+-- Threshold: 5+ services stopped in 30 seconds
+-- ==================================================
+SELECT
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  COUNT(*) AS ServiceStopCount
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+  AND (UTF8(payload) ILIKE '%EventID>7036<%'
+    OR UTF8(payload) ILIKE '%EventID">"7036"%')
+  AND UTF8(payload) ILIKE '%stopped%'
+GROUP BY LOGSOURCENAME(logsourceid)
+HAVING COUNT(*) >= 5
+LAST 30 MINUTES;
+
+
+-- ==================================================
+-- QR-101075 | T1543.003 | Non-Standard Parent Spawning Sc.exe
+-- Severity: High | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE (LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+    OR LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%')
+  AND UTF8(payload) ILIKE '%sc.exe%'
+  AND (UTF8(payload) ILIKE '%wscript%'
+    OR UTF8(payload) ILIKE '%mshta%'
+    OR UTF8(payload) ILIKE '%WINWORD%'
+    OR UTF8(payload) ILIKE '%EXCEL%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-101076 | T1543.003 | Svchost Loading DLL from User-Writable Path
+-- Severity: Critical | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%'
+  AND UTF8(payload) ILIKE '%ImageLoad%'
+  AND UTF8(payload) ILIKE '%svchost%'
+  AND (UTF8(payload) ILIKE '%\Temp\%'
+    OR UTF8(payload) ILIKE '%\AppData\%'
+    OR UTF8(payload) ILIKE '%\Downloads\%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-101077 | T1543.003 | Sc.exe Remote Service Operation
+-- Severity: High | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE (LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+    OR LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%')
+  AND UTF8(payload) ILIKE '%sc.exe%'
+  AND (UTF8(payload) ILIKE '%\\\%'
+    OR UTF8(payload) ILIKE '%//%')
+  AND (UTF8(payload) ILIKE '% create %'
+    OR UTF8(payload) ILIKE '% start %'
+    OR UTF8(payload) ILIKE '% stop %')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-101078 | T1543.003 | Rundll32 Loading DLL as Service
+-- Severity: High | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+  AND (UTF8(payload) ILIKE '%EventID>7045<%'
+    OR UTF8(payload) ILIKE '%EventID">"7045"%')
+  AND UTF8(payload) ILIKE '%rundll32%'
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-101079 | T1543.003 | SYSTEM Privilege Service with Non-System Path
+-- Severity: Critical | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+  AND (UTF8(payload) ILIKE '%EventID>7045<%'
+    OR UTF8(payload) ILIKE '%EventID">"7045"%')
+  AND UTF8(payload) ILIKE '%LocalSystem%'
+  AND NOT (UTF8(payload) ILIKE '%\Windows\%'
+    OR UTF8(payload) ILIKE '%\Program Files\%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-101080 | T1543.003 | Service Name Matches CrackMapExec Pattern
+-- Severity: Critical | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+  AND (UTF8(payload) ILIKE '%EventID>7045<%'
+    OR UTF8(payload) ILIKE '%EventID">"7045"%')
+  AND UTF8(payload) ILIKE '%cmd /Q /c%'
+LAST 1440 MINUTES;

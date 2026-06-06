@@ -1,0 +1,487 @@
+-- ============================================================
+-- HuntingThreats — QRadar AQL Hunt Rules
+-- Category : Execution — PowerShell (T1059.001)
+-- Batch    : 1 / Execution
+-- Rules    : QR-100001 – QR-100025
+-- Platform : QRadar 7.4+ / AQL
+-- Sources  : Windows Security (4688), PowerShell Operational (4103/4104),
+--            Sysmon (Event 1), WinCollect
+-- ============================================================
+
+-- ==================================================
+-- QR-100001 | T1059.001 | PowerShell EncodedCommand
+-- Severity: High | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE (LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+    OR LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%'
+    OR LOGSOURCETYPENAME(logsourceid) ILIKE '%WinCollect%')
+  AND (UTF8(payload) ILIKE '%-encodedcommand%'
+    OR UTF8(payload) ILIKE '%-enc %'
+    OR UTF8(payload) ILIKE '%-en %')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-100002 | T1059.001 | PowerShell WindowStyle Hidden
+-- Severity: High | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE (LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+    OR LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%')
+  AND UTF8(payload) ILIKE '%powershell%'
+  AND (UTF8(payload) ILIKE '%-windowstyle hidden%'
+    OR UTF8(payload) ILIKE '%-w hidden%'
+    OR UTF8(payload) ILIKE '%-win hidden%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-100003 | T1059.001 | PowerShell IEX / Invoke-Expression
+-- Severity: High | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE (LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+    OR LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%'
+    OR LOGSOURCETYPENAME(logsourceid) ILIKE '%PowerShell%')
+  AND (UTF8(payload) ILIKE '%Invoke-Expression%'
+    OR UTF8(payload) ILIKE '% IEX %'
+    OR UTF8(payload) ILIKE '%(IEX)%'
+    OR UTF8(payload) ILIKE '%(Invoke-Expression)%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-100004 | T1059.001 | PowerShell DownloadString / WebClient
+-- Severity: High | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE (LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+    OR LOGSOURCETYPENAME(logsourceid) ILIKE '%PowerShell%')
+  AND UTF8(payload) ILIKE '%powershell%'
+  AND (UTF8(payload) ILIKE '%DownloadString%'
+    OR UTF8(payload) ILIKE '%DownloadFile%'
+    OR UTF8(payload) ILIKE '%Net.WebClient%'
+    OR UTF8(payload) ILIKE '%WebClient%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-100005 | T1059.001 | PowerShell ExecutionPolicy Bypass
+-- Severity: Medium | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE (LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+    OR LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%')
+  AND UTF8(payload) ILIKE '%powershell%'
+  AND (UTF8(payload) ILIKE '%-executionpolicy bypass%'
+    OR UTF8(payload) ILIKE '%-ep bypass%'
+    OR UTF8(payload) ILIKE '%-exec bypass%'
+    OR UTF8(payload) ILIKE '%-executionpolicy unrestricted%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-100006 | T1059.001 | PowerShell AMSI Bypass
+-- Severity: Critical | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%PowerShell%'
+  AND (UTF8(payload) ILIKE '%amsiInitFailed%'
+    OR UTF8(payload) ILIKE '%AmsiScanBuffer%'
+    OR UTF8(payload) ILIKE '%amsi.dll%'
+    OR UTF8(payload) ILIKE '%[Ref].Assembly.GetType%'
+    OR UTF8(payload) ILIKE '%System.Management.Automation.AmsiUtils%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-100007 | T1059.001 | PowerShell Reflection Assembly Load
+-- Severity: High | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%PowerShell%'
+  AND (UTF8(payload) ILIKE '%Reflection.Assembly%'
+    OR UTF8(payload) ILIKE '%Assembly.Load%'
+    OR UTF8(payload) ILIKE '%[System.Reflection.Assembly]::Load%'
+    OR UTF8(payload) ILIKE '%[Reflection.Assembly]::LoadWithPartialName%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-100008 | T1059.001 | PowerShell Invoke-Mimikatz / PSReflect
+-- Severity: Critical | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%PowerShell%'
+  AND (UTF8(payload) ILIKE '%Invoke-Mimikatz%'
+    OR UTF8(payload) ILIKE '%Invoke-ReflectivePEInjection%'
+    OR UTF8(payload) ILIKE '%PSReflect%'
+    OR UTF8(payload) ILIKE '%sekurlsa%'
+    OR UTF8(payload) ILIKE '%logonpasswords%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-100009 | T1059.001 | PowerShell Non-Interactive + Encoded + NoProfil
+-- Severity: High | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE (LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+    OR LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%')
+  AND UTF8(payload) ILIKE '%powershell%'
+  AND UTF8(payload) ILIKE '%-noprofile%'
+  AND UTF8(payload) ILIKE '%-noninteractive%'
+  AND (UTF8(payload) ILIKE '%-enc%' OR UTF8(payload) ILIKE '%-command%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-100010 | T1059.001 | PowerShell Launching from Office Application
+-- Severity: High | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE (LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+    OR LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%')
+  AND UTF8(payload) ILIKE '%powershell%'
+  AND (UTF8(payload) ILIKE '%WINWORD.EXE%'
+    OR UTF8(payload) ILIKE '%EXCEL.EXE%'
+    OR UTF8(payload) ILIKE '%POWERPNT.EXE%'
+    OR UTF8(payload) ILIKE '%OUTLOOK.EXE%'
+    OR UTF8(payload) ILIKE '%ONENOTE.EXE%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-100011 | T1059.001 | PowerShell from TEMP / Staging Path
+-- Severity: High | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE (LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+    OR LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%')
+  AND UTF8(payload) ILIKE '%powershell%'
+  AND (UTF8(payload) ILIKE '%\AppData\%'
+    OR UTF8(payload) ILIKE '%\Temp\%'
+    OR UTF8(payload) ILIKE '%\Downloads\%'
+    OR UTF8(payload) ILIKE '%\Public\%')
+  AND (UTF8(payload) ILIKE '%.ps1%' OR UTF8(payload) ILIKE '%-enc%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-100012 | T1059.001 | PowerShell Obfuscation via Char/Join/Replace
+-- Severity: High | Confidence: Medium
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%PowerShell%'
+  AND (UTF8(payload) ILIKE '%-join%[char]%'
+    OR UTF8(payload) ILIKE '%-replace%'',%''%'
+    OR UTF8(payload) ILIKE '%[string]::join%'
+    OR UTF8(payload) ILIKE '%(''%''+''%''%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-100013 | T1059.001 | PowerShell Empire Download Cradle Patterns
+-- Severity: Critical | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%PowerShell%'
+  AND (UTF8(payload) ILIKE '%Start-BitsTransfer%'
+    OR UTF8(payload) ILIKE '%Invoke-WebRequest%'
+    OR UTF8(payload) ILIKE '%New-Object Net.WebClient%'
+    OR UTF8(payload) ILIKE '%[Net.WebClient]%'
+    OR UTF8(payload) ILIKE '%[System.Net.WebClient]%')
+  AND (UTF8(payload) ILIKE '%.exe%'
+    OR UTF8(payload) ILIKE '%.ps1%'
+    OR UTF8(payload) ILIKE '%.dll%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-100014 | T1059.001 | PowerShell Invoke-Command Remote
+-- Severity: High | Confidence: Medium
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%PowerShell%'
+  AND (UTF8(payload) ILIKE '%Invoke-Command%'
+    OR UTF8(payload) ILIKE '%icm -%')
+  AND (UTF8(payload) ILIKE '%-ComputerName%'
+    OR UTF8(payload) ILIKE '%-Session%'
+    OR UTF8(payload) ILIKE '%-cn %')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-100015 | T1059.001 | PowerShell Shellcode Byte Array
+-- Severity: Critical | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%PowerShell%'
+  AND (UTF8(payload) ILIKE '%[Byte[]]%'
+    OR UTF8(payload) ILIKE '%[byte[]]%'
+    OR UTF8(payload) ILIKE '%0x4d,0x5a%'
+    OR UTF8(payload) ILIKE '%0xfc,0x48%'
+    OR UTF8(payload) ILIKE '%77,90,144%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-100016 | T1059.001 | PowerShell VirtualAlloc / WriteProcessMemory API
+-- Severity: Critical | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%PowerShell%'
+  AND (UTF8(payload) ILIKE '%VirtualAlloc%'
+    OR UTF8(payload) ILIKE '%WriteProcessMemory%'
+    OR UTF8(payload) ILIKE '%CreateRemoteThread%'
+    OR UTF8(payload) ILIKE '%NtCreateThreadEx%'
+    OR UTF8(payload) ILIKE '%NtAllocateVirtualMemory%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-100017 | T1059.001 | PowerShell Scheduled Task via PS
+-- Severity: High | Confidence: Medium
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%PowerShell%'
+  AND (UTF8(payload) ILIKE '%New-ScheduledTask%'
+    OR UTF8(payload) ILIKE '%Register-ScheduledTask%'
+    OR UTF8(payload) ILIKE '%New-ScheduledTaskAction%'
+    OR UTF8(payload) ILIKE '%Unregister-ScheduledTask%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-100018 | T1059.001 | PowerShell ETW Patch (EtwEventWrite)
+-- Severity: Critical | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%PowerShell%'
+  AND (UTF8(payload) ILIKE '%EtwEventWrite%'
+    OR UTF8(payload) ILIKE '%ntdll%'
+    OR UTF8(payload) ILIKE '%EtwEventWriteFull%')
+  AND UTF8(payload) ILIKE '%patch%'
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-100019 | T1059.001 | PowerShell Add-Type / Inline CSharp
+-- Severity: Medium | Confidence: Medium
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%PowerShell%'
+  AND UTF8(payload) ILIKE '%Add-Type%'
+  AND (UTF8(payload) ILIKE '%-TypeDefinition%'
+    OR UTF8(payload) ILIKE '%DllImport%'
+    OR UTF8(payload) ILIKE '%extern%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-100020 | T1059.001 | PowerShell Get-Clipboard / Keylogger API
+-- Severity: High | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%PowerShell%'
+  AND (UTF8(payload) ILIKE '%GetAsyncKeyState%'
+    OR UTF8(payload) ILIKE '%Get-Clipboard%'
+    OR UTF8(payload) ILIKE '%GetForegroundWindow%'
+    OR UTF8(payload) ILIKE '%GetWindowText%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-100021 | T1059.001 | PowerShell Invoke-Shellcode / Invoke-Shellcode
+-- Severity: Critical | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%PowerShell%'
+  AND (UTF8(payload) ILIKE '%Invoke-Shellcode%'
+    OR UTF8(payload) ILIKE '%Invoke-ShellcodeInjection%'
+    OR UTF8(payload) ILIKE '%Invoke-DllInjection%'
+    OR UTF8(payload) ILIKE '%Invoke-ReflectivePEInjection%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-100022 | T1059.001 | PowerShell Clear Event Log
+-- Severity: High | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE (LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+    OR LOGSOURCETYPENAME(logsourceid) ILIKE '%PowerShell%')
+  AND (UTF8(payload) ILIKE '%Clear-EventLog%'
+    OR UTF8(payload) ILIKE '%Clear-WinEvent%'
+    OR UTF8(payload) ILIKE '%wevtutil cl%'
+    OR UTF8(payload) ILIKE '%Remove-EventLog%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-100023 | T1059.001 | PowerShell Compress-Archive Staging
+-- Severity: Medium | Confidence: Medium
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%PowerShell%'
+  AND (UTF8(payload) ILIKE '%Compress-Archive%'
+    OR UTF8(payload) ILIKE '%[IO.Compression.ZipFile]%'
+    OR UTF8(payload) ILIKE '%System.IO.Compression%')
+  AND (UTF8(payload) ILIKE '%\Temp\%'
+    OR UTF8(payload) ILIKE '%\AppData\%'
+    OR UTF8(payload) ILIKE '%\Public\%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-100024 | T1059.001 | PowerShell Token Manipulation
+-- Severity: Critical | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%PowerShell%'
+  AND (UTF8(payload) ILIKE '%DuplicateTokenEx%'
+    OR UTF8(payload) ILIKE '%ImpersonateLoggedOnUser%'
+    OR UTF8(payload) ILIKE '%AdjustTokenPrivileges%'
+    OR UTF8(payload) ILIKE '%OpenProcessToken%'
+    OR UTF8(payload) ILIKE '%LookupPrivilegeValue%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-100025 | T1059.001 | PowerShell Direct Syscall Patterns
+-- Severity: Critical | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%PowerShell%'
+  AND (UTF8(payload) ILIKE '%NtAllocateVirtualMemory%'
+    OR UTF8(payload) ILIKE '%NtWriteVirtualMemory%'
+    OR UTF8(payload) ILIKE '%NtCreateThreadEx%'
+    OR UTF8(payload) ILIKE '%ZwAllocateVirtualMemory%'
+    OR UTF8(payload) ILIKE '%syscall%')
+LAST 1440 MINUTES;

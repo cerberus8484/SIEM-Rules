@@ -1,0 +1,488 @@
+// ============================================================
+// HuntingThreats — Google SecOps YARA-L 2.0 Hunt Rules
+// Category : Persistence — Malicious Services (T1543)
+// Batch    : 06 / Persistence
+// Rules    : GS-101056 – GS-101080
+// Platform : Google SecOps / Chronicle SIEM
+// ============================================================
+
+rule ht_gs_101056_service_new_service_create {
+  meta:
+    rule_id         = "GS-101056"
+    author          = "HuntingThreats"
+    description     = "New service created (EventID 7045) — service installation detected"
+    mitre_tactic    = "Persistence"
+    mitre_technique = "T1543.003"
+    severity        = "MEDIUM"
+    confidence      = "MEDIUM"
+
+  events:
+    $e.metadata.event_type = "SERVICE_CREATION"
+
+  condition:
+    $e
+}
+
+rule ht_gs_101057_service_from_temp_path {
+  meta:
+    rule_id         = "GS-101057"
+    author          = "HuntingThreats"
+    description     = "Service binary path pointing to Temp/AppData — staging service"
+    mitre_tactic    = "Persistence"
+    mitre_technique = "T1543.003"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "SERVICE_CREATION"
+    re.regex($e.target.resource.name, `(?i)(\\temp\\|\\appdata\\|\\programdata\\)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_101058_service_psexec_installed {
+  meta:
+    rule_id         = "GS-101058"
+    author          = "HuntingThreats"
+    description     = "PSEXESVC service created — PsExec lateral movement detected"
+    mitre_tactic    = "Lateral Movement"
+    mitre_technique = "T1570"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "SERVICE_CREATION"
+    re.regex($e.target.resource.name, `(?i)PSEXESVC`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_101059_service_powershell_binpath {
+  meta:
+    rule_id         = "GS-101059"
+    author          = "HuntingThreats"
+    description     = "Service with PowerShell as binary path — PS command as Windows service"
+    mitre_tactic    = "Persistence"
+    mitre_technique = "T1543.003"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "SERVICE_CREATION"
+    re.regex($e.target.resource.name, `(?i)(powershell|pwsh)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_101060_service_cmd_binpath {
+  meta:
+    rule_id         = "GS-101060"
+    author          = "HuntingThreats"
+    description     = "Service with cmd.exe as binary path — shell command as service"
+    mitre_tactic    = "Persistence"
+    mitre_technique = "T1543.003"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "SERVICE_CREATION"
+    re.regex($e.target.resource.name, `(?i)\\cmd\.exe`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_101061_service_dll_service_path {
+  meta:
+    rule_id         = "GS-101061"
+    author          = "HuntingThreats"
+    description     = "ServiceDll registry pointing to non-system path — DLL service hijacking"
+    mitre_tactic    = "Persistence"
+    mitre_technique = "T1543.003"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "REGISTRY_MODIFICATION"
+    re.regex($e.target.registry.registry_key, `(?i)\\Services\\.*\\Parameters\\ServiceDll`)
+    NOT re.regex($e.target.registry.registry_value_data, `(?i)\\(System32|SysWOW64)\\`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_101062_service_sc_exe_create {
+  meta:
+    rule_id         = "GS-101062"
+    author          = "HuntingThreats"
+    description     = "SC.exe create with binpath to suspicious binary — service installation"
+    mitre_tactic    = "Persistence"
+    mitre_technique = "T1543.003"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.file.full_path, `(?i)\\sc\.exe$`)
+    re.regex($e.target.process.command_line, `(?i)create`)
+    re.regex($e.target.process.command_line, `(?i)(binpath|type=\s*own)`)
+    re.regex($e.target.process.command_line, `(?i)(\\temp\\|\\appdata\\|\\programdata\\|powershell|cmd)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_101063_service_start_type_boot {
+  meta:
+    rule_id         = "GS-101063"
+    author          = "HuntingThreats"
+    description     = "New service with BOOT or SYSTEM start — pre-boot persistence"
+    mitre_tactic    = "Persistence"
+    mitre_technique = "T1543.003"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.file.full_path, `(?i)\\sc\.exe$`)
+    re.regex($e.target.process.command_line, `(?i)create`)
+    re.regex($e.target.process.command_line, `(?i)start=\s*(boot|system)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_101064_service_stop_critical_av {
+  meta:
+    rule_id         = "GS-101064"
+    author          = "HuntingThreats"
+    description     = "AV/EDR service stopped — security tool disruption before attack"
+    mitre_tactic    = "Defense Evasion"
+    mitre_technique = "T1489"
+    severity        = "CRITICAL"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.file.full_path, `(?i)\\sc\.exe$`)
+    re.regex($e.target.process.command_line, `(?i)stop`)
+    re.regex($e.target.process.command_line, `(?i)(windefend|sense|csagent|csfalconservice|mssense|mbamdor|carbonblack|cylance|crowdstrike)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_101065_service_delete_cover_tracks {
+  meta:
+    rule_id         = "GS-101065"
+    author          = "HuntingThreats"
+    description     = "SC.exe delete — service removed after use, covering tracks"
+    mitre_tactic    = "Defense Evasion"
+    mitre_technique = "T1070.004"
+    severity        = "MEDIUM"
+    confidence      = "MEDIUM"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.file.full_path, `(?i)\\sc\.exe$`)
+    re.regex($e.target.process.command_line, `(?i)delete`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_101066_service_image_path_reg_write {
+  meta:
+    rule_id         = "GS-101066"
+    author          = "HuntingThreats"
+    description     = "Service ImagePath registry modified to non-system binary — service hijacking"
+    mitre_tactic    = "Persistence"
+    mitre_technique = "T1574.011"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "REGISTRY_MODIFICATION"
+    re.regex($e.target.registry.registry_key, `(?i)\\Services\\.*\\ImagePath`)
+    NOT re.regex($e.target.registry.registry_value_data, `(?i)\\(Windows|System32|SysWOW64|Program Files)\\`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_101067_service_unquoted_service_path {
+  meta:
+    rule_id         = "GS-101067"
+    author          = "HuntingThreats"
+    description     = "Service binary path with spaces and no quotes — unquoted service path hijack"
+    mitre_tactic    = "Privilege Escalation"
+    mitre_technique = "T1574.009"
+    severity        = "MEDIUM"
+    confidence      = "MEDIUM"
+
+  events:
+    $e.metadata.event_type = "REGISTRY_MODIFICATION"
+    re.regex($e.target.registry.registry_key, `(?i)\\Services\\.*\\ImagePath`)
+    re.regex($e.target.registry.registry_value_data, `(?i)^[^"'].*\s.*\.exe`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_101068_service_remote_via_sc {
+  meta:
+    rule_id         = "GS-101068"
+    author          = "HuntingThreats"
+    description     = "SC.exe targeting remote host — remote service creation for lateral movement"
+    mitre_tactic    = "Lateral Movement"
+    mitre_technique = "T1543.003"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.file.full_path, `(?i)\\sc\.exe$`)
+    re.regex($e.target.process.command_line, `(?i)\\\\[a-z0-9]`)
+    re.regex($e.target.process.command_line, `(?i)(create|start)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_101069_service_printspooler_dll {
+  meta:
+    rule_id         = "GS-101069"
+    author          = "HuntingThreats"
+    description     = "Spoolsv loading DLL from non-System32 path — PrintNightmare exploitation"
+    mitre_tactic    = "Privilege Escalation"
+    mitre_technique = "T1547.012"
+    severity        = "CRITICAL"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.principal.process.file.full_path, `(?i)\\spoolsv\.exe$`)
+    re.regex($e.target.process.file.full_path, `(?i)\\(rundll32|regsvr32)\.exe$`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_101070_service_install_via_wmi {
+  meta:
+    rule_id         = "GS-101070"
+    author          = "HuntingThreats"
+    description     = "Service installed via WMI Win32_Service.Create — WMI service creation"
+    mitre_tactic    = "Persistence"
+    mitre_technique = "T1543.003"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.principal.process.file.full_path, `(?i)\\wmiprvse\.exe$`)
+    re.regex($e.target.process.file.full_path, `(?i)\\sc\.exe$`)
+    re.regex($e.target.process.command_line, `(?i)create`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_101071_service_mass_stop {
+  meta:
+    rule_id         = "GS-101071"
+    author          = "HuntingThreats"
+    description     = "Mass service stop — 5+ services stopped in 2 minutes — ransomware behavior"
+    mitre_tactic    = "Impact"
+    mitre_technique = "T1489"
+    severity        = "CRITICAL"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.file.full_path, `(?i)\\sc\.exe$`)
+    re.regex($e.target.process.command_line, `(?i)stop`)
+
+  match:
+    $e.principal.hostname over 2m
+
+  condition:
+    #e > 5
+}
+
+rule ht_gs_101072_service_driver_load_suspicious {
+  meta:
+    rule_id         = "GS-101072"
+    author          = "HuntingThreats"
+    description     = "Kernel driver loaded from non-system path — suspicious driver install"
+    mitre_tactic    = "Privilege Escalation"
+    mitre_technique = "T1543.003"
+    severity        = "CRITICAL"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "REGISTRY_MODIFICATION"
+    re.regex($e.target.registry.registry_key, `(?i)\\Services\\.*\\Type`)
+    $e.target.registry.registry_value_data = "1"
+
+  condition:
+    $e
+}
+
+rule ht_gs_101073_service_hollowed_svchost {
+  meta:
+    rule_id         = "GS-101073"
+    author          = "HuntingThreats"
+    description     = "Svchost spawning unexpected child process — process hollowing indicator"
+    mitre_tactic    = "Defense Evasion"
+    mitre_technique = "T1055.012"
+    severity        = "HIGH"
+    confidence      = "MEDIUM"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.principal.process.file.full_path, `(?i)\\svchost\.exe$`)
+    re.regex($e.target.process.file.full_path, `(?i)\\(cmd|powershell|wscript|mshta|rundll32|regsvr32)\.exe$`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_101074_service_process_no_parent_services {
+  meta:
+    rule_id         = "GS-101074"
+    author          = "HuntingThreats"
+    description     = "Process running without expected svchost/services parent — orphan service process"
+    mitre_tactic    = "Defense Evasion"
+    mitre_technique = "T1036.005"
+    severity        = "HIGH"
+    confidence      = "MEDIUM"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.file.full_path, `(?i)\\(lsass|lsm|wininit|winlogon|csrss)\.exe$`)
+    NOT re.regex($e.principal.process.file.full_path, `(?i)\\(system|wininit|smss|ntoskrnl)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_101075_service_modification_via_ps {
+  meta:
+    rule_id         = "GS-101075"
+    author          = "HuntingThreats"
+    description     = "PowerShell Set-Service changing StartType to Disabled — security service disabled"
+    mitre_tactic    = "Defense Evasion"
+    mitre_technique = "T1562.001"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.command_line, `(?i)set-service`)
+    re.regex($e.target.process.command_line, `(?i)-startuptype\s+disabled`)
+    re.regex($e.target.process.command_line, `(?i)(windefend|wuauserv|msseces|wscsvc|securityhealthservice)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_101076_service_install_via_impacket {
+  meta:
+    rule_id         = "GS-101076"
+    author          = "HuntingThreats"
+    description     = "Service installed with Impacket-style workstation name (DESKTOP-random) from remote"
+    mitre_tactic    = "Lateral Movement"
+    mitre_technique = "T1543.003"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "SERVICE_CREATION"
+    re.regex($e.principal.hostname, `(?i)DESKTOP-[A-Z0-9]{7}`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_101077_service_process_injection_from_service {
+  meta:
+    rule_id         = "GS-101077"
+    author          = "HuntingThreats"
+    description     = "Service process creating remote thread in another process — injection from service"
+    mitre_tactic    = "Defense Evasion"
+    mitre_technique = "T1055.001"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.principal.process.file.full_path, `(?i)\\svchost\.exe$`)
+    re.regex($e.target.process.command_line, `(?i)(virtualalloc|writeprocessmemory|createremotethread)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_101078_service_name_masquerade {
+  meta:
+    rule_id         = "GS-101078"
+    author          = "HuntingThreats"
+    description     = "Service name closely mimicking legitimate service — typosquatting service name"
+    mitre_tactic    = "Defense Evasion"
+    mitre_technique = "T1036.005"
+    severity        = "HIGH"
+    confidence      = "MEDIUM"
+
+  events:
+    $e.metadata.event_type = "SERVICE_CREATION"
+    re.regex($e.target.resource.name, `(?i)(svch0st|lsas5|lsa55|w1ndefend|svchosts|svchoost|isass)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_101079_service_created_then_deleted {
+  meta:
+    rule_id         = "GS-101079"
+    author          = "HuntingThreats"
+    description     = "Service created and deleted within 10 minutes — one-shot execution service"
+    mitre_tactic    = "Defense Evasion"
+    mitre_technique = "T1070.004"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e1.metadata.event_type = "SERVICE_CREATION"
+    $e2.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e2.target.process.file.full_path, `(?i)\\sc\.exe$`)
+    re.regex($e2.target.process.command_line, `(?i)delete`)
+    $e1.principal.hostname = $e2.principal.hostname
+
+  match:
+    $e1.principal.hostname over 10m
+
+  condition:
+    $e1 and $e2
+}
+
+rule ht_gs_101080_service_cryptominer_indicator {
+  meta:
+    rule_id         = "GS-101080"
+    author          = "HuntingThreats"
+    description     = "Service name or binary matching known cryptominer patterns — XMRig/Monero"
+    mitre_tactic    = "Impact"
+    mitre_technique = "T1496"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "SERVICE_CREATION"
+    re.regex($e.target.resource.name, `(?i)(xmrig|xmr|minerd|cpuminer|cgminer|nicehash|cryptonight|stratum\+)`)
+
+  condition:
+    $e
+}

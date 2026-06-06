@@ -1,0 +1,438 @@
+<!--
+  HuntingThreats — Wazuh Hunt Rules
+  Category:  Execution — LOLBins / Living-Off-the-Land Binaries (T1218)
+  Batch:     1 / Execution
+  Rules:     100026 – 100060
+  Platform:  Wazuh 4.x
+  Sources:   Sysmon Event 1 (Process Creation)
+             Sysmon Event 3 (Network Connection)
+             Windows Event 4688 (Process Creation)
+
+  LOLBins = Legitimate binaries abused for malicious execution.
+  Each rule targets a specific binary + specific abuse pattern.
+  FP rate is kept low by matching on the specific flags/arguments used in attacks.
+
+  References:
+    https://lolbas-project.github.io/
+    MITRE ATT&CK T1218.* (System Binary Proxy Execution)
+-->
+
+<group name="hunt_execution,lolbins,windows,">
+
+  <!-- ── certutil.exe — download & decode ─────────────────────────────────── -->
+
+  <rule id="100026" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$|^4688$</field>
+    <field name="win.eventdata.image|win.eventdata.newProcessName" type="pcre2">(?i)\\certutil\.exe$</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?i)(-urlcache|-decode|-decodehex)</field>
+    <description>certutil.exe: LOLBin abuse — urlcache/decode used for file download or decode (T1105, T1140)</description>
+    <mitre><id>T1105</id><id>T1140</id></mitre>
+    <group>lolbin,download,high_confidence,</group>
+  </rule>
+
+  <!-- ── certutil.exe — encode (staging) ─────────────────────────────────── -->
+
+  <rule id="100027" level="10">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$|^4688$</field>
+    <field name="win.eventdata.image|win.eventdata.newProcessName" type="pcre2">(?i)\\certutil\.exe$</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?i)-encode\b</field>
+    <description>certutil.exe: Base64 encoding — may be used to stage payloads (T1027, T1140)</description>
+    <mitre><id>T1027</id><id>T1140</id></mitre>
+    <group>lolbin,staging,</group>
+  </rule>
+
+  <!-- ── bitsadmin.exe — download ─────────────────────────────────────────── -->
+
+  <rule id="100028" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$|^4688$</field>
+    <field name="win.eventdata.image|win.eventdata.newProcessName" type="pcre2">(?i)\\bitsadmin\.exe$</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?i)/transfer|/addfile|/setnotifycmdline</field>
+    <description>bitsadmin.exe: LOLBin abuse — BITS transfer used for download or persistence (T1105, T1197)</description>
+    <mitre><id>T1105</id><id>T1197</id></mitre>
+    <group>lolbin,download,high_confidence,</group>
+  </rule>
+
+  <!-- ── mshta.exe — any execution ────────────────────────────────────────── -->
+
+  <rule id="100029" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$|^4688$</field>
+    <field name="win.eventdata.image|win.eventdata.newProcessName" type="pcre2">(?i)\\mshta\.exe$</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?i)(https?://|javascript:|vbscript:|about:|\.hta\b)</field>
+    <description>mshta.exe: Script execution — HTA app or remote URL (T1218.005)</description>
+    <mitre><id>T1218.005</id></mitre>
+    <group>lolbin,script_execution,high_confidence,</group>
+  </rule>
+
+  <!-- ── mshta.exe — inline VBScript ─────────────────────────────────────── -->
+
+  <rule id="100030" level="14">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$|^4688$</field>
+    <field name="win.eventdata.image|win.eventdata.newProcessName" type="pcre2">(?i)\\mshta\.exe$</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?i)vbscript:(createobject|getobject|execute|eval)</field>
+    <description>mshta.exe: Inline VBScript execution — fileless execution via HTML Application (T1218.005)</description>
+    <mitre><id>T1218.005</id></mitre>
+    <group>lolbin,script_execution,critical,</group>
+  </rule>
+
+  <!-- ── regsvr32.exe — Squiblydoo (remote scriptlet) ─────────────────────── -->
+
+  <rule id="100031" level="14">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$|^4688$</field>
+    <field name="win.eventdata.image|win.eventdata.newProcessName" type="pcre2">(?i)\\regsvr32\.exe$</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?i)https?://|\/s\s+\/u\s+\/i:http|\.sct\b</field>
+    <description>regsvr32.exe: Squiblydoo — remote COM scriptlet via URL bypasses AppLocker (T1218.010)</description>
+    <mitre><id>T1218.010</id></mitre>
+    <group>lolbin,script_execution,critical,</group>
+  </rule>
+
+  <!-- ── wmic.exe — process execution ─────────────────────────────────────── -->
+
+  <rule id="100032" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$|^4688$</field>
+    <field name="win.eventdata.image|win.eventdata.newProcessName" type="pcre2">(?i)\\wmic\.exe$</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?i)process\s+call\s+create</field>
+    <description>wmic.exe: process call create — remote or local process execution via WMI (T1047)</description>
+    <mitre><id>T1047</id></mitre>
+    <group>lolbin,wmi,execution,high_confidence,</group>
+  </rule>
+
+  <!-- ── wmic.exe — remote execution ─────────────────────────────────────── -->
+
+  <rule id="100033" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$|^4688$</field>
+    <field name="win.eventdata.image|win.eventdata.newProcessName" type="pcre2">(?i)\\wmic\.exe$</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?i)/node:[^\s]+</field>
+    <description>wmic.exe: remote /node execution — lateral movement via WMI (T1047, T1021)</description>
+    <mitre><id>T1047</id><id>T1021</id></mitre>
+    <group>lolbin,wmi,lateral_movement,high_confidence,</group>
+  </rule>
+
+  <!-- ── rundll32.exe — remote DLL or UNC path ─────────────────────────────── -->
+
+  <rule id="100034" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$|^4688$</field>
+    <field name="win.eventdata.image|win.eventdata.newProcessName" type="pcre2">(?i)\\rundll32\.exe$</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?i)(https?://|\\\\[^\s]+\\[^\s]+\.dll|javascript:)</field>
+    <description>rundll32.exe: remote DLL or UNC path — proxy execution via network resource (T1218.011)</description>
+    <mitre><id>T1218.011</id></mitre>
+    <group>lolbin,proxy_execution,high_confidence,</group>
+  </rule>
+
+  <!-- ── rundll32.exe — comsvcs.dll MiniDump (LSASS dump) ─────────────────── -->
+
+  <rule id="100035" level="14">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$|^4688$</field>
+    <field name="win.eventdata.image|win.eventdata.newProcessName" type="pcre2">(?i)\\rundll32\.exe$</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?i)comsvcs(\.dll)?,\s*minidump|comsvcs(\.dll)?,minidump</field>
+    <description>rundll32.exe: comsvcs.dll MiniDump — LSASS memory dump technique (T1003.001)</description>
+    <mitre><id>T1003.001</id><id>T1218.011</id></mitre>
+    <group>credential_access,lsass_dump,critical,</group>
+  </rule>
+
+  <!-- ── cmstp.exe — INF file (COM scriptlet bypass) ──────────────────────── -->
+
+  <rule id="100036" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$|^4688$</field>
+    <field name="win.eventdata.image|win.eventdata.newProcessName" type="pcre2">(?i)\\cmstp\.exe$</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?i)(\/s|\/ns|\/au)[\s]+.*\.(inf|com)\b</field>
+    <description>cmstp.exe: LOLBin abuse — INF file execution bypasses UAC and AppLocker (T1218.003)</description>
+    <mitre><id>T1218.003</id></mitre>
+    <group>lolbin,uac_bypass,high_confidence,</group>
+  </rule>
+
+  <!-- ── msiexec.exe — remote MSI download ────────────────────────────────── -->
+
+  <rule id="100037" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$|^4688$</field>
+    <field name="win.eventdata.image|win.eventdata.newProcessName" type="pcre2">(?i)\\msiexec\.exe$</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?i)(https?://|\/q[\s]+https?://|TRANSFORMS=http)</field>
+    <description>msiexec.exe: remote MSI download — installer used as download cradle (T1218.007)</description>
+    <mitre><id>T1218.007</id><id>T1105</id></mitre>
+    <group>lolbin,download,high_confidence,</group>
+  </rule>
+
+  <!-- ── odbcconf.exe — DLL registration bypass ───────────────────────────── -->
+
+  <rule id="100038" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$|^4688$</field>
+    <field name="win.eventdata.image|win.eventdata.newProcessName" type="pcre2">(?i)\\odbcconf\.exe$</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?i)(\/f\s+[^\s]+\.rsp|\/a\s*\{regsvr)</field>
+    <description>odbcconf.exe: LOLBin — DLL registration via RSP file, bypasses AppLocker (T1218.008)</description>
+    <mitre><id>T1218.008</id></mitre>
+    <group>lolbin,proxy_execution,high_confidence,</group>
+  </rule>
+
+  <!-- ── esentutl.exe — file copy (ADS) ──────────────────────────────────── -->
+
+  <rule id="100039" level="10">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$|^4688$</field>
+    <field name="win.eventdata.image|win.eventdata.newProcessName" type="pcre2">(?i)\\esentutl\.exe$</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?i)(\/y\s+.*\/d|\/y\s+.*\/o)</field>
+    <description>esentutl.exe: file copy LOLBin — may exfiltrate/stage files including NTDS.dit (T1005, T1560)</description>
+    <mitre><id>T1005</id><id>T1560</id></mitre>
+    <group>lolbin,exfiltration,</group>
+  </rule>
+
+  <!-- ── wscript.exe / cscript.exe — remote script ────────────────────────── -->
+
+  <rule id="100040" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$|^4688$</field>
+    <field name="win.eventdata.image|win.eventdata.newProcessName" type="pcre2">(?i)\\(wscript|cscript)\.exe$</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?i)https?://|\\\\[^\s]+\.(vbs|js|wsf|hta)\b</field>
+    <description>wscript/cscript: remote script execution — LOLBin download and execute (T1059.005)</description>
+    <mitre><id>T1059.005</id><id>T1105</id></mitre>
+    <group>lolbin,script_execution,high_confidence,</group>
+  </rule>
+
+  <!-- ── wscript.exe — spawning PowerShell ─────────────────────────────────── -->
+
+  <rule id="100041" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$</field>
+    <field name="win.eventdata.image" type="pcre2">(?i)\\powershell\.exe$|\\pwsh\.exe$</field>
+    <field name="win.eventdata.parentImage" type="pcre2">(?i)\\(wscript|cscript)\.exe$</field>
+    <description>Sysmon: PowerShell spawned by wscript/cscript — script host chains to PS (T1059.005, T1059.001)</description>
+    <mitre><id>T1059.005</id><id>T1059.001</id></mitre>
+    <group>lolbin,script_execution,high_confidence,</group>
+  </rule>
+
+  <!-- ── cmd.exe — download via curl/wget ─────────────────────────────────── -->
+
+  <rule id="100042" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$|^4688$</field>
+    <field name="win.eventdata.image|win.eventdata.newProcessName" type="pcre2">(?i)\\cmd\.exe$</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?i)\/c.*(curl|wget|certutil|bitsadmin).*https?://</field>
+    <description>cmd.exe /c: download tool chaining — cmd used to invoke download via LOLBin (T1105)</description>
+    <mitre><id>T1105</id></mitre>
+    <group>execution,download,high_confidence,</group>
+  </rule>
+
+  <!-- ── cmd.exe spawned by Office ─────────────────────────────────────────── -->
+
+  <rule id="100043" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$</field>
+    <field name="win.eventdata.image" type="pcre2">(?i)\\cmd\.exe$</field>
+    <field name="win.eventdata.parentImage" type="pcre2">(?i)(winword|excel|powerpnt|outlook|mspub|msaccess)\.exe$</field>
+    <description>Sysmon: cmd.exe spawned by Office — macro execution indicator (T1566.001, T1059.003)</description>
+    <mitre><id>T1566.001</id><id>T1059.003</id></mitre>
+    <group>execution,initial_access,office_macro,critical,</group>
+  </rule>
+
+  <!-- ── forfiles.exe — command execution ─────────────────────────────────── -->
+
+  <rule id="100044" level="10">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$|^4688$</field>
+    <field name="win.eventdata.image|win.eventdata.newProcessName" type="pcre2">(?i)\\forfiles\.exe$</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?i)\/c\s+(cmd|powershell|wscript|mshta|rundll32)</field>
+    <description>forfiles.exe: LOLBin execution proxy — AppLocker bypass via forfiles /c (T1218)</description>
+    <mitre><id>T1218</id></mitre>
+    <group>lolbin,proxy_execution,</group>
+  </rule>
+
+  <!-- ── pcalua.exe — execution proxy ─────────────────────────────────────── -->
+
+  <rule id="100045" level="10">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$|^4688$</field>
+    <field name="win.eventdata.image|win.eventdata.newProcessName" type="pcre2">(?i)\\pcalua\.exe$</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?i)-a\s+</field>
+    <description>pcalua.exe: LOLBin execution via Program Compatibility Assistant (T1218)</description>
+    <mitre><id>T1218</id></mitre>
+    <group>lolbin,proxy_execution,</group>
+  </rule>
+
+  <!-- ── desktopimgdownldr.exe — download ─────────────────────────────────── -->
+
+  <rule id="100046" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$|^4688$</field>
+    <field name="win.eventdata.image|win.eventdata.newProcessName" type="pcre2">(?i)\\desktopimgdownldr\.exe$</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?i)https?://</field>
+    <description>desktopimgdownldr.exe: LOLBin download — desktop wallpaper tool abused for file download (T1105)</description>
+    <mitre><id>T1105</id></mitre>
+    <group>lolbin,download,high_confidence,</group>
+  </rule>
+
+  <!-- ── expand.exe — unpack payload ─────────────────────────────────────── -->
+
+  <rule id="100047" level="10">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$|^4688$</field>
+    <field name="win.eventdata.image|win.eventdata.newProcessName" type="pcre2">(?i)\\expand\.exe$</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?i)\\users\\|\\appdata\\|\\temp\\|\\downloads\\</field>
+    <description>expand.exe: Cabinet file extraction to user-writable path — possible payload unpacking (T1140)</description>
+    <mitre><id>T1140</id></mitre>
+    <group>lolbin,staging,</group>
+  </rule>
+
+  <!-- ── mavinject.exe — DLL injection ────────────────────────────────────── -->
+
+  <rule id="100048" level="14">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$|^4688$</field>
+    <field name="win.eventdata.image|win.eventdata.newProcessName" type="pcre2">(?i)\\mavinject(32|64)?\.exe$</field>
+    <description>mavinject.exe: Microsoft signed DLL injector — injects DLL into target process (T1055.001)</description>
+    <mitre><id>T1055.001</id></mitre>
+    <group>lolbin,process_injection,critical,</group>
+  </rule>
+
+  <!-- ── ieexec.exe — IE download proxy ───────────────────────────────────── -->
+
+  <rule id="100049" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$|^4688$</field>
+    <field name="win.eventdata.image|win.eventdata.newProcessName" type="pcre2">(?i)\\ieexec\.exe$</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?i)https?://</field>
+    <description>ieexec.exe: LOLBin — IE execution proxy used to download and run remote binary (T1105)</description>
+    <mitre><id>T1105</id></mitre>
+    <group>lolbin,download,high_confidence,</group>
+  </rule>
+
+  <!-- ── appsyncpublishing / SyncAppvPublishingServer ─────────────────────── -->
+
+  <rule id="100050" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$|^4688$</field>
+    <field name="win.eventdata.image|win.eventdata.newProcessName" type="pcre2">(?i)\\(SyncAppvPublishingServer|AppVLP)\.exe$</field>
+    <description>SyncAppvPublishingServer/AppVLP: LOLBin — App-V publishing used as PS execution proxy (T1218)</description>
+    <mitre><id>T1218</id></mitre>
+    <group>lolbin,proxy_execution,high_confidence,</group>
+  </rule>
+
+  <!-- ── netsh.exe — helper DLL (persistence) ─────────────────────────────── -->
+
+  <rule id="100051" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$|^4688$</field>
+    <field name="win.eventdata.image|win.eventdata.newProcessName" type="pcre2">(?i)\\netsh\.exe$</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?i)add\s+helper\s+</field>
+    <description>netsh.exe: add helper DLL — persistent DLL loading via netsh helper (T1546.007)</description>
+    <mitre><id>T1546.007</id></mitre>
+    <group>persistence,lolbin,high_confidence,</group>
+  </rule>
+
+  <!-- ── msconfig.exe — launch entry ─────────────────────────────────────── -->
+
+  <rule id="100052" level="10">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$</field>
+    <field name="win.eventdata.image" type="pcre2">(?i)\\(cmd|powershell|wscript|mshta)\.exe$</field>
+    <field name="win.eventdata.parentImage" type="pcre2">(?i)\\msconfig\.exe$</field>
+    <description>Sysmon: Shell/script spawned by msconfig.exe — msconfig launch entry abuse (T1218)</description>
+    <mitre><id>T1218</id></mitre>
+    <group>lolbin,proxy_execution,</group>
+  </rule>
+
+  <!-- ── at.exe — task scheduling (legacy) ────────────────────────────────── -->
+
+  <rule id="100053" level="10">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$|^4688$</field>
+    <field name="win.eventdata.image|win.eventdata.newProcessName" type="pcre2">(?i)\\at\.exe$</field>
+    <description>at.exe: Legacy task scheduler — may be used for lateral movement or persistence (T1053.002)</description>
+    <mitre><id>T1053.002</id></mitre>
+    <group>persistence,lateral_movement,</group>
+  </rule>
+
+  <!-- ── sc.exe — service creation ────────────────────────────────────────── -->
+
+  <rule id="100054" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$|^4688$</field>
+    <field name="win.eventdata.image|win.eventdata.newProcessName" type="pcre2">(?i)\\sc\.exe$</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?i)create\s+.*binpath=</field>
+    <description>sc.exe: service creation — new service with custom binary path (T1543.003)</description>
+    <mitre><id>T1543.003</id></mitre>
+    <group>persistence,service_creation,high_confidence,</group>
+  </rule>
+
+  <!-- ── reg.exe — SAM/SYSTEM/SECURITY export ─────────────────────────────── -->
+
+  <rule id="100055" level="14">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$|^4688$</field>
+    <field name="win.eventdata.image|win.eventdata.newProcessName" type="pcre2">(?i)\\reg\.exe$</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?i)save\s+(hklm\\sam|hklm\\system|hklm\\security)</field>
+    <description>reg.exe: SAM/SYSTEM/SECURITY hive export — offline credential extraction preparation (T1003.002)</description>
+    <mitre><id>T1003.002</id></mitre>
+    <group>credential_access,sam_dump,critical,</group>
+  </rule>
+
+  <!-- ── vssadmin.exe — shadow copy delete ───────────────────────────────── -->
+
+  <rule id="100056" level="14">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$|^4688$</field>
+    <field name="win.eventdata.image|win.eventdata.newProcessName" type="pcre2">(?i)\\vssadmin\.exe$</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?i)delete\s+shadows</field>
+    <description>vssadmin.exe: shadow copy deletion — ransomware precursor or backup inhibition (T1490)</description>
+    <mitre><id>T1490</id></mitre>
+    <group>impact,ransomware_precursor,critical,</group>
+  </rule>
+
+  <!-- ── wbadmin.exe — backup deletion ────────────────────────────────────── -->
+
+  <rule id="100057" level="14">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$|^4688$</field>
+    <field name="win.eventdata.image|win.eventdata.newProcessName" type="pcre2">(?i)\\wbadmin\.exe$</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?i)delete\s+(catalog|backup|systemstatebackup)</field>
+    <description>wbadmin.exe: backup/catalog deletion — ransomware precursor (T1490)</description>
+    <mitre><id>T1490</id></mitre>
+    <group>impact,ransomware_precursor,critical,</group>
+  </rule>
+
+  <!-- ── bcdedit.exe — recovery disabled ──────────────────────────────────── -->
+
+  <rule id="100058" level="14">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$|^4688$</field>
+    <field name="win.eventdata.image|win.eventdata.newProcessName" type="pcre2">(?i)\\bcdedit\.exe$</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?i)(recoveryenabled\s+no|bootstatuspolicy\s+ignoreallfailures)</field>
+    <description>bcdedit.exe: recovery disabled — prevents system recovery after encryption (T1490)</description>
+    <mitre><id>T1490</id></mitre>
+    <group>impact,ransomware_precursor,critical,</group>
+  </rule>
+
+  <!-- ── schtasks.exe — task creation ─────────────────────────────────────── -->
+
+  <rule id="100059" level="10">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$|^4688$</field>
+    <field name="win.eventdata.image|win.eventdata.newProcessName" type="pcre2">(?i)\\schtasks\.exe$</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?i)\/create\s+.*\/tr\s+.*(powershell|cmd|wscript|mshta|rundll32)</field>
+    <description>schtasks.exe: scheduled task with script interpreter — persistence via scheduled task (T1053.005)</description>
+    <mitre><id>T1053.005</id></mitre>
+    <group>persistence,scheduled_task,high_confidence,</group>
+  </rule>
+
+  <!-- ── finger.exe — download proxy ─────────────────────────────────────── -->
+
+  <rule id="100060" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$|^4688$</field>
+    <field name="win.eventdata.image|win.eventdata.newProcessName" type="pcre2">(?i)\\finger\.exe$</field>
+    <description>finger.exe: LOLBin network tool — abused to download content from remote host (T1105)</description>
+    <mitre><id>T1105</id></mitre>
+    <group>lolbin,download,high_confidence,</group>
+  </rule>
+
+</group>

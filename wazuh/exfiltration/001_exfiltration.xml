@@ -1,0 +1,371 @@
+<!--
+  HuntingThreats — Wazuh Hunt Rules
+  Category:  Exfiltration (T1048, T1041, T1567, T1052)
+  Batch:     1 / Exfiltration
+  Rules:     107001 – 107030
+  Platform:  Wazuh 4.x
+  Sources:   Sysmon Event 3 (Network Connection)
+             Sysmon Event 1 / Windows Event 4688 (Process Creation)
+             Sysmon Event 11 (File Create — archive/staging)
+             PowerShell Script Block Logging
+
+  T1041  — Exfiltration Over C2 Channel
+  T1048  — Exfiltration Over Alternative Protocol
+  T1048.002 — Exfiltration Over Asymmetric Encrypted Non-C2 Protocol
+  T1048.003 — Exfiltration Over Unencrypted Non-C2 Protocol
+  T1052  — Exfiltration Over Physical Medium
+  T1567  — Exfiltration Over Web Service
+  T1002  — Data Compressed
+  T1560  — Archive Collected Data
+-->
+
+<group name="hunt_exfiltration,windows,">
+
+  <!-- ── Compress + encrypt before transfer (7zip / WinRAR) ────────────────── -->
+
+  <rule id="107001" level="10">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$|^4688$</field>
+    <field name="win.eventdata.image|win.eventdata.newProcessName" type="pcre2">(?i)(\\7z\.exe|\\7za\.exe|\\rar\.exe|\\winrar\.exe)$</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?i)(-p[^ ]{4,}|a\s+.*\.rar|a\s+.*\.7z|-mhe=on)</field>
+    <description>Archive tool: password-protected archive created — data compressed and encrypted before exfiltration (T1560.001)</description>
+    <mitre><id>T1560.001</id></mitre>
+    <group>exfiltration,archive,encrypted,high_confidence,</group>
+  </rule>
+
+  <!-- ── Large archive written to staging path ─────────────────────────────── -->
+
+  <rule id="107002" level="10">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^11$</field>
+    <field name="win.eventdata.targetFilename" type="pcre2">(?i)(\\temp\\|\\appdata\\|\\public\\).*\.(zip|rar|7z|tar|gz|cab)$</field>
+    <field name="win.eventdata.image" type="pcre2">(?i)(?!.*\\(explorer|winrar|7z|peazip)\.exe)</field>
+    <description>Sysmon: archive file created in staging directory by non-archiver — data staging for exfiltration (T1074.001)</description>
+    <mitre><id>T1074.001</id></mitre>
+    <group>exfiltration,staging,archive,high_confidence,</group>
+  </rule>
+
+  <!-- ── FTP exfiltration ───────────────────────────────────────────────────── -->
+
+  <rule id="107003" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^3$</field>
+    <field name="win.eventdata.destinationPort" type="pcre2">^21$|^990$</field>
+    <field name="win.eventdata.image" type="pcre2">(?i)(powershell|cmd|wscript|python|ftpd?)</field>
+    <description>Sysmon Network: FTP connection from script engine — file transfer via FTP (T1048.003)</description>
+    <mitre><id>T1048.003</id></mitre>
+    <group>exfiltration,ftp,high_confidence,</group>
+  </rule>
+
+  <!-- ── SCP / SFTP exfiltration ───────────────────────────────────────────── -->
+
+  <rule id="107004" level="10">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$|^4688$</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?i)(scp\s+.*@.*:|sftp\s+.*@|pscp\.exe|winscp.*\/console)</field>
+    <description>Command: SCP/SFTP file transfer initiated — encrypted file exfiltration (T1048.002)</description>
+    <mitre><id>T1048.002</id></mitre>
+    <group>exfiltration,scp_sftp,high_confidence,</group>
+  </rule>
+
+  <!-- ── curl / wget POST with data file ───────────────────────────────────── -->
+
+  <rule id="107005" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$|^4688$</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?i)(curl|wget).*(--data-binary|--upload-file|-d\s+@|-T\s+|--form\s+)</field>
+    <description>curl/wget: file data POST request — HTTP-based data exfiltration (T1048, T1041)</description>
+    <mitre><id>T1048</id></mitre>
+    <group>exfiltration,http_post,high_confidence,</group>
+  </rule>
+
+  <!-- ── PowerShell upload to web service ──────────────────────────────────── -->
+
+  <rule id="107006" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^4103$|^4104$</field>
+    <field name="win.eventdata.scriptBlockText" type="pcre2">(?i)(UploadFile|UploadData|UploadString|Invoke-RestMethod.*(POST|PUT).*Body\s+[^$])</field>
+    <description>PowerShell: file upload via web request — PS-based exfiltration (T1567)</description>
+    <mitre><id>T1567</id></mitre>
+    <group>exfiltration,ps_upload,high_confidence,</group>
+  </rule>
+
+  <!-- ── OneDrive / Dropbox / Google Drive upload ──────────────────────────── -->
+
+  <rule id="107007" level="10">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^3$</field>
+    <field name="win.eventdata.destinationHostname" type="pcre2">(?i)(onedrive|dropbox|drive\.google|box\.com|mega\.nz|wetransfer|sharepoint)</field>
+    <field name="win.eventdata.image" type="pcre2">(?i)(?!.*\\(OneDrive|Dropbox|googledrivesync|FileStream)\.exe)</field>
+    <description>Sysmon Network: cloud storage accessed by non-sync process — cloud exfiltration (T1567.002)</description>
+    <mitre><id>T1567.002</id></mitre>
+    <group>exfiltration,cloud_storage,high_confidence,</group>
+  </rule>
+
+  <!-- ── GitHub / Pastebin as exfil endpoint ───────────────────────────────── -->
+
+  <rule id="107008" level="10">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^4103$|^4104$</field>
+    <field name="win.eventdata.scriptBlockText" type="pcre2">(?i)(api\.github\.com.*gists.*POST|pastebin\.com/api.*POST|hastebin|ghostbin|paste\.ee)</field>
+    <description>PowerShell: data posted to pastebin/gist service — code/paste site exfiltration (T1567)</description>
+    <mitre><id>T1567</id></mitre>
+    <group>exfiltration,paste_site,high_confidence,</group>
+  </rule>
+
+  <!-- ── SMTP exfiltration ──────────────────────────────────────────────────── -->
+
+  <rule id="107009" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^3$</field>
+    <field name="win.eventdata.destinationPort" type="pcre2">^25$|^587$|^465$</field>
+    <field name="win.eventdata.image" type="pcre2">(?i)(?!.*\\(OUTLOOK|thunderbird|eM Client)\.exe)</field>
+    <description>Sysmon Network: SMTP connection from non-email client — email-based data exfiltration (T1048.003)</description>
+    <mitre><id>T1048.003</id></mitre>
+    <group>exfiltration,smtp,high_confidence,</group>
+  </rule>
+
+  <!-- ── DNS tunneling exfiltration (long subdomains) ─────────────────────── -->
+
+  <rule id="107010" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^22$</field>
+    <field name="win.eventdata.queryName" type="pcre2">(?i)[a-zA-Z0-9+/]{40,}\.</field>
+    <description>Sysmon DNS: very long subdomain in query — DNS exfiltration via encoded subdomain (T1048.003)</description>
+    <mitre><id>T1048.003</id></mitre>
+    <group>exfiltration,dns_tunnel,high_confidence,</group>
+  </rule>
+
+  <!-- ── Large outbound HTTPS transfer ─────────────────────────────────────── -->
+
+  <rule id="107011" level="10">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^3$</field>
+    <field name="win.eventdata.destinationPort" type="pcre2">^443$</field>
+    <field name="win.eventdata.image" type="pcre2">(?i)(powershell|cmd|wscript|mshta|python|java)</field>
+    <field name="win.eventdata.initiated" type="pcre2">^true$</field>
+    <description>Sysmon Network: script engine making HTTPS connection — possible C2 or exfiltration channel (T1041)</description>
+    <mitre><id>T1041</id></mitre>
+    <group>exfiltration,https,script_engine,</group>
+  </rule>
+
+  <!-- ── Exfil via Slack / Teams webhooks ──────────────────────────────────── -->
+
+  <rule id="107012" level="10">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^4103$|^4104$</field>
+    <field name="win.eventdata.scriptBlockText" type="pcre2">(?i)(hooks\.slack\.com|webhook\.office\.com|discord\.com\/api\/webhooks|telegram\.org\/bot)</field>
+    <description>PowerShell: data sent to chat/bot webhook — exfiltration via messaging service (T1567)</description>
+    <mitre><id>T1567</id></mitre>
+    <group>exfiltration,webhook,chat_service,high_confidence,</group>
+  </rule>
+
+  <!-- ── USB device write (physical exfil) ─────────────────────────────────── -->
+
+  <rule id="107013" level="10">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^11$</field>
+    <field name="win.eventdata.targetFilename" type="pcre2">(?i)^[D-Z]:\\.*\.(zip|rar|7z|pdf|docx|xlsx|csv|db|mdb|bak)$</field>
+    <field name="win.eventdata.image" type="pcre2">(?i)(cmd|powershell|xcopy|robocopy|copy)</field>
+    <description>Sysmon: sensitive files copied to non-C drive — possible USB exfiltration (T1052.001)</description>
+    <mitre><id>T1052.001</id></mitre>
+    <group>exfiltration,usb,physical,</group>
+  </rule>
+
+  <!-- ── rclone exfiltration tool ──────────────────────────────────────────── -->
+
+  <rule id="107014" level="14">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$|^4688$</field>
+    <field name="win.eventdata.image|win.eventdata.newProcessName" type="pcre2">(?i)\\rclone\.exe$</field>
+    <description>rclone.exe: cloud sync tool executed — commonly used for ransomware exfiltration (T1567.002)</description>
+    <mitre><id>T1567.002</id></mitre>
+    <group>exfiltration,rclone,critical,</group>
+  </rule>
+
+  <!-- ── MEGAcmd / MEGAclient ───────────────────────────────────────────────── -->
+
+  <rule id="107015" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$|^4688$</field>
+    <field name="win.eventdata.image|win.eventdata.newProcessName" type="pcre2">(?i)(\\MEGAcmd|\\MEGAclient|\\megasync|\\mega)\.exe$</field>
+    <field name="win.eventdata.parentImage" type="pcre2">(?i)(powershell|cmd|wscript)</field>
+    <description>MEGA: cloud storage client executed from script — MEGA-based exfiltration (T1567.002)</description>
+    <mitre><id>T1567.002</id></mitre>
+    <group>exfiltration,mega,cloud_storage,high_confidence,</group>
+  </rule>
+
+  <!-- ── Data staged in RECYCLER / hidden folder ───────────────────────────── -->
+
+  <rule id="107016" level="10">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^11$</field>
+    <field name="win.eventdata.targetFilename" type="pcre2">(?i)(\\RECYCLER\\|\\$RECYCLE\.BIN\\|\\System Volume Information\\).*\.(zip|rar|7z|db|mdb)$</field>
+    <description>Sysmon: data staged in hidden system folder — covert staging for exfiltration (T1074.001)</description>
+    <mitre><id>T1074.001</id></mitre>
+    <group>exfiltration,staging,hidden_path,high_confidence,</group>
+  </rule>
+
+  <!-- ── exfil via print spooler / printer (rare) ──────────────────────────── -->
+
+  <rule id="107017" level="8">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^3$</field>
+    <field name="win.eventdata.destinationPort" type="pcre2">^9100$|^631$|^515$</field>
+    <field name="win.eventdata.image" type="pcre2">(?i)(?!.*\\(spoolsv|printfilterpipelinesvc)\.exe)</field>
+    <description>Sysmon Network: printing protocol connection from non-print process — data via printer protocol (T1048.003)</description>
+    <mitre><id>T1048.003</id></mitre>
+    <group>exfiltration,printer_protocol,</group>
+  </rule>
+
+  <!-- ── Collection of browser history / cookies ───────────────────────────── -->
+
+  <rule id="107018" level="10">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^11$</field>
+    <field name="win.eventdata.targetFilename" type="pcre2">(?i)(History|Cookies|Login Data|Web Data|Bookmarks)\.(db|sqlite|json)?$</field>
+    <field name="win.eventdata.image" type="pcre2">(?i)(?!.*\\(chrome|firefox|msedge|iexplore|opera)\.exe)</field>
+    <description>Sysmon: browser profile file accessed by non-browser — browser data collection (T1539)</description>
+    <mitre><id>T1539</id></mitre>
+    <group>exfiltration,browser_data,high_confidence,</group>
+  </rule>
+
+  <!-- ── Outlook PST / OST file copied ─────────────────────────────────────── -->
+
+  <rule id="107019" level="10">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^11$</field>
+    <field name="win.eventdata.targetFilename" type="pcre2">(?i)\.(pst|ost)$</field>
+    <field name="win.eventdata.image" type="pcre2">(?i)(?!.*\\(OUTLOOK|pstviewer|thunderbird)\.exe)</field>
+    <description>Sysmon: Outlook PST/OST email archive accessed by non-mail process — email exfiltration (T1114.001)</description>
+    <mitre><id>T1114.001</id></mitre>
+    <group>exfiltration,email,pst_access,high_confidence,</group>
+  </rule>
+
+  <!-- ── Screenshot / screenrecording tools ────────────────────────────────── -->
+
+  <rule id="107020" level="8">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^4103$|^4104$</field>
+    <field name="win.eventdata.scriptBlockText" type="pcre2">(?i)(CopyFromScreen|System\.Windows\.Forms\.Screen|BitBlt|GDI32.*BitBlt|Add-Type.*Drawing\.Imaging)</field>
+    <description>PowerShell: screen capture via GDI API — screen data collection (T1113)</description>
+    <mitre><id>T1113</id></mitre>
+    <group>collection,screenshot,</group>
+  </rule>
+
+  <!-- ── Keylogger API calls ────────────────────────────────────────────────── -->
+
+  <rule id="107021" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^4103$|^4104$</field>
+    <field name="win.eventdata.scriptBlockText" type="pcre2">(?i)(GetAsyncKeyState|SetWindowsHookEx|WH_KEYBOARD|keylogger|[Rr]ead-Key.*loop)</field>
+    <description>PowerShell: keylogging API calls in script — keystrokes captured for credential theft (T1056.001)</description>
+    <mitre><id>T1056.001</id></mitre>
+    <group>collection,keylogger,high_confidence,</group>
+  </rule>
+
+  <!-- ── Clipboard access ───────────────────────────────────────────────────── -->
+
+  <rule id="107022" level="8">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^4103$|^4104$</field>
+    <field name="win.eventdata.scriptBlockText" type="pcre2">(?i)(Get-Clipboard|[Ss]ystem\.Windows\.Forms\.Clipboard::GetText|OpenClipboard)</field>
+    <description>PowerShell: clipboard content accessed — possible credential theft from clipboard (T1115)</description>
+    <mitre><id>T1115</id></mitre>
+    <group>collection,clipboard,</group>
+  </rule>
+
+  <!-- ── Microphone / Camera access ────────────────────────────────────────── -->
+
+  <rule id="107023" level="10">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^4103$|^4104$</field>
+    <field name="win.eventdata.scriptBlockText" type="pcre2">(?i)(WaveIn|AudioRecord|MediaCapture|WMEncoder|VideoInput)</field>
+    <description>PowerShell: audio/video capture API calls — microphone or camera recording (T1123, T1125)</description>
+    <mitre><id>T1123</id></mitre>
+    <group>collection,av_capture,high_confidence,</group>
+  </rule>
+
+  <!-- ── Large file transfer to external IP ────────────────────────────────── -->
+
+  <rule id="107024" level="10">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^3$</field>
+    <field name="win.eventdata.initiated" type="pcre2">^true$</field>
+    <field name="win.eventdata.destinationIp" type="pcre2">(?!^10\.|^192\.168\.|^172\.(1[6-9]|2[0-9]|3[0-1])\.|^127\.)</field>
+    <same_field>win.eventdata.destinationIp</same_field>
+    <frequency>20</frequency>
+    <timeframe>60</timeframe>
+    <description>Sysmon Network: 20+ outbound connections to same external IP in 60s — bulk data transfer (T1048)</description>
+    <mitre><id>T1048</id></mitre>
+    <group>exfiltration,bulk_transfer,threshold,</group>
+  </rule>
+
+  <!-- ── Compress with tar / zip (PS) ──────────────────────────────────────── -->
+
+  <rule id="107025" level="8">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^4103$|^4104$</field>
+    <field name="win.eventdata.scriptBlockText" type="pcre2">(?i)(Compress-Archive|[Ss]ystem\.IO\.Compression\.ZipFile::CreateFromDirectory|ZipArchive|New-ZipFile)</field>
+    <description>PowerShell: archive created via PS — data compression before exfiltration (T1560.001)</description>
+    <mitre><id>T1560.001</id></mitre>
+    <group>exfiltration,compression,ps_archive,</group>
+  </rule>
+
+  <!-- ── Database dump (mysqldump / pg_dump) ───────────────────────────────── -->
+
+  <rule id="107026" level="10">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$|^4688$</field>
+    <field name="win.eventdata.image|win.eventdata.newProcessName" type="pcre2">(?i)(\\mysqldump\.exe|\\pg_dump\.exe|\\sqldump\.exe)$</field>
+    <description>Database dump tool: mysqldump/pg_dump executed — database content collected (T1005)</description>
+    <mitre><id>T1005</id></mitre>
+    <group>collection,db_dump,high_confidence,</group>
+  </rule>
+
+  <!-- ── AD database export ─────────────────────────────────────────────────── -->
+
+  <rule id="107027" level="14">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$|^4688$</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?i)(csvde|ldifde|ldapsearch).*(export|-f\s+|-o\s+)</field>
+    <description>AD export tool: LDAP data exported — Active Directory objects collected (T1119)</description>
+    <mitre><id>T1119</id></mitre>
+    <group>collection,ad_export,high_confidence,</group>
+  </rule>
+
+  <!-- ── PowerShell search and collect (Get-ChildItem + Copy) ──────────────── -->
+
+  <rule id="107028" level="10">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^4103$|^4104$</field>
+    <field name="win.eventdata.scriptBlockText" type="pcre2">(?i)Get-ChildItem.*Recurse.*(Copy-Item|Move-Item).*temp|Compress-Archive</field>
+    <description>PowerShell: recursive file collection and staging pattern — automated data collection (T1119)</description>
+    <mitre><id>T1119</id></mitre>
+    <group>collection,auto_collect,high_confidence,</group>
+  </rule>
+
+  <!-- ── exfil via Twitter / social media API ──────────────────────────────── -->
+
+  <rule id="107029" level="8">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^4103$|^4104$</field>
+    <field name="win.eventdata.scriptBlockText" type="pcre2">(?i)(api\.twitter\.com|graph\.facebook\.com|api\.instagram\.com|reddit\.com\/api).*POST.*Bearer</field>
+    <description>PowerShell: social media API POST with bearer token — covert exfiltration via social media API (T1567)</description>
+    <mitre><id>T1567</id></mitre>
+    <group>exfiltration,social_media,</group>
+  </rule>
+
+  <!-- ── BitTorrent / P2P exfiltration ─────────────────────────────────────── -->
+
+  <rule id="107030" level="10">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^3$</field>
+    <field name="win.eventdata.destinationPort" type="pcre2">^6881$|^6882$|^6883$|^6884$|^6885$|^6886$|^6887$|^6888$|^6889$|^6890$</field>
+    <field name="win.eventdata.image" type="pcre2">(?i)(?!.*\\(bittorrent|utorrent|qbittorrent|transmission)\.exe)</field>
+    <description>Sysmon Network: BitTorrent port used by non-torrent process — P2P exfiltration channel (T1048)</description>
+    <mitre><id>T1048</id></mitre>
+    <group>exfiltration,bittorrent,</group>
+  </rule>
+
+</group>

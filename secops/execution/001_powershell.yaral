@@ -1,0 +1,473 @@
+// ============================================================
+// HuntingThreats — Google SecOps YARA-L 2.0 Hunt Rules
+// Category : Execution — PowerShell (T1059.001)
+// Batch    : 01 / Execution
+// Rules    : GS-100001 – GS-100025
+// Platform : Google SecOps / Chronicle SIEM
+// UDM      : PROCESS_LAUNCH, metadata.product_name = "Microsoft-Windows-Sysmon"
+// ============================================================
+
+rule ht_gs_100001_powershell_encoded_command {
+  meta:
+    rule_id         = "GS-100001"
+    author          = "HuntingThreats"
+    description     = "PowerShell: -EncodedCommand flag — obfuscated script execution"
+    mitre_tactic    = "Execution"
+    mitre_technique = "T1059.001"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.command_line, `(?i)-enc(odedcommand)?\s`) nocase
+
+  condition:
+    $e
+}
+
+rule ht_gs_100002_powershell_hidden_window {
+  meta:
+    rule_id         = "GS-100002"
+    author          = "HuntingThreats"
+    description     = "PowerShell: -WindowStyle Hidden — execution without user visibility"
+    mitre_tactic    = "Execution"
+    mitre_technique = "T1059.001"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.file.full_path, `(?i)\\powershell\.exe$`)
+    re.regex($e.target.process.command_line, `(?i)-w(indowstyle)?\s+h(idden)?`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_100003_powershell_iex_download {
+  meta:
+    rule_id         = "GS-100003"
+    author          = "HuntingThreats"
+    description     = "PowerShell: IEX + WebClient/DownloadString — remote code execution"
+    mitre_tactic    = "Execution"
+    mitre_technique = "T1059.001"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.command_line, `(?i)(iex|invoke-expression)`)
+    re.regex($e.target.process.command_line, `(?i)(webclient|downloadstring|downloadfile)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_100004_powershell_execution_policy_bypass {
+  meta:
+    rule_id         = "GS-100004"
+    author          = "HuntingThreats"
+    description     = "PowerShell: -ExecutionPolicy Bypass — policy circumvention"
+    mitre_tactic    = "Execution"
+    mitre_technique = "T1059.001"
+    severity        = "MEDIUM"
+    confidence      = "MEDIUM"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.file.full_path, `(?i)\\powershell\.exe$`)
+    re.regex($e.target.process.command_line, `(?i)-exec(utionpolicy)?\s+bypass`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_100005_powershell_amsi_bypass {
+  meta:
+    rule_id         = "GS-100005"
+    author          = "HuntingThreats"
+    description     = "PowerShell: AMSI bypass pattern — AmsiContext or amsiInitFailed"
+    mitre_tactic    = "Defense Evasion"
+    mitre_technique = "T1562.001"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.command_line, `(?i)(amsicontext|amsiinitfailed|amsiutils)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_100006_powershell_reflection_assembly_load {
+  meta:
+    rule_id         = "GS-100006"
+    author          = "HuntingThreats"
+    description     = "PowerShell: Reflection.Assembly.Load — in-memory .NET assembly execution"
+    mitre_tactic    = "Execution"
+    mitre_technique = "T1059.001"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.command_line, `(?i)(reflection\.assembly\.load|loadwithpartialname)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_100007_powershell_invoke_mimikatz {
+  meta:
+    rule_id         = "GS-100007"
+    author          = "HuntingThreats"
+    description     = "PowerShell: Invoke-Mimikatz or Invoke-PSReflection — credential theft tool"
+    mitre_tactic    = "Credential Access"
+    mitre_technique = "T1003.001"
+    severity        = "CRITICAL"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.command_line, `(?i)(invoke-mimikatz|invoke-psreflect|sekurlsa)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_100008_powershell_no_profile_noninteractive {
+  meta:
+    rule_id         = "GS-100008"
+    author          = "HuntingThreats"
+    description     = "PowerShell: -NoProfile -NonInteractive -Encoded combo — stealth execution"
+    mitre_tactic    = "Execution"
+    mitre_technique = "T1059.001"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.command_line, `(?i)-nop`)
+    re.regex($e.target.process.command_line, `(?i)-noninteractive`)
+    re.regex($e.target.process.command_line, `(?i)-enc`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_100009_powershell_spawned_by_office {
+  meta:
+    rule_id         = "GS-100009"
+    author          = "HuntingThreats"
+    description     = "PowerShell spawned by Office application — macro execution"
+    mitre_tactic    = "Execution"
+    mitre_technique = "T1059.001"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.file.full_path, `(?i)\\powershell\.exe$`)
+    re.regex($e.principal.process.file.full_path, `(?i)\\(winword|excel|powerpnt|onenote|outlook)\.exe$`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_100010_powershell_from_temp_path {
+  meta:
+    rule_id         = "GS-100010"
+    author          = "HuntingThreats"
+    description     = "PowerShell script executed from Temp/AppData staging path"
+    mitre_tactic    = "Execution"
+    mitre_technique = "T1059.001"
+    severity        = "HIGH"
+    confidence      = "MEDIUM"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.file.full_path, `(?i)\\powershell\.exe$`)
+    re.regex($e.target.process.command_line, `(?i)(\\temp\\|\\appdata\\|\\downloads\\)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_100011_powershell_char_join_obfuscation {
+  meta:
+    rule_id         = "GS-100011"
+    author          = "HuntingThreats"
+    description     = "PowerShell: [char] + join obfuscation pattern"
+    mitre_tactic    = "Defense Evasion"
+    mitre_technique = "T1027"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.command_line, `(?i)(\[char\]|char\(|\-join)`)
+    re.regex($e.target.process.command_line, `(?i)(iex|invoke-expression)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_100012_powershell_empire_download_cradle {
+  meta:
+    rule_id         = "GS-100012"
+    author          = "HuntingThreats"
+    description     = "PowerShell: Empire download cradle pattern — Invoke-Empire or stager"
+    mitre_tactic    = "Execution"
+    mitre_technique = "T1059.001"
+    severity        = "CRITICAL"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.command_line, `(?i)(invoke-empire|launcher\.bat|stager\.ps1|empire\.ps1)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_100013_powershell_invoke_command_remote {
+  meta:
+    rule_id         = "GS-100013"
+    author          = "HuntingThreats"
+    description     = "PowerShell: Invoke-Command with -ComputerName — remote execution"
+    mitre_tactic    = "Lateral Movement"
+    mitre_technique = "T1021.006"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.command_line, `(?i)invoke-command`)
+    re.regex($e.target.process.command_line, `(?i)(-computername|-cn\s)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_100014_powershell_shellcode_byte_array {
+  meta:
+    rule_id         = "GS-100014"
+    author          = "HuntingThreats"
+    description     = "PowerShell: shellcode byte array pattern — 0x4d,0x5a or large byte array"
+    mitre_tactic    = "Execution"
+    mitre_technique = "T1059.001"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.command_line, `(?i)(0x4d,0x5a|0x90,0x90|virtualalloc|writeprocessmemory)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_100015_powershell_new_scheduled_task {
+  meta:
+    rule_id         = "GS-100015"
+    author          = "HuntingThreats"
+    description     = "PowerShell: New-ScheduledTask or Register-ScheduledTask — persistence via PS"
+    mitre_tactic    = "Persistence"
+    mitre_technique = "T1053.005"
+    severity        = "HIGH"
+    confidence      = "MEDIUM"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.command_line, `(?i)(new-scheduledtask|register-scheduledtask|scheduledtaskaction)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_100016_powershell_etw_patch {
+  meta:
+    rule_id         = "GS-100016"
+    author          = "HuntingThreats"
+    description     = "PowerShell: ETW patching — EtwEventWrite or EtwpCreateEtwThread"
+    mitre_tactic    = "Defense Evasion"
+    mitre_technique = "T1562.006"
+    severity        = "CRITICAL"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.command_line, `(?i)(etwEventWrite|etwpCreateEtwThread|nttracecontrol)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_100017_powershell_add_type_csharp {
+  meta:
+    rule_id         = "GS-100017"
+    author          = "HuntingThreats"
+    description     = "PowerShell: Add-Type with inline C# — .NET class compilation in-memory"
+    mitre_tactic    = "Execution"
+    mitre_technique = "T1059.001"
+    severity        = "MEDIUM"
+    confidence      = "MEDIUM"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.command_line, `(?i)add-type`)
+    re.regex($e.target.process.command_line, `(?i)(csharp|cs|codedom)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_100018_powershell_get_clipboard_keylogger {
+  meta:
+    rule_id         = "GS-100018"
+    author          = "HuntingThreats"
+    description     = "PowerShell: Get-Clipboard in loop — clipboard keylogger pattern"
+    mitre_tactic    = "Collection"
+    mitre_technique = "T1115"
+    severity        = "HIGH"
+    confidence      = "MEDIUM"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.command_line, `(?i)get-clipboard`)
+    re.regex($e.target.process.command_line, `(?i)(while|start-sleep|foreach)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_100019_powershell_clear_eventlog {
+  meta:
+    rule_id         = "GS-100019"
+    author          = "HuntingThreats"
+    description     = "PowerShell: Clear-EventLog — log tampering to remove evidence"
+    mitre_tactic    = "Defense Evasion"
+    mitre_technique = "T1070.001"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.command_line, `(?i)(clear-eventlog|wevtutil\s+cl)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_100020_powershell_compress_archive_staging {
+  meta:
+    rule_id         = "GS-100020"
+    author          = "HuntingThreats"
+    description     = "PowerShell: Compress-Archive to staging path — pre-exfiltration staging"
+    mitre_tactic    = "Collection"
+    mitre_technique = "T1560.001"
+    severity        = "MEDIUM"
+    confidence      = "MEDIUM"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.command_line, `(?i)compress-archive`)
+    re.regex($e.target.process.command_line, `(?i)(\\temp\\|\\appdata\\|\\programdata\\)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_100021_powershell_token_manipulation {
+  meta:
+    rule_id         = "GS-100021"
+    author          = "HuntingThreats"
+    description     = "PowerShell: token manipulation functions — Invoke-TokenManipulation"
+    mitre_tactic    = "Privilege Escalation"
+    mitre_technique = "T1134.001"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.command_line, `(?i)(invoke-tokenmanipulation|duplicatetokenex|impersonateloggedonuser)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_100022_powershell_direct_syscall {
+  meta:
+    rule_id         = "GS-100022"
+    author          = "HuntingThreats"
+    description     = "PowerShell: direct syscall pattern — NtAllocateVirtualMemory or SysCall"
+    mitre_tactic    = "Defense Evasion"
+    mitre_technique = "T1106"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.command_line, `(?i)(ntallocatevirtualmemory|ntwritevirtualmemory|syscall|ntcreatethread)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_100023_powershell_disable_restore {
+  meta:
+    rule_id         = "GS-100023"
+    author          = "HuntingThreats"
+    description     = "PowerShell: Disable-ComputerRestore or Remove-RestorePoint — ransomware prep"
+    mitre_tactic    = "Impact"
+    mitre_technique = "T1490"
+    severity        = "CRITICAL"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.command_line, `(?i)(disable-computerrestore|remove-restorepoint)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_100024_powershell_webrequest_post {
+  meta:
+    rule_id         = "GS-100024"
+    author          = "HuntingThreats"
+    description     = "PowerShell: Invoke-WebRequest POST with -Body or -InFile — data upload"
+    mitre_tactic    = "Exfiltration"
+    mitre_technique = "T1041"
+    severity        = "HIGH"
+    confidence      = "MEDIUM"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.command_line, `(?i)(invoke-webrequest|invoke-restmethod)`)
+    re.regex($e.target.process.command_line, `(?i)-method\s+post`)
+    re.regex($e.target.process.command_line, `(?i)(-body|-infile)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_100025_powershell_scriptblock_logging_disabled {
+  meta:
+    rule_id         = "GS-100025"
+    author          = "HuntingThreats"
+    description     = "PowerShell: ScriptBlock logging disabled via registry — evasion"
+    mitre_tactic    = "Defense Evasion"
+    mitre_technique = "T1562.001"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "REGISTRY_MODIFICATION"
+    re.regex($e.target.registry.registry_key, `(?i)\\ScriptBlockLogging`)
+    $e.target.registry.registry_value_data = "0"
+
+  condition:
+    $e
+}

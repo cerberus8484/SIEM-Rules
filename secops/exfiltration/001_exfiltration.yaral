@@ -1,0 +1,588 @@
+// ============================================================
+// HuntingThreats — Google SecOps YARA-L 2.0 Hunt Rules
+// Category : Exfiltration — Data Theft / Upload / DNS Tunnel (T1048, T1041, T1071.004)
+// Batch    : 12 / Exfiltration
+// Rules    : GS-107001 – GS-107030
+// Platform : Google SecOps / Chronicle SIEM
+// ============================================================
+
+rule ht_gs_107001_bitsadmin_upload {
+  meta:
+    rule_id         = "GS-107001"
+    author          = "HuntingThreats"
+    description     = "BITSAdmin /upload — data exfiltration via BITS upload job"
+    mitre_tactic    = "Exfiltration"
+    mitre_technique = "T1048"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.file.full_path, `(?i)\\bitsadmin\.exe$`)
+    re.regex($e.target.process.command_line, `(?i)(/upload|/addfileset.*upload)`)
+    NOT $e.target.process.command_line = /192\.168\.|10\.|127\./
+
+  condition:
+    $e
+}
+
+rule ht_gs_107002_rclone_sync_external {
+  meta:
+    rule_id         = "GS-107002"
+    author          = "HuntingThreats"
+    description     = "Rclone sync or copy to cloud remote — bulk cloud exfiltration"
+    mitre_tactic    = "Exfiltration"
+    mitre_technique = "T1567.002"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.file.full_path, `(?i)\\rclone\.exe$`)
+    re.regex($e.target.process.command_line, `(?i)(sync|copy|move|mount)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_107003_archive_password_protected {
+  meta:
+    rule_id         = "GS-107003"
+    author          = "HuntingThreats"
+    description     = "7-Zip or WinRAR creating password-protected archive from sensitive path"
+    mitre_tactic    = "Collection"
+    mitre_technique = "T1560.001"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.file.full_path, `(?i)\\(7z|7za|rar|winrar)\.exe$`)
+    re.regex($e.target.process.command_line, `(?i)-p`)
+    re.regex($e.target.process.command_line, `(?i)(\\documents\\|\\desktop\\|\\users\\)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_107004_dns_tunnel_long_subdomain {
+  meta:
+    rule_id         = "GS-107004"
+    author          = "HuntingThreats"
+    description     = "DNS query with excessively long subdomain — DNS tunnel data exfiltration"
+    mitre_tactic    = "Exfiltration"
+    mitre_technique = "T1048.003"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "NETWORK_DNS"
+    re.regex($e.network.dns.questions.name, `.{63,}\..+\..+`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_107005_cloud_storage_cli_aws_s3 {
+  meta:
+    rule_id         = "GS-107005"
+    author          = "HuntingThreats"
+    description     = "AWS CLI s3 sync or cp to bucket — cloud storage exfiltration"
+    mitre_tactic    = "Exfiltration"
+    mitre_technique = "T1567.002"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.file.full_path, `(?i)\\aws\.exe$`)
+    re.regex($e.target.process.command_line, `(?i)s3\s+(sync|cp|mv)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_107006_mega_cli_upload {
+  meta:
+    rule_id         = "GS-107006"
+    author          = "HuntingThreats"
+    description     = "Mega.nz CLI (MEGAcmd) used for upload — Mega cloud exfiltration"
+    mitre_tactic    = "Exfiltration"
+    mitre_technique = "T1567.002"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.file.full_path, `(?i)\\(mega-put|mega-upload|MEGAcmd)`)
+    re.regex($e.target.process.command_line, `(?i)(put|upload|sync)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_107007_curl_upload_exfil {
+  meta:
+    rule_id         = "GS-107007"
+    author          = "HuntingThreats"
+    description     = "Curl upload to transfer.sh or 0x0.st paste site — anonymous file exfil"
+    mitre_tactic    = "Exfiltration"
+    mitre_technique = "T1048"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.file.full_path, `(?i)\\curl\.exe$`)
+    re.regex($e.target.process.command_line, `(?i)(transfer\.sh|0x0\.st|file\.io|pasteboard\.co|bashupload\.com)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_107008_dropbox_api_upload {
+  meta:
+    rule_id         = "GS-107008"
+    author          = "HuntingThreats"
+    description     = "PowerShell or script uploading to Dropbox API — cloud exfiltration"
+    mitre_tactic    = "Exfiltration"
+    mitre_technique = "T1567"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "NETWORK_DNS"
+    re.regex($e.network.dns.questions.name, `(?i)api\.dropboxapi\.com`)
+    re.regex($e.principal.process.file.full_path, `(?i)\\(powershell|cmd|wscript|curl|python)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_107009_onedrive_sharepoint_upload {
+  meta:
+    rule_id         = "GS-107009"
+    author          = "HuntingThreats"
+    description     = "Script or CLI uploading to SharePoint/OneDrive REST API — corporate cloud exfil"
+    mitre_tactic    = "Exfiltration"
+    mitre_technique = "T1567"
+    severity        = "HIGH"
+    confidence      = "MEDIUM"
+
+  events:
+    $e.metadata.event_type = "NETWORK_DNS"
+    re.regex($e.network.dns.questions.name, `(?i)(sharepoint\.com|onedrive\.live\.com|graph\.microsoft\.com)`)
+    re.regex($e.principal.process.file.full_path, `(?i)\\(powershell|python|cmd|curl)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_107010_certutil_encode_exfil {
+  meta:
+    rule_id         = "GS-107010"
+    author          = "HuntingThreats"
+    description     = "Certutil -encode creating Base64 encoded output — pre-exfil encoding"
+    mitre_tactic    = "Exfiltration"
+    mitre_technique = "T1132.001"
+    severity        = "MEDIUM"
+    confidence      = "MEDIUM"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.file.full_path, `(?i)\\certutil\.exe$`)
+    re.regex($e.target.process.command_line, `(?i)-encode`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_107011_ftp_upload_external {
+  meta:
+    rule_id         = "GS-107011"
+    author          = "HuntingThreats"
+    description     = "FTP client uploading to external server — legacy FTP exfiltration"
+    mitre_tactic    = "Exfiltration"
+    mitre_technique = "T1048.003"
+    severity        = "HIGH"
+    confidence      = "MEDIUM"
+
+  events:
+    $e.metadata.event_type = "NETWORK_CONNECTION"
+    $e.target.port in [21, 990]
+    NOT $e.target.ip in cidr "10.0.0.0/8"
+    NOT $e.target.ip in cidr "192.168.0.0/16"
+    NOT $e.target.ip in cidr "172.16.0.0/12"
+
+  condition:
+    $e
+}
+
+rule ht_gs_107012_email_attachment_bulk {
+  meta:
+    rule_id         = "GS-107012"
+    author          = "HuntingThreats"
+    description     = "SMTP connection with large attachment from workstation — email exfiltration"
+    mitre_tactic    = "Exfiltration"
+    mitre_technique = "T1048"
+    severity        = "HIGH"
+    confidence      = "MEDIUM"
+
+  events:
+    $e.metadata.event_type = "NETWORK_CONNECTION"
+    $e.target.port in [25, 587, 465]
+    NOT $e.target.ip in cidr "10.0.0.0/8"
+    NOT $e.target.ip in cidr "192.168.0.0/16"
+    re.regex($e.principal.process.file.full_path, `(?i)\\(powershell|cmd|python|wscript)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_107013_winscp_sftp_upload {
+  meta:
+    rule_id         = "GS-107013"
+    author          = "HuntingThreats"
+    description     = "WinSCP or SFTP client uploading to external host — SFTP exfiltration"
+    mitre_tactic    = "Exfiltration"
+    mitre_technique = "T1048.002"
+    severity        = "HIGH"
+    confidence      = "MEDIUM"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.file.full_path, `(?i)\\(winscp|sftp)\.exe$`)
+    re.regex($e.target.process.command_line, `(?i)(/upload|put\s+|/command.*put)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_107014_ps_webupload_file {
+  meta:
+    rule_id         = "GS-107014"
+    author          = "HuntingThreats"
+    description     = "PowerShell UploadFile or UploadString to external URL — PS-based exfil"
+    mitre_tactic    = "Exfiltration"
+    mitre_technique = "T1041"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.command_line, `(?i)(uploadfile|uploadstring|uploaddata)`)
+    re.regex($e.target.process.file.full_path, `(?i)\\powershell\.exe$`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_107015_browser_credential_copy {
+  meta:
+    rule_id         = "GS-107015"
+    author          = "HuntingThreats"
+    description     = "Chrome Login Data copied to Temp — browser credential staging for exfil"
+    mitre_tactic    = "Exfiltration"
+    mitre_technique = "T1020"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.command_line, `(?i)(copy|xcopy|robocopy).*Login Data.*(\\temp\\|\\appdata\\)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_107016_slack_file_upload_api {
+  meta:
+    rule_id         = "GS-107016"
+    author          = "HuntingThreats"
+    description     = "Script calling Slack files.upload API — data exfiltration via Slack"
+    mitre_tactic    = "Exfiltration"
+    mitre_technique = "T1567"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "NETWORK_DNS"
+    re.regex($e.network.dns.questions.name, `(?i)(slack\.com|hooks\.slack\.com)`)
+    re.regex($e.principal.process.file.full_path, `(?i)\\(powershell|python|cmd|wscript|curl)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_107017_large_file_to_external {
+  meta:
+    rule_id         = "GS-107017"
+    author          = "HuntingThreats"
+    description     = "Large outbound data transfer (>100MB equivalent session) to external IP"
+    mitre_tactic    = "Exfiltration"
+    mitre_technique = "T1041"
+    severity        = "HIGH"
+    confidence      = "MEDIUM"
+
+  events:
+    $e.metadata.event_type = "NETWORK_CONNECTION"
+    $e.network.sent_bytes > 100000000
+    NOT $e.target.ip in cidr "10.0.0.0/8"
+    NOT $e.target.ip in cidr "192.168.0.0/16"
+    NOT $e.target.ip in cidr "172.16.0.0/12"
+
+  condition:
+    $e
+}
+
+rule ht_gs_107018_github_repo_push {
+  meta:
+    rule_id         = "GS-107018"
+    author          = "HuntingThreats"
+    description     = "Git push to external GitHub from server or non-dev workstation — source code exfil"
+    mitre_tactic    = "Exfiltration"
+    mitre_technique = "T1567.001"
+    severity        = "HIGH"
+    confidence      = "MEDIUM"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.file.full_path, `(?i)\\git\.exe$`)
+    re.regex($e.target.process.command_line, `(?i)push.*github\.com`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_107019_usb_data_copy {
+  meta:
+    rule_id         = "GS-107019"
+    author          = "HuntingThreats"
+    description     = "Large file copy to removable media — physical exfiltration via USB"
+    mitre_tactic    = "Exfiltration"
+    mitre_technique = "T1052.001"
+    severity        = "HIGH"
+    confidence      = "MEDIUM"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.command_line, `(?i)(xcopy|robocopy|copy).*[EF-Z]:\\`)
+    re.regex($e.target.process.command_line, `(?i)(documents|desktop|users|programdata)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_107020_auto_exfil_threshold {
+  meta:
+    rule_id         = "GS-107020"
+    author          = "HuntingThreats"
+    description     = "5+ file uploads to same external IP within 10 minutes — automated exfiltration"
+    mitre_tactic    = "Exfiltration"
+    mitre_technique = "T1029"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "NETWORK_CONNECTION"
+    $e.network.sent_bytes > 1000000
+    NOT $e.target.ip in cidr "10.0.0.0/8"
+    NOT $e.target.ip in cidr "192.168.0.0/16"
+
+  match:
+    $e.principal.hostname, $e.target.ip over 10m
+
+  condition:
+    #e > 5
+}
+
+rule ht_gs_107021_impacket_smbclient_get {
+  meta:
+    rule_id         = "GS-107021"
+    author          = "HuntingThreats"
+    description     = "Impacket smbclient get command — file retrieval via SMB for exfil"
+    mitre_tactic    = "Exfiltration"
+    mitre_technique = "T1048"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.command_line, `(?i)(smbclient\.py|smbclient.*get\s+)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_107022_compress_sensitive_data {
+  meta:
+    rule_id         = "GS-107022"
+    author          = "HuntingThreats"
+    description     = "Archive tool compressing from sensitive directories — pre-exfil packaging"
+    mitre_tactic    = "Collection"
+    mitre_technique = "T1560.001"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.file.full_path, `(?i)\\(7z|7za|rar|winrar|zip)\.exe$`)
+    re.regex($e.target.process.command_line, `(?i)(\\documents\\|\\desktop\\|\\Finance\\|\\HR\\|\\Legal\\|\\Accounts\\)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_107023_google_drive_cli {
+  meta:
+    rule_id         = "GS-107023"
+    author          = "HuntingThreats"
+    description     = "Google Drive or GDrive CLI tool used for upload — Google cloud exfil"
+    mitre_tactic    = "Exfiltration"
+    mitre_technique = "T1567"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.file.full_path, `(?i)\\(gdrive|drive\.exe)$`)
+    re.regex($e.target.process.command_line, `(?i)(upload|sync|push)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_107024_nc_netcat_data_send {
+  meta:
+    rule_id         = "GS-107024"
+    author          = "HuntingThreats"
+    description     = "Netcat or Ncat piping data to external host — raw TCP data exfiltration"
+    mitre_tactic    = "Exfiltration"
+    mitre_technique = "T1048"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.file.full_path, `(?i)\\(nc|ncat|netcat)\.exe$`)
+    re.regex($e.target.process.command_line, `(?i)(-e|-c|-q)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_107025_dnscat_exfil {
+  meta:
+    rule_id         = "GS-107025"
+    author          = "HuntingThreats"
+    description     = "Dnscat2 process or exec — DNS-based bidirectional covert channel"
+    mitre_tactic    = "Exfiltration"
+    mitre_technique = "T1048.003"
+    severity        = "CRITICAL"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.command_line, `(?i)(dnscat|dns-shell|dnscat2)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_107026_copy_ntds_staging {
+  meta:
+    rule_id         = "GS-107026"
+    author          = "HuntingThreats"
+    description     = "NTDS.dit or SAM hive file copied to temp staging area — pre-exfil"
+    mitre_tactic    = "Exfiltration"
+    mitre_technique = "T1020"
+    severity        = "CRITICAL"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.command_line, `(?i)(copy|xcopy|robocopy).*(ntds\.dit|SAM|SECURITY|SYSTEM)`)
+    re.regex($e.target.process.command_line, `(?i)(\\temp\\|\\appdata\\|\\programdata\\)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_107027_onion_site_access {
+  meta:
+    rule_id         = "GS-107027"
+    author          = "HuntingThreats"
+    description     = "DNS query for .onion domain — Tor hidden service access attempt"
+    mitre_tactic    = "Exfiltration"
+    mitre_technique = "T1048"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "NETWORK_DNS"
+    re.regex($e.network.dns.questions.name, `(?i)\.onion$`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_107028_data_staged_archive_temp {
+  meta:
+    rule_id         = "GS-107028"
+    author          = "HuntingThreats"
+    description     = "Multiple archive files created in Temp within short time — data staging"
+    mitre_tactic    = "Collection"
+    mitre_technique = "T1074.001"
+    severity        = "HIGH"
+    confidence      = "MEDIUM"
+
+  events:
+    $e.metadata.event_type = "FILE_CREATION"
+    re.regex($e.target.file.full_path, `(?i)(\\temp\\|\\appdata\\local\\temp\\).*\.(zip|7z|rar|tar\.gz)$`)
+
+  match:
+    $e.principal.hostname over 10m
+
+  condition:
+    #e > 5
+}
+
+rule ht_gs_107029_oauth_token_steal {
+  meta:
+    rule_id         = "GS-107029"
+    author          = "HuntingThreats"
+    description     = "OAuth token file or browser token database accessed by unusual process"
+    mitre_tactic    = "Credential Access"
+    mitre_technique = "T1528"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "FILE_CREATION"
+    re.regex($e.target.file.full_path, `(?i)(access_token|refresh_token|oauth_token|\.tokens)`)
+    NOT re.regex($e.principal.process.file.full_path, `(?i)\\(chrome|firefox|edge|outlook|teams)\.exe$`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_107030_http_post_large_body {
+  meta:
+    rule_id         = "GS-107030"
+    author          = "HuntingThreats"
+    description     = "HTTP POST with large body from script process — HTTP exfiltration channel"
+    mitre_tactic    = "Exfiltration"
+    mitre_technique = "T1041"
+    severity        = "HIGH"
+    confidence      = "MEDIUM"
+
+  events:
+    $e.metadata.event_type = "NETWORK_CONNECTION"
+    $e.network.http.method = "POST"
+    $e.network.sent_bytes > 10000000
+    NOT $e.target.ip in cidr "10.0.0.0/8"
+    NOT $e.target.ip in cidr "192.168.0.0/16"
+
+  condition:
+    $e
+}

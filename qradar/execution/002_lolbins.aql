@@ -1,0 +1,714 @@
+-- ============================================================
+-- HuntingThreats — QRadar AQL Hunt Rules
+-- Category : Execution — Living off the Land Binaries (T1218)
+-- Batch    : 2 / Execution
+-- Rules    : QR-100026 – QR-100060
+-- Platform : QRadar 7.4+ / AQL
+-- Sources  : Windows Security (4688), Sysmon (Event 1), WinCollect
+-- ============================================================
+
+-- ==================================================
+-- QR-100026 | T1218.011 | Rundll32 Remote DLL / SCT Execution
+-- Severity: High | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE (LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+    OR LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%')
+  AND UTF8(payload) ILIKE '%rundll32%'
+  AND (UTF8(payload) ILIKE '%http%'
+    OR UTF8(payload) ILIKE '%\\\\%'
+    OR UTF8(payload) ILIKE '%.sct%'
+    OR UTF8(payload) ILIKE '%javascript%'
+    OR UTF8(payload) ILIKE '%vbscript%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-100027 | T1218.010 | Regsvr32 Squiblydoo (Remote SCT)
+-- Severity: High | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE (LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+    OR LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%')
+  AND UTF8(payload) ILIKE '%regsvr32%'
+  AND (UTF8(payload) ILIKE '%/s%'
+    OR UTF8(payload) ILIKE '%-s %')
+  AND (UTF8(payload) ILIKE '%http%'
+    OR UTF8(payload) ILIKE '%\\\\%'
+    OR UTF8(payload) ILIKE '%.sct%'
+    OR UTF8(payload) ILIKE '%.ocx%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-100028 | T1218.005 | Mshta Remote HTA / Script Execution
+-- Severity: High | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE (LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+    OR LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%')
+  AND UTF8(payload) ILIKE '%mshta%'
+  AND (UTF8(payload) ILIKE '%http%'
+    OR UTF8(payload) ILIKE '%javascript%'
+    OR UTF8(payload) ILIKE '%vbscript%'
+    OR UTF8(payload) ILIKE '%\\\\%'
+    OR UTF8(payload) ILIKE '%.hta%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-100029 | T1218.004 | InstallUtil Proxy Execution
+-- Severity: High | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE (LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+    OR LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%')
+  AND UTF8(payload) ILIKE '%InstallUtil%'
+  AND (UTF8(payload) ILIKE '%/logfile=%'
+    OR UTF8(payload) ILIKE '%/LogToConsole=false%'
+    OR UTF8(payload) ILIKE '%/u %'
+    OR UTF8(payload) ILIKE '%\Temp\%'
+    OR UTF8(payload) ILIKE '%\AppData\%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-100030 | T1218.009 | Regasm / Regsvcs Proxy Execution
+-- Severity: High | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE (LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+    OR LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%')
+  AND (UTF8(payload) ILIKE '%regasm%'
+    OR UTF8(payload) ILIKE '%regsvcs%')
+  AND (UTF8(payload) ILIKE '%\Temp\%'
+    OR UTF8(payload) ILIKE '%\AppData\%'
+    OR UTF8(payload) ILIKE '%\Downloads\%'
+    OR UTF8(payload) ILIKE '%\\\\%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-100031 | T1218.007 | Msiexec Remote MSI / DLL
+-- Severity: High | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE (LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+    OR LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%')
+  AND UTF8(payload) ILIKE '%msiexec%'
+  AND (UTF8(payload) ILIKE '%http%'
+    OR UTF8(payload) ILIKE '%\\\\%'
+    OR UTF8(payload) ILIKE '%/i%http%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-100032 | T1218.001 | Certutil Decode / Download
+-- Severity: High | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE (LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+    OR LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%')
+  AND UTF8(payload) ILIKE '%certutil%'
+  AND (UTF8(payload) ILIKE '%-decode%'
+    OR UTF8(payload) ILIKE '%-encode%'
+    OR UTF8(payload) ILIKE '%-urlcache%'
+    OR UTF8(payload) ILIKE '%-f %http%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-100033 | T1218.003 | Cmstp UAC Bypass / Remote Execution
+-- Severity: High | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE (LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+    OR LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%')
+  AND UTF8(payload) ILIKE '%cmstp%'
+  AND (UTF8(payload) ILIKE '%/ni%'
+    OR UTF8(payload) ILIKE '%/s%'
+    OR UTF8(payload) ILIKE '%http%'
+    OR UTF8(payload) ILIKE '%.inf%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-100034 | T1218.002 | Control Panel (control.exe) with DLL
+-- Severity: High | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE (LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+    OR LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%')
+  AND UTF8(payload) ILIKE '%control.exe%'
+  AND (UTF8(payload) ILIKE '%\Temp\%'
+    OR UTF8(payload) ILIKE '%\AppData\%'
+    OR UTF8(payload) ILIKE '%.dll%'
+    OR UTF8(payload) ILIKE '%.cpl%')
+  AND NOT UTF8(payload) ILIKE '%System32\control.exe%'
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-100035 | T1218 | MSBuild Inline Task Execution
+-- Severity: High | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE (LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+    OR LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%')
+  AND UTF8(payload) ILIKE '%MSBuild%'
+  AND (UTF8(payload) ILIKE '%\Temp\%'
+    OR UTF8(payload) ILIKE '%\AppData\%'
+    OR UTF8(payload) ILIKE '%\Downloads\%'
+    OR UTF8(payload) ILIKE '%\\\\%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-100036 | T1059.003 | Cmd.exe with Encoded/Obfuscated Command
+-- Severity: High | Confidence: Medium
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE (LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+    OR LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%')
+  AND UTF8(payload) ILIKE '%cmd%'
+  AND (UTF8(payload) ILIKE '%/Q /c%'
+    OR UTF8(payload) ILIKE '%/c cmd%'
+    OR UTF8(payload) ILIKE '%^ ^%'
+    OR UTF8(payload) ILIKE '%,;,%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-100037 | T1218.008 | Odbcconf Remote DLL
+-- Severity: High | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE (LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+    OR LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%')
+  AND UTF8(payload) ILIKE '%odbcconf%'
+  AND (UTF8(payload) ILIKE '%/a {regsvr%'
+    OR UTF8(payload) ILIKE '%REGSVR%'
+    OR UTF8(payload) ILIKE '%\Temp\%'
+    OR UTF8(payload) ILIKE '%\\\\%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-100038 | T1218 | Wscript / Cscript Script Execution
+-- Severity: Medium | Confidence: Medium
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE (LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+    OR LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%')
+  AND (UTF8(payload) ILIKE '%wscript%'
+    OR UTF8(payload) ILIKE '%cscript%')
+  AND (UTF8(payload) ILIKE '%\Temp\%'
+    OR UTF8(payload) ILIKE '%\AppData\%'
+    OR UTF8(payload) ILIKE '%\Downloads\%'
+    OR UTF8(payload) ILIKE '%\\\\%'
+    OR UTF8(payload) ILIKE '%.wsf%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-100039 | T1218 | PresentationHost / Xwizard LOLBin
+-- Severity: High | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE (LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+    OR LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%')
+  AND (UTF8(payload) ILIKE '%presentationhost%'
+    OR UTF8(payload) ILIKE '%xwizard%')
+  AND (UTF8(payload) ILIKE '%http%'
+    OR UTF8(payload) ILIKE '%\Temp\%'
+    OR UTF8(payload) ILIKE '%\AppData\%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-100040 | T1059.007 | Mshta / JavaScript JScript Inline
+-- Severity: High | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE (LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+    OR LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%')
+  AND (UTF8(payload) ILIKE '%mshta%'
+    OR UTF8(payload) ILIKE '%wscript%')
+  AND (UTF8(payload) ILIKE '%javascript:%'
+    OR UTF8(payload) ILIKE '%vbscript:%'
+    OR UTF8(payload) ILIKE '%jscript:%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-100041 | T1218 | Forfiles Remote Code Execution
+-- Severity: High | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE (LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+    OR LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%')
+  AND UTF8(payload) ILIKE '%forfiles%'
+  AND (UTF8(payload) ILIKE '%/c%'
+    OR UTF8(payload) ILIKE '%powershell%'
+    OR UTF8(payload) ILIKE '%cmd%'
+    OR UTF8(payload) ILIKE '%http%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-100042 | T1218 | Pcalua LOLBin for Script Execution
+-- Severity: High | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE (LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+    OR LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%')
+  AND UTF8(payload) ILIKE '%pcalua%'
+  AND (UTF8(payload) ILIKE '%-a%'
+    OR UTF8(payload) ILIKE '%\Temp\%'
+    OR UTF8(payload) ILIKE '%http%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-100043 | T1059 | WMIC Process Creation via Command
+-- Severity: High | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE (LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+    OR LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%')
+  AND UTF8(payload) ILIKE '%wmic%'
+  AND UTF8(payload) ILIKE '%process%'
+  AND (UTF8(payload) ILIKE '%call create%'
+    OR UTF8(payload) ILIKE '%call create "%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-100044 | T1059 | BITSadmin Transfer to Executable URL
+-- Severity: High | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE (LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+    OR LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%')
+  AND UTF8(payload) ILIKE '%bitsadmin%'
+  AND (UTF8(payload) ILIKE '%/transfer%'
+    OR UTF8(payload) ILIKE '%/create%')
+  AND (UTF8(payload) ILIKE '%.exe%'
+    OR UTF8(payload) ILIKE '%.dll%'
+    OR UTF8(payload) ILIKE '%.ps1%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-100045 | T1218 | Mavinject Process Injection LOLBin
+-- Severity: Critical | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE (LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+    OR LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%')
+  AND UTF8(payload) ILIKE '%mavinject%'
+  AND (UTF8(payload) ILIKE '%/injectrunning%'
+    OR UTF8(payload) ILIKE '%INJECTRUNNING%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-100046 | T1218 | Syncappvpublishingserver / Appsyncpublishingserver
+-- Severity: High | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE (LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+    OR LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%')
+  AND (UTF8(payload) ILIKE '%SyncAppvPublishingServer%'
+    OR UTF8(payload) ILIKE '%AppSyncPublishingServer%')
+  AND (UTF8(payload) ILIKE '%powershell%'
+    OR UTF8(payload) ILIKE '%IEX%'
+    OR UTF8(payload) ILIKE '%http%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-100047 | T1059 | Scriptrunner / Scripthost via Office Macro
+-- Severity: High | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE (LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+    OR LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%')
+  AND (UTF8(payload) ILIKE '%WINWORD%'
+    OR UTF8(payload) ILIKE '%EXCEL%'
+    OR UTF8(payload) ILIKE '%POWERPNT%')
+  AND (UTF8(payload) ILIKE '%wscript%'
+    OR UTF8(payload) ILIKE '%cscript%'
+    OR UTF8(payload) ILIKE '%cmd.exe%'
+    OR UTF8(payload) ILIKE '%powershell%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-100048 | T1218 | Explorer.exe Spawning Shell (UAC Bypass Indicator)
+-- Severity: High | Confidence: Medium
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE (LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+    OR LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%')
+  AND UTF8(payload) ILIKE '%explorer.exe%'
+  AND (UTF8(payload) ILIKE '%powershell%'
+    OR UTF8(payload) ILIKE '%cmd.exe%'
+    OR UTF8(payload) ILIKE '%wscript%')
+  AND NOT UTF8(payload) ILIKE '%Explorer.exe%explorer.exe%'
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-100049 | T1059 | Python Inline Command Execution
+-- Severity: High | Confidence: Medium
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE (LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+    OR LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%')
+  AND UTF8(payload) ILIKE '%python%'
+  AND (UTF8(payload) ILIKE '%-c "%'
+    OR UTF8(payload) ILIKE '%-c ''%'
+    OR UTF8(payload) ILIKE '%import socket%'
+    OR UTF8(payload) ILIKE '%os.system%'
+    OR UTF8(payload) ILIKE '%subprocess%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-100050 | T1059 | Node.js Inline Code Execution
+-- Severity: High | Confidence: Medium
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE (LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+    OR LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%')
+  AND UTF8(payload) ILIKE '%node%'
+  AND (UTF8(payload) ILIKE '%-e "%'
+    OR UTF8(payload) ILIKE '%-e ''%'
+    OR UTF8(payload) ILIKE '%require(''net'')%'
+    OR UTF8(payload) ILIKE '%net.connect%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-100051 | T1059 | Perl / Ruby Inline Reverse Shell
+-- Severity: High | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE (LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+    OR LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%')
+  AND (UTF8(payload) ILIKE '%perl%'
+    OR UTF8(payload) ILIKE '%ruby%')
+  AND (UTF8(payload) ILIKE '%-e ''%'
+    OR UTF8(payload) ILIKE '%-e "%'
+    OR UTF8(payload) ILIKE '%socket%'
+    OR UTF8(payload) ILIKE '%exec%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-100052 | T1218 | Csc.exe Compile from Staging Path
+-- Severity: High | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE (LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+    OR LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%')
+  AND UTF8(payload) ILIKE '%csc.exe%'
+  AND (UTF8(payload) ILIKE '%\Temp\%'
+    OR UTF8(payload) ILIKE '%\AppData\%'
+    OR UTF8(payload) ILIKE '%\Downloads\%'
+    OR UTF8(payload) ILIKE '%\Public\%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-100053 | T1218 | HH.exe CHM Execution from Network / Downloads
+-- Severity: High | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE (LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+    OR LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%')
+  AND UTF8(payload) ILIKE '%hh.exe%'
+  AND (UTF8(payload) ILIKE '%\Downloads\%'
+    OR UTF8(payload) ILIKE '%\\\\%'
+    OR UTF8(payload) ILIKE '%http%'
+    OR UTF8(payload) ILIKE '%\Temp\%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-100054 | T1218 | Ieexec / Ie4uinit LOLBin Execution
+-- Severity: High | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE (LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+    OR LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%')
+  AND (UTF8(payload) ILIKE '%ieexec%'
+    OR UTF8(payload) ILIKE '%ie4uinit%')
+  AND (UTF8(payload) ILIKE '%http%'
+    OR UTF8(payload) ILIKE '%-BaseSettings%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-100055 | T1059 | Java Spawning Shell Process
+-- Severity: High | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE (LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+    OR LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%')
+  AND (UTF8(payload) ILIKE '%java.exe%'
+    OR UTF8(payload) ILIKE '%javaw.exe%')
+  AND (UTF8(payload) ILIKE '%cmd.exe%'
+    OR UTF8(payload) ILIKE '%powershell%'
+    OR UTF8(payload) ILIKE '%wscript%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-100056 | T1218 | COMPlus_ETWEnabled Environment Variable
+-- Severity: High | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE (LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+    OR LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%')
+  AND (UTF8(payload) ILIKE '%COMPlus_ETWEnabled%'
+    OR UTF8(payload) ILIKE '%COMPlus_ReadDecompiledIL%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-100057 | T1218 | Verclsid.exe COM Object Hijack
+-- Severity: High | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE (LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+    OR LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%')
+  AND UTF8(payload) ILIKE '%verclsid%'
+  AND (UTF8(payload) ILIKE '%/S%'
+    OR UTF8(payload) ILIKE '%{%}%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-100058 | T1059 | RMM Tool Spawning Shell (Kaseya / LTSvc / NinjaRMM)
+-- Severity: High | Confidence: Medium
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE (LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+    OR LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%')
+  AND (UTF8(payload) ILIKE '%LTSvc%'
+    OR UTF8(payload) ILIKE '%Kaseya%'
+    OR UTF8(payload) ILIKE '%ConnectWise%'
+    OR UTF8(payload) ILIKE '%NinjaRMM%'
+    OR UTF8(payload) ILIKE '%SolarWinds%')
+  AND (UTF8(payload) ILIKE '%powershell%'
+    OR UTF8(payload) ILIKE '%cmd.exe%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-100059 | T1059 | Finger.exe / Ftp.exe Used for Download
+-- Severity: High | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE (LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+    OR LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%')
+  AND (UTF8(payload) ILIKE '%finger.exe%'
+    OR UTF8(payload) ILIKE '%ftp.exe%')
+  AND (UTF8(payload) ILIKE '%http%'
+    OR UTF8(payload) ILIKE '%-s:%'
+    OR UTF8(payload) ILIKE '%\Temp\%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-100060 | T1218 | Runscripthelper / Tttracer LOLBin
+-- Severity: High | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE (LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
+    OR LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%')
+  AND (UTF8(payload) ILIKE '%runscripthelper%'
+    OR UTF8(payload) ILIKE '%tttracer%'
+    OR UTF8(payload) ILIKE '%Extrac32%'
+    OR UTF8(payload) ILIKE '%Desktopimgdownldr%')
+  AND (UTF8(payload) ILIKE '%http%'
+    OR UTF8(payload) ILIKE '%\Temp\%'
+    OR UTF8(payload) ILIKE '%/set:%')
+LAST 1440 MINUTES;

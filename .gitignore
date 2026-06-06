@@ -1,0 +1,39 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+*.whl
+.env
+.venv/
+venv/
+env/
+
+# Local test / scan data
+data/
+*.db
+*.sqlite
+*.log
+scans/
+reports/
+
+# Editor / OS
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Secrets — never commit
+secrets.json
+credentials.json
+wp-config.php
+*.key
+*.pem

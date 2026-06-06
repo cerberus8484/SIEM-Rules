@@ -1,0 +1,797 @@
+// ============================================================
+// HuntingThreats — Google SecOps YARA-L 2.0 Hunt Rules
+// Category : Initial Access — Phishing / Exploit / Supply Chain (T1566, T1190, T1195)
+// Batch    : 15 / Initial Access
+// Rules    : GS-110001 – GS-110040
+// Platform : Google SecOps / Chronicle SIEM
+// ============================================================
+
+rule ht_gs_110001_office_spawns_powershell {
+  meta:
+    rule_id         = "GS-110001"
+    author          = "HuntingThreats"
+    description     = "Office application spawning PowerShell — macro-based initial access"
+    mitre_tactic    = "Initial Access"
+    mitre_technique = "T1566.001"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.file.full_path, `(?i)\\powershell\.exe$`)
+    re.regex($e.principal.process.file.full_path, `(?i)\\(winword|excel|powerpnt|onenote|outlook)\.exe$`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_110002_iso_img_from_downloads {
+  meta:
+    rule_id         = "GS-110002"
+    author          = "HuntingThreats"
+    description     = "ISO/IMG/VHD file mounted from Downloads — container-based phishing delivery"
+    mitre_tactic    = "Initial Access"
+    mitre_technique = "T1204.002"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.command_line, `(?i)(\\downloads\\|\\temp\\).*\.(iso|img|vhd|vhdx)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_110003_chm_hh_execute {
+  meta:
+    rule_id         = "GS-110003"
+    author          = "HuntingThreats"
+    description     = "CHM file executed via hh.exe — compiled HTML help phishing delivery"
+    mitre_tactic    = "Initial Access"
+    mitre_technique = "T1204.002"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.file.full_path, `(?i)\\hh\.exe$`)
+    re.regex($e.target.process.command_line, `(?i)(\\downloads\\|\\temp\\|\\desktop\\)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_110004_web_shell_dropped {
+  meta:
+    rule_id         = "GS-110004"
+    author          = "HuntingThreats"
+    description     = "Web shell dropped in web root — server-side exploitation initial access"
+    mitre_tactic    = "Initial Access"
+    mitre_technique = "T1190"
+    severity        = "CRITICAL"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "FILE_CREATION"
+    re.regex($e.target.file.full_path, `(?i)\\(inetpub|htdocs|www|wwwroot|public_html)\\.*\.(php|aspx|jsp|asp|ashx|cfm)$`)
+    re.regex($e.principal.process.file.full_path, `(?i)\\(w3wp|httpd|nginx|apache|tomcat|java|python)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_110005_iis_w3wp_spawn_shell {
+  meta:
+    rule_id         = "GS-110005"
+    author          = "HuntingThreats"
+    description     = "IIS worker process spawning command shell — web shell execution"
+    mitre_tactic    = "Initial Access"
+    mitre_technique = "T1190"
+    severity        = "CRITICAL"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.principal.process.file.full_path, `(?i)\\w3wp\.exe$`)
+    re.regex($e.target.process.file.full_path, `(?i)\\(cmd|powershell|wscript|cscript|mshta|rundll32)\.exe$`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_110006_apache_spawn_shell {
+  meta:
+    rule_id         = "GS-110006"
+    author          = "HuntingThreats"
+    description     = "Apache/Nginx spawning shell — web server exploitation or web shell"
+    mitre_tactic    = "Initial Access"
+    mitre_technique = "T1190"
+    severity        = "CRITICAL"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.principal.process.file.full_path, `(?i)\\(httpd|apache|nginx|lighttpd)\.exe$`)
+    re.regex($e.target.process.file.full_path, `(?i)\\(cmd|powershell|wscript|cscript)\.exe$`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_110007_log4shell_jndi {
+  meta:
+    rule_id         = "GS-110007"
+    author          = "HuntingThreats"
+    description     = "Log4Shell exploitation — jndi:ldap or jndi:rmi in HTTP request or process"
+    mitre_tactic    = "Initial Access"
+    mitre_technique = "T1190"
+    severity        = "CRITICAL"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.command_line, `(?i)(jndi:ldap|jndi:rmi|jndi:dns|jndi:ldaps|jndi:corba)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_110008_spring4shell_classloader {
+  meta:
+    rule_id         = "GS-110008"
+    author          = "HuntingThreats"
+    description     = "Spring4Shell — class.module.classLoader in HTTP parameter — CVE-2022-22965"
+    mitre_tactic    = "Initial Access"
+    mitre_technique = "T1190"
+    severity        = "CRITICAL"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "NETWORK_CONNECTION"
+    re.regex($e.network.http.url, `(?i)(class\.module\.classLoader|class\.classLoader)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_110009_proxyshell_exchange {
+  meta:
+    rule_id         = "GS-110009"
+    author          = "HuntingThreats"
+    description     = "ProxyShell — Exchange w3wp.exe spawning cmd.exe — CVE-2021-34473"
+    mitre_tactic    = "Initial Access"
+    mitre_technique = "T1190"
+    severity        = "CRITICAL"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.principal.process.file.full_path, `(?i)\\w3wp\.exe$`)
+    re.regex($e.target.process.file.full_path, `(?i)\\cmd\.exe$`)
+    re.regex($e.principal.process.command_line, `(?i)(MSExchange|ClientAccess|OWA)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_110010_sql_injection_union {
+  meta:
+    rule_id         = "GS-110010"
+    author          = "HuntingThreats"
+    description     = "SQL injection pattern in HTTP — UNION SELECT or WAITFOR DELAY"
+    mitre_tactic    = "Initial Access"
+    mitre_technique = "T1190"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "NETWORK_CONNECTION"
+    re.regex($e.network.http.url, `(?i)(union\s+select|waitfor\s+delay|'.*or.*'.*=|1=1|sleep\(\d+\))`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_110011_directory_traversal {
+  meta:
+    rule_id         = "GS-110011"
+    author          = "HuntingThreats"
+    description     = "Directory traversal attempt in HTTP request — ../ path traversal"
+    mitre_tactic    = "Initial Access"
+    mitre_technique = "T1190"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "NETWORK_CONNECTION"
+    re.regex($e.network.http.url, `(?i)(\.\./|\.\.\\|%2e%2e%2f|%2e%2e/)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_110012_password_spray_initial {
+  meta:
+    rule_id         = "GS-110012"
+    author          = "HuntingThreats"
+    description     = "Password spray — 5+ distinct usernames from single IP in 5 min"
+    mitre_tactic    = "Initial Access"
+    mitre_technique = "T1078"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "USER_LOGIN"
+    $e.extensions.auth.auth_details = "FAILED"
+
+  match:
+    $e.principal.ip over 5m
+
+  condition:
+    #e > 5
+}
+
+rule ht_gs_110013_brute_force_success {
+  meta:
+    rule_id         = "GS-110013"
+    author          = "HuntingThreats"
+    description     = "Successful logon after 10+ failures from same IP — brute force success"
+    mitre_tactic    = "Initial Access"
+    mitre_technique = "T1110"
+    severity        = "CRITICAL"
+    confidence      = "HIGH"
+
+  events:
+    $e1.metadata.event_type = "USER_LOGIN"
+    $e1.extensions.auth.auth_details = "FAILED"
+
+    $e2.metadata.event_type = "USER_LOGIN"
+    $e2.extensions.auth.auth_details = "SUCCESS"
+
+    $e1.principal.ip = $e2.principal.ip
+
+  match:
+    $e1.principal.ip over 10m
+
+  condition:
+    #e1 > 10 and $e2
+}
+
+rule ht_gs_110014_clickfix_clipboard_iex {
+  meta:
+    rule_id         = "GS-110014"
+    author          = "HuntingThreats"
+    description     = "ClickFix attack — Get-Clipboard + IEX — clipboard-injected PS execution"
+    mitre_tactic    = "Initial Access"
+    mitre_technique = "T1059.001"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.command_line, `(?i)get-clipboard`)
+    re.regex($e.target.process.command_line, `(?i)(iex|invoke-expression)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_110015_html_smuggling_mshta {
+  meta:
+    rule_id         = "GS-110015"
+    author          = "HuntingThreats"
+    description     = "HTML smuggling — mshta downloading EXE from downloads — delivery chain"
+    mitre_tactic    = "Initial Access"
+    mitre_technique = "T1566.001"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.file.full_path, `(?i)\\mshta\.exe$`)
+    re.regex($e.target.process.command_line, `(?i)(\\downloads\\|\\temp\\)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_110016_winrar_sfx_dropper {
+  meta:
+    rule_id         = "GS-110016"
+    author          = "HuntingThreats"
+    description     = "WinRAR SFX self-extracting archive running payload — SFX phishing delivery"
+    mitre_tactic    = "Initial Access"
+    mitre_technique = "T1204.002"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.file.full_path, `(?i)\\(downloads|temp|desktop)\\.*\.exe$`)
+    re.regex($e.target.process.command_line, `(?i)(-s\s+-sfx|-sfx\s+|-setup)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_110017_teams_malicious_archive {
+  meta:
+    rule_id         = "GS-110017"
+    author          = "HuntingThreats"
+    description     = "Microsoft Teams spawning process from downloaded archive — Teams phishing"
+    mitre_tactic    = "Initial Access"
+    mitre_technique = "T1566.002"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.principal.process.file.full_path, `(?i)\\teams\.exe$`)
+    re.regex($e.target.process.file.full_path, `(?i)\\(cmd|powershell|wscript|mshta|rundll32)\.exe$`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_110018_dropper_child_threshold {
+  meta:
+    rule_id         = "GS-110018"
+    author          = "HuntingThreats"
+    description     = "3+ suspicious child processes from single parent in 5 min — dropper chain"
+    mitre_tactic    = "Initial Access"
+    mitre_technique = "T1204.002"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.file.full_path, `(?i)\\(cmd|powershell|wscript|cscript|mshta|rundll32|regsvr32)\.exe$`)
+
+  match:
+    $e.principal.process.file.full_path over 5m
+
+  condition:
+    #e > 3
+}
+
+rule ht_gs_110019_impossible_travel {
+  meta:
+    rule_id         = "GS-110019"
+    author          = "HuntingThreats"
+    description     = "Same user logging in from 2+ distinct external IPs in 5 min — impossible travel"
+    mitre_tactic    = "Initial Access"
+    mitre_technique = "T1078"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "USER_LOGIN"
+    $e.extensions.auth.auth_details = "SUCCESS"
+    NOT $e.principal.ip in cidr "10.0.0.0/8"
+    NOT $e.principal.ip in cidr "192.168.0.0/16"
+
+  match:
+    $e.target.user.userid over 5m
+
+  condition:
+    #e > 2
+}
+
+rule ht_gs_110020_xll_addin_download {
+  meta:
+    rule_id         = "GS-110020"
+    author          = "HuntingThreats"
+    description     = "Excel XLL add-in file from Downloads path — XLL-based malware delivery"
+    mitre_tactic    = "Initial Access"
+    mitre_technique = "T1137.006"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.command_line, `(?i)(\\downloads\\|\\temp\\).*\.xll`)
+    re.regex($e.principal.process.file.full_path, `(?i)\\excel\.exe$`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_110021_xlsm_docm_from_download {
+  meta:
+    rule_id         = "GS-110021"
+    author          = "HuntingThreats"
+    description     = "Macro-enabled Office file opened from Downloads — phishing document"
+    mitre_tactic    = "Initial Access"
+    mitre_technique = "T1566.001"
+    severity        = "HIGH"
+    confidence      = "MEDIUM"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.file.full_path, `(?i)\\(excel|winword|powerpnt)\.exe$`)
+    re.regex($e.target.process.command_line, `(?i)(\\downloads\\|\\temp\\).*\.(xlsm|docm|xlam|pptm)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_110022_emotet_office_regsvr32 {
+  meta:
+    rule_id         = "GS-110022"
+    author          = "HuntingThreats"
+    description     = "Emotet-style Office+Regsvr32 execution chain — macro dropping DLL"
+    mitre_tactic    = "Initial Access"
+    mitre_technique = "T1566.001"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.file.full_path, `(?i)\\regsvr32\.exe$`)
+    re.regex($e.principal.process.file.full_path, `(?i)\\(winword|excel|powerpnt)\.exe$`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_110023_vba_stomping {
+  meta:
+    rule_id         = "GS-110023"
+    author          = "HuntingThreats"
+    description     = "VBA stomping — p-code execution with cleared source — anti-analysis macro"
+    mitre_tactic    = "Defense Evasion"
+    mitre_technique = "T1027.002"
+    severity        = "HIGH"
+    confidence      = "MEDIUM"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.principal.process.file.full_path, `(?i)\\(winword|excel)\.exe$`)
+    re.regex($e.target.process.file.full_path, `(?i)\\(cmd|powershell|wscript)\.exe$`)
+    re.regex($e.target.process.command_line, `(?i)-enc`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_110024_supply_chain_package_install {
+  meta:
+    rule_id         = "GS-110024"
+    author          = "HuntingThreats"
+    description     = "Suspicious package install via pip/npm — potential typosquatted package"
+    mitre_tactic    = "Initial Access"
+    mitre_technique = "T1195.002"
+    severity        = "MEDIUM"
+    confidence      = "MEDIUM"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.command_line, `(?i)(pip\s+install|npm\s+install|yarn\s+add)`)
+    re.regex($e.target.process.command_line, `(?i)(--index-url|--extra-index-url)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_110025_exchange_web_shell_drop {
+  meta:
+    rule_id         = "GS-110025"
+    author          = "HuntingThreats"
+    description     = "ASPX dropped to Exchange OWA or ECP directory — Exchange web shell"
+    mitre_tactic    = "Initial Access"
+    mitre_technique = "T1190"
+    severity        = "CRITICAL"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "FILE_CREATION"
+    re.regex($e.target.file.full_path, `(?i)\\(OWA|ECP|Autodiscover|EAS|OAB|EWS)\\.*\.(aspx|asp|ashx)$`)
+    re.regex($e.principal.process.file.full_path, `(?i)\\w3wp\.exe$`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_110026_zoho_manageengine_exploit {
+  meta:
+    rule_id         = "GS-110026"
+    author          = "HuntingThreats"
+    description     = "ManageEngine or Zoho RCE exploitation — web server spawning shell"
+    mitre_tactic    = "Initial Access"
+    mitre_technique = "T1190"
+    severity        = "CRITICAL"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.principal.process.file.full_path, `(?i)\\(ManageEngine|ZOHO|java|jboss)`)
+    re.regex($e.target.process.file.full_path, `(?i)\\(cmd|powershell|wscript|bash|sh)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_110027_ssrf_internal_metadata {
+  meta:
+    rule_id         = "GS-110027"
+    author          = "HuntingThreats"
+    description     = "SSRF to internal metadata service — cloud IMDS credential theft via web server"
+    mitre_tactic    = "Initial Access"
+    mitre_technique = "T1190"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "NETWORK_CONNECTION"
+    $e.target.ip = "169.254.169.254"
+    re.regex($e.principal.process.file.full_path, `(?i)\\(w3wp|httpd|nginx|java|python|ruby)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_110028_citrix_bleed_exploit {
+  meta:
+    rule_id         = "GS-110028"
+    author          = "HuntingThreats"
+    description     = "Citrix Bleed session token theft — HTTP request to /smb/ms_smb_request_handler"
+    mitre_tactic    = "Initial Access"
+    mitre_technique = "T1190"
+    severity        = "CRITICAL"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "NETWORK_CONNECTION"
+    re.regex($e.network.http.url, `(?i)(smb_request_handler|citrix.*CVE-2023-4966|CVE-2023-4966)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_110029_fortivpn_exploit_cve {
+  meta:
+    rule_id         = "GS-110029"
+    author          = "HuntingThreats"
+    description     = "Fortinet VPN exploitation pattern — /remote/fgt_lang traversal (CVE-2018-13379)"
+    mitre_tactic    = "Initial Access"
+    mitre_technique = "T1190"
+    severity        = "CRITICAL"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "NETWORK_CONNECTION"
+    re.regex($e.network.http.url, `(?i)(remote/fgt_lang|sslvpn_loginfo\.log|/api/v1/totp.*\.\./)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_110030_malicious_macro_template {
+  meta:
+    rule_id         = "GS-110030"
+    author          = "HuntingThreats"
+    description     = "Office template injection — document fetching remote dotm/xltm template"
+    mitre_tactic    = "Initial Access"
+    mitre_technique = "T1221"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "NETWORK_DNS"
+    re.regex($e.network.dns.questions.name, `(?i)\.(dotm|dotx|xltm|xltx|potm)$`)
+    re.regex($e.principal.process.file.full_path, `(?i)\\(winword|excel|powerpnt)\.exe$`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_110031_lnk_file_from_download {
+  meta:
+    rule_id         = "GS-110031"
+    author          = "HuntingThreats"
+    description     = "LNK shortcut file executed from Downloads — phishing via LNK delivery"
+    mitre_tactic    = "Initial Access"
+    mitre_technique = "T1204.001"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.command_line, `(?i)(\\downloads\\|\\temp\\).*\.lnk`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_110032_shortcut_hidden_command {
+  meta:
+    rule_id         = "GS-110032"
+    author          = "HuntingThreats"
+    description     = "LNK file containing long hidden command — LNK-embedded payload"
+    mitre_tactic    = "Initial Access"
+    mitre_technique = "T1204.001"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "FILE_CREATION"
+    re.regex($e.target.file.full_path, `(?i)\\(downloads|desktop)\\.*\.lnk$`)
+    $e.target.file.size > 10000
+
+  condition:
+    $e
+}
+
+rule ht_gs_110033_phishing_form_submission {
+  meta:
+    rule_id         = "GS-110033"
+    author          = "HuntingThreats"
+    description     = "HTTP POST to known phishing kit form handler pattern — credential harvesting"
+    mitre_tactic    = "Initial Access"
+    mitre_technique = "T1566.002"
+    severity        = "HIGH"
+    confidence      = "MEDIUM"
+
+  events:
+    $e.metadata.event_type = "NETWORK_CONNECTION"
+    $e.network.http.method = "POST"
+    re.regex($e.network.http.url, `(?i)(index\.php\?submit|login\.php\?action|auth\.php\?pass)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_110034_browser_dropper_chain {
+  meta:
+    rule_id         = "GS-110034"
+    author          = "HuntingThreats"
+    description     = "Browser spawning script engine — drive-by download or web-delivered payload"
+    mitre_tactic    = "Initial Access"
+    mitre_technique = "T1189"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.principal.process.file.full_path, `(?i)\\(chrome|firefox|msedge|iexplore|safari)\.exe$`)
+    re.regex($e.target.process.file.full_path, `(?i)\\(cmd|powershell|wscript|mshta|rundll32)\.exe$`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_110035_attachment_from_email_temp {
+  meta:
+    rule_id         = "GS-110035"
+    author          = "HuntingThreats"
+    description     = "Office file opened from Outlook temp folder — email attachment execution"
+    mitre_tactic    = "Initial Access"
+    mitre_technique = "T1566.001"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.file.full_path, `(?i)\\(excel|winword|powerpnt)\.exe$`)
+    re.regex($e.target.process.command_line, `(?i)\\Content\.Outlook\\`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_110036_vpn_credential_spray {
+  meta:
+    rule_id         = "GS-110036"
+    author          = "HuntingThreats"
+    description     = "VPN auth failure spike from external IP — credential spray against VPN"
+    mitre_tactic    = "Initial Access"
+    mitre_technique = "T1133"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "USER_LOGIN"
+    $e.extensions.auth.auth_details = "FAILED"
+    re.regex($e.target.application, `(?i)(vpn|forticlient|pulsesecure|anyconnect|globalprotect)`)
+
+  match:
+    $e.principal.ip over 5m
+
+  condition:
+    #e > 5
+}
+
+rule ht_gs_110037_drive_by_download_js {
+  meta:
+    rule_id         = "GS-110037"
+    author          = "HuntingThreats"
+    description     = "Browser downloading and immediately executing .js file — drive-by JS payload"
+    mitre_tactic    = "Initial Access"
+    mitre_technique = "T1189"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.file.full_path, `(?i)\\(wscript|cscript)\.exe$`)
+    re.regex($e.target.process.command_line, `(?i)(\\downloads\\|\\temp\\).*\.js$`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_110038_external_rdp_initial {
+  meta:
+    rule_id         = "GS-110038"
+    author          = "HuntingThreats"
+    description     = "RDP access from external IP with first-time successful logon — initial RDP access"
+    mitre_tactic    = "Initial Access"
+    mitre_technique = "T1133"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "USER_LOGIN"
+    $e.network.application_protocol = "RDP"
+    $e.extensions.auth.auth_details = "SUCCESS"
+    NOT $e.principal.ip in cidr "10.0.0.0/8"
+    NOT $e.principal.ip in cidr "192.168.0.0/16"
+    NOT $e.principal.ip in cidr "172.16.0.0/12"
+
+  condition:
+    $e
+}
+
+rule ht_gs_110039_one_time_password_bypass {
+  meta:
+    rule_id         = "GS-110039"
+    author          = "HuntingThreats"
+    description     = "MFA push fatigue — multiple MFA requests from same user in short time"
+    mitre_tactic    = "Initial Access"
+    mitre_technique = "T1621"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "USER_LOGIN"
+    re.regex($e.metadata.product_name, `(?i)(mfa|okta|azure.*mfa|duo|authenticator)`)
+
+  match:
+    $e.target.user.userid over 5m
+
+  condition:
+    #e > 5
+}
+
+rule ht_gs_110040_initial_access_combo_detection {
+  meta:
+    rule_id         = "GS-110040"
+    author          = "HuntingThreats"
+    description     = "Initial access combo — external logon + discovery + persistence within 30 min"
+    mitre_tactic    = "Initial Access"
+    mitre_technique = "T1078"
+    severity        = "CRITICAL"
+    confidence      = "HIGH"
+
+  events:
+    $e1.metadata.event_type = "USER_LOGIN"
+    $e1.extensions.auth.auth_details = "SUCCESS"
+    NOT $e1.principal.ip in cidr "10.0.0.0/8"
+    NOT $e1.principal.ip in cidr "192.168.0.0/16"
+
+    $e2.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e2.target.process.file.full_path, `(?i)\\(net|nltest|whoami|tasklist|ipconfig|systeminfo)\.exe$`)
+
+    $e3.metadata.event_type = "REGISTRY_MODIFICATION"
+    re.regex($e3.target.registry.registry_key, `(?i)\\(Run|RunOnce|Startup)`)
+
+    $e1.target.hostname = $e2.principal.hostname
+    $e2.principal.hostname = $e3.principal.hostname
+
+  match:
+    $e1.target.hostname over 30m
+
+  condition:
+    $e1 and $e2 and $e3
+}

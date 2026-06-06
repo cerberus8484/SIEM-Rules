@@ -1,0 +1,465 @@
+-- ============================================================
+-- HuntingThreats — QRadar AQL Hunt Rules
+-- Category : Persistence — Registry (T1547)
+-- Batch    : 4 / Persistence
+-- Rules    : QR-101001 – QR-101025
+-- Platform : QRadar 7.4+ / AQL
+-- Sources  : Sysmon (Event 13 Registry Set), Windows Security, WinCollect
+-- ============================================================
+
+-- ==================================================
+-- QR-101001 | T1547.001 | HKCU Run Key Written
+-- Severity: High | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%'
+  AND UTF8(payload) ILIKE '%RegistryEvent%'
+  AND UTF8(payload) ILIKE '%CurrentVersion\Run%'
+  AND UTF8(payload) ILIKE '%HKEY_CURRENT_USER%'
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-101002 | T1547.001 | HKLM Run Key Written
+-- Severity: High | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%'
+  AND UTF8(payload) ILIKE '%RegistryEvent%'
+  AND UTF8(payload) ILIKE '%CurrentVersion\Run%'
+  AND UTF8(payload) ILIKE '%HKEY_LOCAL_MACHINE%'
+  AND NOT (UTF8(payload) ILIKE '%\Windows\%'
+    OR UTF8(payload) ILIKE '%\Program Files\%'
+    OR UTF8(payload) ILIKE '%\ProgramData\%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-101003 | T1547.001 | RunOnce Key Written
+-- Severity: High | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%'
+  AND UTF8(payload) ILIKE '%RegistryEvent%'
+  AND (UTF8(payload) ILIKE '%CurrentVersion\RunOnce%'
+    OR UTF8(payload) ILIKE '%CurrentVersion\RunOnceEx%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-101004 | T1547.001 | Run Key Value Points to Writable Path
+-- Severity: High | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%'
+  AND UTF8(payload) ILIKE '%RegistryEvent%'
+  AND UTF8(payload) ILIKE '%CurrentVersion\Run%'
+  AND (UTF8(payload) ILIKE '%\Temp\%'
+    OR UTF8(payload) ILIKE '%\AppData\%'
+    OR UTF8(payload) ILIKE '%\Downloads\%'
+    OR UTF8(payload) ILIKE '%\Public\%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-101005 | T1546.012 | IFEO Debugger Key Written
+-- Severity: Critical | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%'
+  AND UTF8(payload) ILIKE '%RegistryEvent%'
+  AND UTF8(payload) ILIKE '%Image File Execution Options%'
+  AND (UTF8(payload) ILIKE '%Debugger%'
+    OR UTF8(payload) ILIKE '%GlobalFlag%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-101006 | T1546.009 | AppInit_DLLs Registry Written
+-- Severity: Critical | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%'
+  AND UTF8(payload) ILIKE '%RegistryEvent%'
+  AND UTF8(payload) ILIKE '%AppInit_DLLs%'
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-101007 | T1547.004 | Winlogon Userinit / Shell Modified
+-- Severity: Critical | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%'
+  AND UTF8(payload) ILIKE '%RegistryEvent%'
+  AND UTF8(payload) ILIKE '%Winlogon%'
+  AND (UTF8(payload) ILIKE '%Userinit%'
+    OR UTF8(payload) ILIKE '%Shell%'
+    OR UTF8(payload) ILIKE '%Notify%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-101008 | T1547.005 | LSA Authentication / Notification Packages
+-- Severity: Critical | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%'
+  AND UTF8(payload) ILIKE '%RegistryEvent%'
+  AND UTF8(payload) ILIKE '%LSA%'
+  AND (UTF8(payload) ILIKE '%Authentication Packages%'
+    OR UTF8(payload) ILIKE '%Notification Packages%'
+    OR UTF8(payload) ILIKE '%Security Packages%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-101009 | T1547.009 | Shortcut File Written to Startup Folder
+-- Severity: High | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%'
+  AND UTF8(payload) ILIKE '%FileCreate%'
+  AND (UTF8(payload) ILIKE '%\Start Menu\Programs\Startup\%'
+    OR UTF8(payload) ILIKE '%\Microsoft\Windows\Start Menu\Programs\StartUp\%')
+  AND (UTF8(payload) ILIKE '%.lnk%'
+    OR UTF8(payload) ILIKE '%.url%'
+    OR UTF8(payload) ILIKE '%.exe%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-101010 | T1546.015 | COM Hijacking HKCU CLSID InprocServer32
+-- Severity: High | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%'
+  AND UTF8(payload) ILIKE '%RegistryEvent%'
+  AND UTF8(payload) ILIKE '%HKEY_CURRENT_USER%'
+  AND UTF8(payload) ILIKE '%CLSID%'
+  AND UTF8(payload) ILIKE '%InprocServer32%'
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-101011 | T1547.001 | BootExecute Registry Written
+-- Severity: Critical | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%'
+  AND UTF8(payload) ILIKE '%RegistryEvent%'
+  AND UTF8(payload) ILIKE '%BootExecute%'
+  AND NOT UTF8(payload) ILIKE '%autocheck autochk%'
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-101012 | T1176 | Browser Helper Object (BHO) Registry Written
+-- Severity: High | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%'
+  AND UTF8(payload) ILIKE '%RegistryEvent%'
+  AND UTF8(payload) ILIKE '%Browser Helper Objects%'
+  AND NOT (UTF8(payload) ILIKE '%\Program Files\%'
+    OR UTF8(payload) ILIKE '%\Windows\%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-101013 | T1547.001 | Active Setup Registry Persistence
+-- Severity: High | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%'
+  AND UTF8(payload) ILIKE '%RegistryEvent%'
+  AND UTF8(payload) ILIKE '%Active Setup%'
+  AND UTF8(payload) ILIKE '%StubPath%'
+  AND (UTF8(payload) ILIKE '%\Temp\%'
+    OR UTF8(payload) ILIKE '%\AppData\%'
+    OR UTF8(payload) ILIKE '%powershell%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-101014 | T1112 | Defender DisableAntiSpyware/Disable Registry
+-- Severity: Critical | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%'
+  AND UTF8(payload) ILIKE '%RegistryEvent%'
+  AND (UTF8(payload) ILIKE '%DisableAntiSpyware%'
+    OR UTF8(payload) ILIKE '%DisableAntiVirus%'
+    OR UTF8(payload) ILIKE '%DisableRealtimeMonitoring%'
+    OR UTF8(payload) ILIKE '%DisableBehaviorMonitoring%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-101015 | T1112 | Defender Exclusion Added via Registry
+-- Severity: Critical | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%'
+  AND UTF8(payload) ILIKE '%RegistryEvent%'
+  AND UTF8(payload) ILIKE '%Windows Defender%'
+  AND (UTF8(payload) ILIKE '%Exclusions\Paths%'
+    OR UTF8(payload) ILIKE '%Exclusions\Processes%'
+    OR UTF8(payload) ILIKE '%Exclusions\Extensions%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-101016 | T1037 | Logon Script via UserInitMprLogonScript
+-- Severity: High | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%'
+  AND UTF8(payload) ILIKE '%RegistryEvent%'
+  AND UTF8(payload) ILIKE '%UserInitMprLogonScript%'
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-101017 | T1112 | SafeBoot Registry Key Modified
+-- Severity: Critical | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%'
+  AND UTF8(payload) ILIKE '%RegistryEvent%'
+  AND UTF8(payload) ILIKE '%SafeBoot%'
+  AND (UTF8(payload) ILIKE '%Minimal%'
+    OR UTF8(payload) ILIKE '%Network%'
+    OR UTF8(payload) ILIKE '%\System\CurrentControlSet\Control\SafeBoot%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-101018 | T1112 | RDP / Terminal Server Registry Modified
+-- Severity: High | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%'
+  AND UTF8(payload) ILIKE '%RegistryEvent%'
+  AND (UTF8(payload) ILIKE '%Terminal Services%'
+    OR UTF8(payload) ILIKE '%TerminalServer%')
+  AND (UTF8(payload) ILIKE '%fDenyTSConnections%'
+    OR UTF8(payload) ILIKE '%PortNumber%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-101019 | T1547 | ETW Autologger Disabled via Registry
+-- Severity: High | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%'
+  AND UTF8(payload) ILIKE '%RegistryEvent%'
+  AND UTF8(payload) ILIKE '%AutoLogger%'
+  AND (UTF8(payload) ILIKE '%EventLog-Security%'
+    OR UTF8(payload) ILIKE '%EventLog-System%')
+  AND UTF8(payload) ILIKE '%Start%'
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-101020 | T1547 | Netsh Helper DLL Registered
+-- Severity: High | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%'
+  AND UTF8(payload) ILIKE '%RegistryEvent%'
+  AND UTF8(payload) ILIKE '%NetSH%'
+  AND UTF8(payload) ILIKE '%helperlocations%'
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-101021 | T1547 | WDigest UseLogonCredential Enabled
+-- Severity: Critical | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%'
+  AND UTF8(payload) ILIKE '%RegistryEvent%'
+  AND UTF8(payload) ILIKE '%WDigest%'
+  AND UTF8(payload) ILIKE '%UseLogonCredential%'
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-101022 | T1547 | Suspicious Registry Value from Staging Path
+-- Severity: High | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%'
+  AND UTF8(payload) ILIKE '%RegistryEvent%'
+  AND (UTF8(payload) ILIKE '%\Temp\%'
+    OR UTF8(payload) ILIKE '%\AppData\Roaming\%'
+    OR UTF8(payload) ILIKE '%\AppData\Local\Temp\%'
+    OR UTF8(payload) ILIKE '%\Downloads\%')
+  AND (UTF8(payload) ILIKE '%Run%'
+    OR UTF8(payload) ILIKE '%Startup%')
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-101023 | T1547 | ADS (Alternate Data Stream) Created via Registry
+-- Severity: High | Confidence: Medium
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%'
+  AND UTF8(payload) ILIKE '%RegistryEvent%'
+  AND UTF8(payload) ILIKE '%:Zone.Identifier%'
+LAST 1440 MINUTES;
+
+
+-- ==================================================
+-- QR-101024 | T1547 | Multiple Run Keys Written in Short Time (Bulk Persistence)
+-- Severity: Critical | Confidence: High
+-- Threshold: 3+ Run key writes in 60 seconds from same host
+-- ==================================================
+SELECT
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  COUNT(*) AS RunKeyWriteCount
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%'
+  AND UTF8(payload) ILIKE '%RegistryEvent%'
+  AND UTF8(payload) ILIKE '%CurrentVersion\Run%'
+GROUP BY LOGSOURCENAME(logsourceid)
+HAVING COUNT(*) >= 3
+LAST 60 MINUTES;
+
+
+-- ==================================================
+-- QR-101025 | T1547 | Credential Manager Registry Key Tampered
+-- Severity: High | Confidence: High
+-- ==================================================
+SELECT
+  DATEFORMAT(startTime, 'yyyy-MM-dd HH:mm:ss') AS EventTime,
+  LOGSOURCENAME(logsourceid) AS LogSource,
+  username,
+  UTF8(payload) AS EventPayload
+FROM events
+WHERE LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%'
+  AND UTF8(payload) ILIKE '%RegistryEvent%'
+  AND (UTF8(payload) ILIKE '%Credential Manager%'
+    OR UTF8(payload) ILIKE '%Credentials\%'
+    OR UTF8(payload) ILIKE '%DPAPI%')
+  AND NOT (UTF8(payload) ILIKE '%lsass%'
+    OR UTF8(payload) ILIKE '%services%')
+LAST 1440 MINUTES;

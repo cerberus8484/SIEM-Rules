@@ -1,0 +1,589 @@
+// ============================================================
+// HuntingThreats — Google SecOps YARA-L 2.0 Hunt Rules
+// Category : Impact — Ransomware / Destruction / Denial of Service (T1486, T1489, T1490)
+// Batch    : 13 / Impact
+// Rules    : GS-108001 – GS-108030
+// Platform : Google SecOps / Chronicle SIEM
+// ============================================================
+
+rule ht_gs_108001_ransomware_file_extension {
+  meta:
+    rule_id         = "GS-108001"
+    author          = "HuntingThreats"
+    description     = "Known ransomware file extension created — .locked/.encrypted/.ryuk/.conti etc."
+    mitre_tactic    = "Impact"
+    mitre_technique = "T1486"
+    severity        = "CRITICAL"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "FILE_CREATION"
+    re.regex($e.target.file.full_path, `(?i)\.(locked|encrypted|ryuk|conti|lockbit|hive|wncry|wnry|crypt|enc|ransom|locky|cerber|zepto|dharma|globe|sodinokibi|revil|maze|darkside|blackmatter|alphv|blackcat|cl0p|vice|akira|trigona|play|black|zeon|lv|babuk)$`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_108002_high_volume_file_modification {
+  meta:
+    rule_id         = "GS-108002"
+    author          = "HuntingThreats"
+    description     = "100+ file modifications in 5 minutes from single process — mass encryption"
+    mitre_tactic    = "Impact"
+    mitre_technique = "T1486"
+    severity        = "CRITICAL"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "FILE_CREATION"
+    re.regex($e.target.file.full_path, `(?i)\\(Documents|Desktop|Users|Downloads|Pictures|Finance)\\`)
+
+  match:
+    $e.principal.process.file.full_path over 5m
+
+  condition:
+    #e > 100
+}
+
+rule ht_gs_108003_ransom_note_creation {
+  meta:
+    rule_id         = "GS-108003"
+    author          = "HuntingThreats"
+    description     = "Ransom note file created — READ_ME/DECRYPT/HOW_TO_RECOVER patterns"
+    mitre_tactic    = "Impact"
+    mitre_technique = "T1486"
+    severity        = "CRITICAL"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "FILE_CREATION"
+    re.regex($e.target.file.full_path, `(?i)(READ_ME|DECRYPT|HOW_TO_RECOVER|restore_files|recovery_instruction|readme\.txt|!readme|your_files_are_encrypted)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_108004_vssadmin_delete_shadows {
+  meta:
+    rule_id         = "GS-108004"
+    author          = "HuntingThreats"
+    description     = "Vssadmin delete shadows — ransomware backup destruction via VSS"
+    mitre_tactic    = "Impact"
+    mitre_technique = "T1490"
+    severity        = "CRITICAL"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.file.full_path, `(?i)\\vssadmin\.exe$`)
+    re.regex($e.target.process.command_line, `(?i)delete\s+shadows`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_108005_wbadmin_delete_backup {
+  meta:
+    rule_id         = "GS-108005"
+    author          = "HuntingThreats"
+    description     = "Wbadmin delete backup or systemstatebackup — Windows Backup deletion"
+    mitre_tactic    = "Impact"
+    mitre_technique = "T1490"
+    severity        = "CRITICAL"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.file.full_path, `(?i)\\wbadmin\.exe$`)
+    re.regex($e.target.process.command_line, `(?i)(delete\s+backup|delete\s+systemstatebackup)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_108006_bcdedit_recovery_disabled {
+  meta:
+    rule_id         = "GS-108006"
+    author          = "HuntingThreats"
+    description     = "Bcdedit disabling recovery — ransomware boot recovery prevention"
+    mitre_tactic    = "Impact"
+    mitre_technique = "T1490"
+    severity        = "CRITICAL"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.file.full_path, `(?i)\\bcdedit\.exe$`)
+    re.regex($e.target.process.command_line, `(?i)(recoveryenabled\s+no|bootstatuspolicy\s+ignoreallfailures)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_108007_security_service_stop {
+  meta:
+    rule_id         = "GS-108007"
+    author          = "HuntingThreats"
+    description     = "Critical security service stopped — WinDefend/Sense/CrowdStrike killed"
+    mitre_tactic    = "Defense Evasion"
+    mitre_technique = "T1489"
+    severity        = "CRITICAL"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.file.full_path, `(?i)\\(sc|net)\.exe$`)
+    re.regex($e.target.process.command_line, `(?i)stop`)
+    re.regex($e.target.process.command_line, `(?i)(windefend|sense|csagent|csfalconservice|mssense|carbonblack|cylance|sophos|malwarebytes)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_108008_wallpaper_ransom_change {
+  meta:
+    rule_id         = "GS-108008"
+    author          = "HuntingThreats"
+    description     = "Desktop wallpaper changed to ransom image — Ransomware notification step"
+    mitre_tactic    = "Impact"
+    mitre_technique = "T1491.001"
+    severity        = "CRITICAL"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "REGISTRY_MODIFICATION"
+    re.regex($e.target.registry.registry_key, `(?i)\\Control Panel\\Desktop.*Wallpaper`)
+    re.regex($e.target.registry.registry_value_data, `(?i)(ransom|decrypt|recover|locked|payment)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_108009_backup_agent_kill {
+  meta:
+    rule_id         = "GS-108009"
+    author          = "HuntingThreats"
+    description     = "Backup agent process killed — Veeam/Acronis/Backup Exec process termination"
+    mitre_tactic    = "Impact"
+    mitre_technique = "T1490"
+    severity        = "CRITICAL"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.file.full_path, `(?i)\\(taskkill|tskill|pskill)\.exe$`)
+    re.regex($e.target.process.command_line, `(?i)(veeam|acronis|backup|backupagent|baagent|beserver|beremote|sql|sqlagent|oracle|mysql)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_108010_mass_service_stop_threshold {
+  meta:
+    rule_id         = "GS-108010"
+    author          = "HuntingThreats"
+    description     = "5+ services stopped in 2 minutes — mass service shutdown before encryption"
+    mitre_tactic    = "Impact"
+    mitre_technique = "T1489"
+    severity        = "CRITICAL"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.file.full_path, `(?i)\\(sc|net)\.exe$`)
+    re.regex($e.target.process.command_line, `(?i)stop`)
+
+  match:
+    $e.principal.hostname over 2m
+
+  condition:
+    #e > 5
+}
+
+rule ht_gs_108011_diskpart_clean_mbr {
+  meta:
+    rule_id         = "GS-108011"
+    author          = "HuntingThreats"
+    description     = "Diskpart clean — MBR wipe / disk destruction"
+    mitre_tactic    = "Impact"
+    mitre_technique = "T1561.002"
+    severity        = "CRITICAL"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.file.full_path, `(?i)\\diskpart\.exe$`)
+    re.regex($e.target.process.command_line, `(?i)clean`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_108012_format_drive {
+  meta:
+    rule_id         = "GS-108012"
+    author          = "HuntingThreats"
+    description     = "Format.com run on non-CD drive — disk formatting / wiper action"
+    mitre_tactic    = "Impact"
+    mitre_technique = "T1561.001"
+    severity        = "CRITICAL"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.file.full_path, `(?i)\\format\.com$`)
+    NOT re.regex($e.target.process.command_line, `(?i)(d:|e:|cdrom)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_108013_shutdown_from_script {
+  meta:
+    rule_id         = "GS-108013"
+    author          = "HuntingThreats"
+    description     = "Shutdown /r /t 0 from script context — forced reboot after encryption"
+    mitre_tactic    = "Impact"
+    mitre_technique = "T1529"
+    severity        = "CRITICAL"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.file.full_path, `(?i)\\shutdown\.exe$`)
+    re.regex($e.target.process.command_line, `(?i)\/r.*\/t\s+0`)
+    re.regex($e.principal.process.file.full_path, `(?i)\\(cmd|powershell|wscript)\.exe$`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_108014_event_log_cleared_1102 {
+  meta:
+    rule_id         = "GS-108014"
+    author          = "HuntingThreats"
+    description     = "Security event log cleared (EID 1102) — anti-forensics after ransomware"
+    mitre_tactic    = "Defense Evasion"
+    mitre_technique = "T1070.001"
+    severity        = "CRITICAL"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.command_line, `(?i)(wevtutil.*cl\s+security|clear-eventlog.*security)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_108015_ransomware_combo_shadow_bcdedit {
+  meta:
+    rule_id         = "GS-108015"
+    author          = "HuntingThreats"
+    description     = "Ransomware combo — shadow delete + bcdedit + file rename in 30 min"
+    mitre_tactic    = "Impact"
+    mitre_technique = "T1486"
+    severity        = "CRITICAL"
+    confidence      = "HIGH"
+
+  events:
+    $e1.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e1.target.process.command_line, `(?i)(vssadmin.*delete|delete.*shadows)`)
+
+    $e2.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e2.target.process.command_line, `(?i)(bcdedit.*recoveryenabled\s+no|bootstatuspolicy)`)
+
+    $e3.metadata.event_type = "FILE_CREATION"
+    re.regex($e3.target.file.full_path, `(?i)\.(encrypted|locked|crypt|enc)$`)
+
+    $e1.principal.hostname = $e2.principal.hostname
+    $e2.principal.hostname = $e3.principal.hostname
+
+  match:
+    $e1.principal.hostname over 30m
+
+  condition:
+    $e1 and $e2 and $e3
+}
+
+rule ht_gs_108016_inhibit_system_recovery {
+  meta:
+    rule_id         = "GS-108016"
+    author          = "HuntingThreats"
+    description     = "Recovery points removed via PowerShell — Disable-ComputerRestore"
+    mitre_tactic    = "Impact"
+    mitre_technique = "T1490"
+    severity        = "CRITICAL"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.command_line, `(?i)(disable-computerrestore|remove-restorepoint)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_108017_file_overwrite_loop {
+  meta:
+    rule_id         = "GS-108017"
+    author          = "HuntingThreats"
+    description     = "Script overwriting files in a loop — potential wiper activity"
+    mitre_tactic    = "Impact"
+    mitre_technique = "T1485"
+    severity        = "CRITICAL"
+    confidence      = "MEDIUM"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.command_line, `(?i)(cipher\s+\/w|sdelete|shred.*-f|dd\s+if=\/dev\/zero|fsutil\s+file\s+setzerodata)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_108018_sdelete_wipe {
+  meta:
+    rule_id         = "GS-108018"
+    author          = "HuntingThreats"
+    description     = "Sdelete secure deletion tool — anti-forensics evidence destruction"
+    mitre_tactic    = "Defense Evasion"
+    mitre_technique = "T1070.004"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.file.full_path, `(?i)\\sdelete(64)?\.exe$`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_108019_windows_defender_update_disable {
+  meta:
+    rule_id         = "GS-108019"
+    author          = "HuntingThreats"
+    description     = "Windows Update service stopped or disabled — preventing signature update"
+    mitre_tactic    = "Defense Evasion"
+    mitre_technique = "T1562.001"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.command_line, `(?i)(sc\s+stop\s+wuauserv|sc\s+config\s+wuauserv.*disabled|net\s+stop\s+wuauserv)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_108020_defacement_webshell_write {
+  meta:
+    rule_id         = "GS-108020"
+    author          = "HuntingThreats"
+    description     = "File written to web root with defacement keywords — web defacement"
+    mitre_tactic    = "Impact"
+    mitre_technique = "T1491.002"
+    severity        = "HIGH"
+    confidence      = "MEDIUM"
+
+  events:
+    $e.metadata.event_type = "FILE_CREATION"
+    re.regex($e.target.file.full_path, `(?i)\\(inetpub|www|htdocs|public_html)\\.*\.(html|php|aspx)$`)
+    re.regex($e.principal.process.file.full_path, `(?i)\\(w3wp|httpd|nginx|apache|cmd|powershell)\.exe$`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_108021_resource_hijack_cryptominer {
+  meta:
+    rule_id         = "GS-108021"
+    author          = "HuntingThreats"
+    description     = "XMRig or known cryptominer process launched — resource hijack"
+    mitre_tactic    = "Impact"
+    mitre_technique = "T1496"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.command_line, `(?i)(xmrig|xmr|minerd|cpuminer|stratum\+tcp|pool\.minexmr|monero|nicehash)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_108022_vss_snapshot_delete_wmi {
+  meta:
+    rule_id         = "GS-108022"
+    author          = "HuntingThreats"
+    description     = "VSS snapshot deleted via WMI — WMIC Shadowcopy delete"
+    mitre_tactic    = "Impact"
+    mitre_technique = "T1490"
+    severity        = "CRITICAL"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.file.full_path, `(?i)\\wmic\.exe$`)
+    re.regex($e.target.process.command_line, `(?i)(shadowcopy.*delete|shadow.*delete)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_108023_data_destruction_rm_rf {
+  meta:
+    rule_id         = "GS-108023"
+    author          = "HuntingThreats"
+    description     = "PowerShell Remove-Item -Recurse on data directory — mass deletion"
+    mitre_tactic    = "Impact"
+    mitre_technique = "T1485"
+    severity        = "CRITICAL"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.command_line, `(?i)remove-item.*-recurse`)
+    re.regex($e.target.process.command_line, `(?i)(\\documents|\\desktop|\\users|\\data|\\shares)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_108024_service_stop_list_ransomware {
+  meta:
+    rule_id         = "GS-108024"
+    author          = "HuntingThreats"
+    description     = "Known ransomware service stop list executed — batch service kill script"
+    mitre_tactic    = "Impact"
+    mitre_technique = "T1489"
+    severity        = "CRITICAL"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.file.full_path, `(?i)\\(sc|net)\.exe$`)
+    re.regex($e.target.process.command_line, `(?i)stop.*(sql|oracle|mysql|postgres|mongodb|exchange|iis|apache|nginx|tomcat|backupexec|veeam|acronis)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_108025_arp_spoofing_tool {
+  meta:
+    rule_id         = "GS-108025"
+    author          = "HuntingThreats"
+    description     = "ARP spoofing tool launched — network disruption / MITM for impact"
+    mitre_tactic    = "Impact"
+    mitre_technique = "T1498"
+    severity        = "HIGH"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.command_line, `(?i)(arpspoof|ettercap|cain|arp.*-s.*poison)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_108026_registry_destruction {
+  meta:
+    rule_id         = "GS-108026"
+    author          = "HuntingThreats"
+    description     = "Reg.exe deleting critical registry hives — registry destruction/wiper"
+    mitre_tactic    = "Impact"
+    mitre_technique = "T1485"
+    severity        = "CRITICAL"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.file.full_path, `(?i)\\reg\.exe$`)
+    re.regex($e.target.process.command_line, `(?i)delete.*hklm\\(sam|security|system|software)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_108027_dns_flood_attack {
+  meta:
+    rule_id         = "GS-108027"
+    author          = "HuntingThreats"
+    description     = "High-frequency DNS queries from one host — DNS flood / DDoS tool"
+    mitre_tactic    = "Impact"
+    mitre_technique = "T1498.002"
+    severity        = "HIGH"
+    confidence      = "MEDIUM"
+
+  events:
+    $e.metadata.event_type = "NETWORK_DNS"
+
+  match:
+    $e.principal.hostname over 1m
+
+  condition:
+    #e > 1000
+}
+
+rule ht_gs_108028_wiper_malware_patterns {
+  meta:
+    rule_id         = "GS-108028"
+    author          = "HuntingThreats"
+    description     = "Known wiper tool or binary pattern — NotPetya/Hermetic/Destover style"
+    mitre_tactic    = "Impact"
+    mitre_technique = "T1561"
+    severity        = "CRITICAL"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.command_line, `(?i)(hermeticwiper|notpetya|destover|shamoon|stonedrill|wipeall)`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_108029_inhibit_recovery_reagentc {
+  meta:
+    rule_id         = "GS-108029"
+    author          = "HuntingThreats"
+    description     = "Reagentc /disable — Windows Recovery Environment disabled"
+    mitre_tactic    = "Impact"
+    mitre_technique = "T1490"
+    severity        = "CRITICAL"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "PROCESS_LAUNCH"
+    re.regex($e.target.process.file.full_path, `(?i)\\reagentc\.exe$`)
+    re.regex($e.target.process.command_line, `(?i)\/disable`)
+
+  condition:
+    $e
+}
+
+rule ht_gs_108030_encrypted_file_read_high_volume {
+  meta:
+    rule_id         = "GS-108030"
+    author          = "HuntingThreats"
+    description     = "Process reading then writing large number of files — encryption in progress"
+    mitre_tactic    = "Impact"
+    mitre_technique = "T1486"
+    severity        = "CRITICAL"
+    confidence      = "HIGH"
+
+  events:
+    $e.metadata.event_type = "FILE_CREATION"
+    NOT re.regex($e.principal.process.file.full_path, `(?i)\\(windows|microsoft|system32|program files)`)
+    re.regex($e.target.file.full_path, `(?i)\\(Documents|Desktop|Downloads|Pictures|Users)\\`)
+
+  match:
+    $e.principal.process.file.full_path over 5m
+
+  condition:
+    #e > 200
+}

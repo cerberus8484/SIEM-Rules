@@ -1,0 +1,307 @@
+<!--
+  HuntingThreats — Wazuh Hunt Rules
+  Category:  Execution — PowerShell (T1059.001)
+  Batch:     1 / Execution
+  Rules:     100001 – 100025
+  Platform:  Wazuh 4.x
+  Sources:   Sysmon Event 1 (Process Creation)
+             Windows Event 4688 (Process Creation with CmdLine)
+             Windows Event 4104 (PS Script Block Logging)
+             Windows Event 4103 (PS Module Logging)
+
+  Deployment:
+    Sysmon:  Recommended — provides commandLine in all Process Creation events.
+    4688:    Requires "Audit Process Creation" + "Include command line" GPO enabled.
+    4104:    Requires PS ScriptBlock Logging (HKLM\...\PowerShell\ScriptBlockLogging).
+
+  Rule Levels:
+    10 = Suspicious / needs investigation
+    12 = High confidence — known attack technique
+    14 = Critical — very specific / almost exclusively malicious
+
+  IMPORTANT: Adjust if_sid to match your Wazuh decoder chain.
+    if_group="windows"  works for decoded Windows event logs.
+    if_group="sysmon"   works if Sysmon events are in separate group.
+-->
+
+<group name="hunt_execution,powershell,windows,">
+
+  <!-- ── IEX / Invoke-Expression ─────────────────────────────────────────── -->
+
+  <rule id="100001" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$|^4688$</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?i)\biex\b|\binvoke-expression\b</field>
+    <description>PowerShell: IEX/Invoke-Expression detected — dynamic code execution without file (T1059.001)</description>
+    <mitre><id>T1059.001</id></mitre>
+    <group>hunt_encoded_command,execution,high_confidence,</group>
+  </rule>
+
+  <!-- ── Encoded Command (base64 payload) ────────────────────────────────── -->
+
+  <rule id="100002" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$|^4688$</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?i)-e(n(c(o(d(e(d(c(o(m(m(a(nd?)?)?)?)?)?)?)?)?)?)?)?[\s]+[A-Za-z0-9+/]{40,}={0,2}</field>
+    <description>PowerShell: Encoded command detected (-EncodedCommand with base64 payload) (T1059.001, T1027.010)</description>
+    <mitre><id>T1059.001</id><id>T1027.010</id></mitre>
+    <group>hunt_encoded_command,execution,high_confidence,</group>
+  </rule>
+
+  <!-- ── ExecutionPolicy Bypass ───────────────────────────────────────────── -->
+
+  <rule id="100003" level="10">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$|^4688$</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?i)-e(x(e(c(u(t(i(o(n(p(o(l(i(cy?)?)?)?)?)?)?)?)?)?)?)?)?[\s]+bypass</field>
+    <description>PowerShell: ExecutionPolicy Bypass — script execution restriction disabled (T1059.001)</description>
+    <mitre><id>T1059.001</id></mitre>
+    <group>execution,bypass,</group>
+  </rule>
+
+  <!-- ── Hidden Window ────────────────────────────────────────────────────── -->
+
+  <rule id="100004" level="10">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$|^4688$</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?i)(-w(i(n(d(o(w(s(t(y(le?)?)?)?)?)?)?)?)?[\s]+h(i(d(d(en?)?)?)?)?|(-w[\s]+h))</field>
+    <description>PowerShell: WindowStyle Hidden — process runs invisible to user (T1059.001)</description>
+    <mitre><id>T1059.001</id></mitre>
+    <group>execution,evasion,</group>
+  </rule>
+
+  <!-- ── Download Cradle: DownloadString ─────────────────────────────────── -->
+
+  <rule id="100005" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$|^4688$|^4104$</field>
+    <field name="win.eventdata.commandLine|win.eventdata.scriptBlockText" type="pcre2">(?i)downloadstring\s*\(</field>
+    <description>PowerShell: DownloadString cradle detected — in-memory download execution (T1059.001, T1105)</description>
+    <mitre><id>T1059.001</id><id>T1105</id></mitre>
+    <group>execution,download,high_confidence,</group>
+  </rule>
+
+  <!-- ── Download Cradle: DownloadFile ───────────────────────────────────── -->
+
+  <rule id="100006" level="10">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$|^4688$|^4104$</field>
+    <field name="win.eventdata.commandLine|win.eventdata.scriptBlockText" type="pcre2">(?i)downloadfile\s*\(|downloaddata\s*\(</field>
+    <description>PowerShell: DownloadFile/DownloadData — file downloaded via WebClient (T1105)</description>
+    <mitre><id>T1105</id></mitre>
+    <group>execution,download,</group>
+  </rule>
+
+  <!-- ── Invoke-WebRequest to external ───────────────────────────────────── -->
+
+  <rule id="100007" level="10">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$|^4688$|^4104$</field>
+    <field name="win.eventdata.commandLine|win.eventdata.scriptBlockText" type="pcre2">(?i)(invoke-webrequest|iwr|wget|curl)[\s].*https?://</field>
+    <description>PowerShell: Invoke-WebRequest/wget/curl to external URL — potential download (T1105)</description>
+    <mitre><id>T1105</id></mitre>
+    <group>execution,download,</group>
+  </rule>
+
+  <!-- ── AMSI Bypass: AmsiUtils reflection ───────────────────────────────── -->
+
+  <rule id="100008" level="14">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$|^4688$|^4104$</field>
+    <field name="win.eventdata.commandLine|win.eventdata.scriptBlockText" type="pcre2">(?i)(amsiutils|amsi\.dll|amsicontext|amsiscanstring|amsiinitialized)</field>
+    <description>PowerShell: AMSI bypass attempt — anti-malware scan interface disabled (T1562.001)</description>
+    <mitre><id>T1562.001</id><id>T1059.001</id></mitre>
+    <group>defense_evasion,amsi_bypass,critical,</group>
+  </rule>
+
+  <!-- ── AMSI Bypass: SetValue patch ─────────────────────────────────────── -->
+
+  <rule id="100009" level="14">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^4104$</field>
+    <field name="win.eventdata.scriptBlockText" type="pcre2">(?i)\[Runtime\.InteropServices\.Marshal\]::Copy|amsiInitFailed|amsiContext</field>
+    <description>PowerShell Script Block: AMSI patch via reflection — SetValue/Copy method (T1562.001)</description>
+    <mitre><id>T1562.001</id></mitre>
+    <group>defense_evasion,amsi_bypass,critical,</group>
+  </rule>
+
+  <!-- ── Reflection: Assembly.Load / Load(bytes) ─────────────────────────── -->
+
+  <rule id="100010" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^4104$</field>
+    <field name="win.eventdata.scriptBlockText" type="pcre2">(?i)\[System\.Reflection\.Assembly\]::Load|Assembly\.Load\(</field>
+    <description>PowerShell: Assembly.Load — in-memory .NET assembly loading without disk touch (T1620)</description>
+    <mitre><id>T1620</id><id>T1059.001</id></mitre>
+    <group>execution,reflective_loading,</group>
+  </rule>
+
+  <!-- ── Mimikatz indicators in commandline ──────────────────────────────── -->
+
+  <rule id="100011" level="14">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$|^4688$|^4104$</field>
+    <field name="win.eventdata.commandLine|win.eventdata.scriptBlockText" type="pcre2">(?i)invoke-mimikatz|sekurlsa::|lsadump::|privilege::debug|crypto::certificates|kerberos::ptt</field>
+    <description>PowerShell: Mimikatz keyword detected — credential dumping tool signature (T1003.001)</description>
+    <mitre><id>T1003.001</id><id>T1059.001</id></mitre>
+    <group>credential_access,mimikatz,critical,</group>
+  </rule>
+
+  <!-- ── PowerView / BloodHound recon ────────────────────────────────────── -->
+
+  <rule id="100012" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^4104$</field>
+    <field name="win.eventdata.scriptBlockText" type="pcre2">(?i)invoke-bloodhound|get-netuser|get-netgroup|get-netcomputer|find-localadminaccess|get-domaingpo|invoke-sharefinder</field>
+    <description>PowerShell: PowerView/BloodHound AD enumeration function detected (T1087, T1069, T1018)</description>
+    <mitre><id>T1087</id><id>T1069</id><id>T1018</id></mitre>
+    <group>discovery,ad_enumeration,high_confidence,</group>
+  </rule>
+
+  <!-- ── PowerShell spawned by Office application ────────────────────────── -->
+
+  <rule id="100013" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$</field>
+    <field name="win.eventdata.image" type="pcre2">(?i)powershell\.exe$|pwsh\.exe$</field>
+    <field name="win.eventdata.parentImage" type="pcre2">(?i)(winword|excel|powerpnt|outlook|mspub|msaccess|onenote|visio)\.exe$</field>
+    <description>Sysmon: PowerShell spawned by Office application — macro/phishing execution (T1566.001, T1059.001)</description>
+    <mitre><id>T1566.001</id><id>T1059.001</id></mitre>
+    <group>execution,initial_access,office_macro,critical,</group>
+  </rule>
+
+  <!-- ── PowerShell spawned by browser ───────────────────────────────────── -->
+
+  <rule id="100014" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$</field>
+    <field name="win.eventdata.image" type="pcre2">(?i)powershell\.exe$|pwsh\.exe$</field>
+    <field name="win.eventdata.parentImage" type="pcre2">(?i)(chrome|firefox|msedge|iexplore|opera|brave|vivaldi)\.exe$</field>
+    <description>Sysmon: PowerShell spawned by browser — drive-by download or social engineering (T1059.001)</description>
+    <mitre><id>T1059.001</id><id>T1204.001</id></mitre>
+    <group>execution,initial_access,browser_spawn,critical,</group>
+  </rule>
+
+  <!-- ── NoProfile + NonInteractive combination ──────────────────────────── -->
+
+  <rule id="100015" level="10">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$|^4688$</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?i)-nop.*-noni|-noni.*-nop|-noninteractive.*-noprofile|-noprofile.*-noninteractive</field>
+    <description>PowerShell: NoProfile + NonInteractive flags combined — automation/scripted execution (T1059.001)</description>
+    <mitre><id>T1059.001</id></mitre>
+    <group>execution,suspicious_flags,</group>
+  </rule>
+
+  <!-- ── WMI PowerShell execution ─────────────────────────────────────────── -->
+
+  <rule id="100016" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$</field>
+    <field name="win.eventdata.image" type="pcre2">(?i)powershell\.exe$|pwsh\.exe$</field>
+    <field name="win.eventdata.parentImage" type="pcre2">(?i)wmiprvse\.exe$|wmic\.exe$</field>
+    <description>Sysmon: PowerShell spawned via WMI — lateral movement or persistence technique (T1047, T1059.001)</description>
+    <mitre><id>T1047</id><id>T1059.001</id></mitre>
+    <group>execution,lateral_movement,wmi,high_confidence,</group>
+  </rule>
+
+  <!-- ── Char-array obfuscation ────────────────────────────────────────────── -->
+
+  <rule id="100017" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^4104$</field>
+    <field name="win.eventdata.scriptBlockText" type="pcre2">(?i)\[char\]\s*\d+\s*\+\s*\[char\]\s*\d+</field>
+    <description>PowerShell Script Block: char-array obfuscation — Invoke-Obfuscation technique (T1027.010)</description>
+    <mitre><id>T1027.010</id></mitre>
+    <group>defense_evasion,obfuscation,</group>
+  </rule>
+
+  <!-- ── String concatenation obfuscation ────────────────────────────────── -->
+
+  <rule id="100018" level="10">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^4104$</field>
+    <field name="win.eventdata.scriptBlockText" type="pcre2">'[a-zA-Z]'\s*\+\s*'[a-zA-Z]'\s*\+\s*'[a-zA-Z]'</field>
+    <description>PowerShell Script Block: string concatenation obfuscation — multi-char bypass technique (T1027.010)</description>
+    <mitre><id>T1027.010</id></mitre>
+    <group>defense_evasion,obfuscation,</group>
+  </rule>
+
+  <!-- ── Invoke-Shellcode / Shellcode injection ───────────────────────────── -->
+
+  <rule id="100019" level="14">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^4104$</field>
+    <field name="win.eventdata.scriptBlockText" type="pcre2">(?i)invoke-shellcode|shellcode|virtualalloc|virtualallocex|writeprocessmemory|createthread|ntsetcontextthread</field>
+    <description>PowerShell Script Block: shellcode injection pattern detected — process injection (T1055)</description>
+    <mitre><id>T1055</id><id>T1059.001</id></mitre>
+    <group>defense_evasion,process_injection,critical,</group>
+  </rule>
+
+  <!-- ── PowerShell downgrade attack ─────────────────────────────────────── -->
+
+  <rule id="100020" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^1$|^4688$</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?i)-version\s+2\b</field>
+    <description>PowerShell: Version 2 downgrade — bypasses AMSI and ScriptBlock logging (T1059.001, T1562.001)</description>
+    <mitre><id>T1059.001</id><id>T1562.001</id></mitre>
+    <group>defense_evasion,downgrade_attack,high_confidence,</group>
+  </rule>
+
+  <!-- ── COM-based PS execution (DCOM/WScript.Shell) ─────────────────────── -->
+
+  <rule id="100021" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^4104$</field>
+    <field name="win.eventdata.scriptBlockText" type="pcre2">(?i)new-object\s+-comobject\s+(wscript\.shell|shell\.application|msxml2\.xmlhttp)</field>
+    <description>PowerShell: COM object (WScript.Shell/Shell.Application) — script host proxy execution (T1218)</description>
+    <mitre><id>T1218</id><id>T1059.001</id></mitre>
+    <group>execution,com_abuse,</group>
+  </rule>
+
+  <!-- ── Token impersonation / privilege escalation ──────────────────────── -->
+
+  <rule id="100022" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^4104$</field>
+    <field name="win.eventdata.scriptBlockText" type="pcre2">(?i)invoke-tokenmanipulation|get-system|bypass-uac|invoke-bypassuac|bypassuac</field>
+    <description>PowerShell: Token manipulation / UAC bypass function detected (T1548.002, T1134)</description>
+    <mitre><id>T1548.002</id><id>T1134</id></mitre>
+    <group>privilege_escalation,uac_bypass,critical,</group>
+  </rule>
+
+  <!-- ── PowerShell constrained language mode bypass ─────────────────────── -->
+
+  <rule id="100023" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^4104$</field>
+    <field name="win.eventdata.scriptBlockText" type="pcre2">(?i)\$executioncontext\.sessionstate\.languagemode\s*=|clm\s*bypass|constrainedlanguagemode</field>
+    <description>PowerShell: Constrained Language Mode bypass attempt — AppLocker/WDAC circumvention (T1562)</description>
+    <mitre><id>T1562</id></mitre>
+    <group>defense_evasion,clm_bypass,</group>
+  </rule>
+
+  <!-- ── WMI event subscription via PowerShell ───────────────────────────── -->
+
+  <rule id="100024" level="14">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^4104$</field>
+    <field name="win.eventdata.scriptBlockText" type="pcre2">(?i)new-ciminstance.*__eventfilter|set-wmiinstance.*__eventfilter|__filtertoconsumerbinding</field>
+    <description>PowerShell: WMI event subscription created — persistent execution mechanism (T1546.003)</description>
+    <mitre><id>T1546.003</id></mitre>
+    <group>persistence,wmi_subscription,critical,</group>
+  </rule>
+
+  <!-- ── DCSync attack via PowerShell ────────────────────────────────────── -->
+
+  <rule id="100025" level="14">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID" type="pcre2">^4104$</field>
+    <field name="win.eventdata.scriptBlockText" type="pcre2">(?i)invoke-dcsync|get-adreplicationaccount|drsuapi\.drsgetncchanges|drsync</field>
+    <description>PowerShell: DCSync keyword detected — replication of AD credentials (T1003.006)</description>
+    <mitre><id>T1003.006</id></mitre>
+    <group>credential_access,dcsync,critical,</group>
+  </rule>
+
+</group>
