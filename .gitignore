@@ -94,6 +94,9 @@ Thumbs.db
 # HuntingThreats — Project specific
 # -----------------------------------------------
 
+# MkDocs generated site — never commit (deployed via CI to gh-pages branch)
+site/
+
 # Local test / scan data — never commit
 data/
 scans/

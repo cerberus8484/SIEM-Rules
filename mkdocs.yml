@@ -1,0 +1,128 @@
+site_name: HuntingThreats — Enterprise Hunt Pack
+site_description: Production-ready SIEM detection rules for Splunk, QRadar, Google SecOps, and Wazuh. 1029 validated rules across 28 packs.
+site_url: https://cerberus8484.github.io/SIEM-Rules/
+repo_url: https://github.com/cerberus8484/SIEM-Rules
+repo_name: cerberus8484/SIEM-Rules
+edit_uri: edit/main/docs/
+
+theme:
+  name: material
+  palette:
+    - scheme: slate
+      primary: custom
+      accent: custom
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+    - scheme: default
+      primary: custom
+      accent: custom
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+  font:
+    text: Inter
+    code: JetBrains Mono
+  features:
+    - navigation.tabs
+    - navigation.tabs.sticky
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - navigation.footer
+    - search.highlight
+    - search.suggest
+    - content.code.copy
+    - content.code.annotate
+    - toc.integrate
+  logo: assets/logo.svg
+  favicon: assets/logo.svg
+  icon:
+    repo: fontawesome/brands/github
+
+extra_css:
+  - assets/custom.css
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/cerberus8484/SIEM-Rules
+    - icon: fontawesome/solid/globe
+      link: https://huntingthreats.de
+  version:
+    provider: mike
+    default: stable
+  analytics:
+    provider: google
+    property: G-XXXXXXXXXX
+
+plugins:
+  - search
+  - minify:
+      minify_html: true
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+  - attr_list
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+
+nav:
+  - Home: index.md
+  - Getting Started: getting-started.md
+  - Rule Packs:
+    - Overview: packs/index.md
+    - Windows & Sysmon: packs/windows-sysmon.md
+    - Identity / IAM: packs/identity-iam.md
+    - Cloud (AWS/Azure/GCP/M365): packs/cloud.md
+    - Linux: packs/linux.md
+    - Container / Kubernetes: packs/container-kubernetes.md
+    - DevOps / CI-CD: packs/devops-cicd.md
+    - Backup / Resilience: packs/backup-resilience.md
+    - Email Security: packs/email.md
+    - Database: packs/database.md
+    - VPN / Remote Access: packs/vpn.md
+    - macOS: packs/macos.md
+    - DLP / Exfiltration: packs/dlp.md
+    - Deception / Canary: packs/deception.md
+    - Correlation: packs/correlation.md
+  - Platforms:
+    - Splunk SPL: platforms/splunk.md
+    - QRadar AQL: platforms/qradar.md
+    - Google SecOps UDM: platforms/secops.md
+    - Wazuh KQL: platforms/wazuh.md
+  - Detection Examples:
+    - Overview: fixtures/index.md
+    - Identity & IAM: fixtures/identity.md
+    - Backup & Ransomware: fixtures/backup-ransomware.md
+    - Deception: fixtures/deception.md
+    - Correlation Chains: fixtures/correlation.md
+  - Quality & Coverage:
+    - Quality Standards: quality.md
+    - Coverage Matrix: coverage.md
+  - Authoring Rules:
+    - Rule Format: authoring/rule-format.md
+    - Metadata Reference: authoring/metadata.md
+    - Severity & Confidence: authoring/severity-confidence.md
+    - Testing Rules: authoring/testing.md
+    - Contribution Guide: authoring/contributing.md
+  - Releases: releases.md
