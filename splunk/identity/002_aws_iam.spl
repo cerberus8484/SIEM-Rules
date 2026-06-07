@@ -1,0 +1,142 @@
+
+`comment("SP-701001 | Identity-AWSIAM | Root-Account-Login")`
+index=aws sourcetype="aws:cloudtrail" userIdentity.type="Root" eventName="ConsoleLogin"
+| eval mfa=if('additionalEventData.MFAUsed'="Yes","MFA","NO_MFA")
+| eval rule_id="SP-701001", tactic="Initial Access", technique="T1078.004", severity="CRITICAL", confidence=95
+| table _time, userIdentity.arn, sourceIPAddress, mfa, errorCode
+
+`comment("SP-701002 | Identity-AWSIAM | IAM-User ohne MFA erstellt und sofort API-Key generiert")`
+index=aws sourcetype="aws:cloudtrail" eventName IN ("CreateUser","CreateAccessKey")
+| eval actor='userIdentity.arn', target='requestParameters.userName'
+| bin _time span=5m
+| stats values(eventName) as actions count by _time, target, actor, sourceIPAddress
+| where count >= 2 AND mvfind(actions, "CreateUser") >= 0 AND mvfind(actions, "CreateAccessKey") >= 0
+| eval rule_id="SP-701002", tactic="Persistence", technique="T1136.003", severity="HIGH", confidence=88
+| table _time, target, actor, actions, sourceIPAddress
+
+`comment("SP-701003 | Identity-AWSIAM | API-Key für Root-Account erstellt")`
+index=aws sourcetype="aws:cloudtrail" userIdentity.type="Root" eventName="CreateAccessKey"
+| eval rule_id="SP-701003", tactic="Persistence", technique="T1098.001", severity="CRITICAL", confidence=97
+| table _time, userIdentity.arn, sourceIPAddress, requestParameters.userName
+
+`comment("SP-701004 | Identity-AWSIAM | AdministratorAccess Policy an User/Role gebunden")`
+index=aws sourcetype="aws:cloudtrail" eventName IN ("AttachUserPolicy","AttachRolePolicy","PutUserPolicy","PutRolePolicy")
+| where match('requestParameters.policyArn', "AdministratorAccess") OR match('requestParameters.policyDocument', "(?i)(\"*\".*\"*\"|Action.*\*.*Resource.*\*)")
+| eval actor='userIdentity.arn', target=coalesce('requestParameters.userName','requestParameters.roleName')
+| eval rule_id="SP-701004", tactic="Privilege Escalation", technique="T1098.003", severity="CRITICAL", confidence=92
+| table _time, actor, target, sourceIPAddress, 'requestParameters.policyArn'
+
+`comment("SP-701005 | Identity-AWSIAM | Passwort-Policy geschwächt (min length < 14)")`
+index=aws sourcetype="aws:cloudtrail" eventName="UpdateAccountPasswordPolicy"
+| eval min_len=tonumber('requestParameters.minimumPasswordLength')
+| where min_len < 14 OR 'requestParameters.requireSymbols'="false" OR 'requestParameters.requireNumbers'="false"
+| eval rule_id="SP-701005", tactic="Defense Evasion", technique="T1556", severity="HIGH", confidence=85
+| table _time, 'userIdentity.arn', min_len, sourceIPAddress
+
+`comment("SP-701006 | Identity-AWSIAM | MFA-Gerät eines Users gelöscht")`
+index=aws sourcetype="aws:cloudtrail" eventName IN ("DeactivateMFADevice","DeleteVirtualMFADevice","DisassociateSofwareToken")
+| eval actor='userIdentity.arn', target='requestParameters.userName'
+| eval rule_id="SP-701006", tactic="Defense Evasion", technique="T1556.006", severity="HIGH", confidence=90
+| table _time, actor, target, sourceIPAddress
+
+`comment("SP-701007 | Identity-AWSIAM | Cross-Account IAM-Role erstellt")`
+index=aws sourcetype="aws:cloudtrail" eventName="CreateRole"
+| eval trust='requestParameters.assumeRolePolicyDocument'
+| where match(trust, "(?i)(\"AWS\".*\"arn:aws:iam::[0-9]{12}|\"Federated\"|sts:AssumeRoleWithWebIdentity)")
+AND NOT match(trust, 'userIdentity.accountId')
+| eval rule_id="SP-701007", tactic="Persistence", technique="T1098.003", severity="HIGH", confidence=82
+| table _time, 'userIdentity.arn', 'requestParameters.roleName', trust, sourceIPAddress
+
+`comment("SP-701008 | Identity-AWSIAM | Service Control Policy (SCP) von OU entfernt")`
+index=aws sourcetype="aws:cloudtrail" eventName IN ("DetachPolicy","DeletePolicy") eventSource="organizations.amazonaws.com"
+| eval rule_id="SP-701008", tactic="Defense Evasion", technique="T1562", severity="CRITICAL", confidence=90
+| table _time, 'userIdentity.arn', eventName, 'requestParameters.policyId', sourceIPAddress
+
+`comment("SP-701009 | Identity-AWSIAM | User in kurzer Zeit zu vielen Gruppen hinzugefügt (>3 in 5 Min)")`
+index=aws sourcetype="aws:cloudtrail" eventName="AddUserToGroup"
+| eval target='requestParameters.userName', actor='userIdentity.arn'
+| bin _time span=5m
+| stats count values('requestParameters.groupName') as groups by _time, target, actor
+| where count > 3
+| eval rule_id="SP-701009", tactic="Privilege Escalation", technique="T1098", severity="HIGH", confidence=85
+| table _time, target, actor, count, groups
+
+`comment("SP-701010 | Identity-AWSIAM | Assume Role auf hochprivilegierte Rolle (außerhalb normaler Quelle)")`
+index=aws sourcetype="aws:cloudtrail" eventName="AssumeRole"
+| where match('requestParameters.roleArn', "(?i)(admin|root|privileged|power|full|OrganizationAccountAccessRole)")
+AND NOT match('userIdentity.arn', "(?i)(ci|build|deploy|automation|scheduled)")
+| eval rule_id="SP-701010", tactic="Privilege Escalation", technique="T1548", severity="HIGH", confidence=80
+| table _time, 'userIdentity.arn', 'requestParameters.roleArn', sourceIPAddress
+
+`comment("SP-701011 | Identity-AWSIAM | GetCredentialsForIdentity (Cognito Credential Theft)")`
+index=aws sourcetype="aws:cloudtrail" eventName="GetCredentialsForIdentity"
+| eval identity_id='requestParameters.identityId'
+| stats count by sourceIPAddress, identity_id
+| where count > 5
+| eval rule_id="SP-701011", tactic="Credential Access", technique="T1528", severity="HIGH", confidence=78
+| table sourceIPAddress, identity_id, count
+
+`comment("SP-701012 | Identity-AWSIAM | AccessKey von neuer IP / neuer Region genutzt")`
+index=aws sourcetype="aws:cloudtrail" errorCode!="AccessDenied"
+| eval key_id='userIdentity.accessKeyId', actor='userIdentity.arn'
+| stats values(sourceIPAddress) as ips dc(sourceIPAddress) as unique_ips values(awsRegion) as regions dc(awsRegion) as unique_regions by key_id, actor
+| where unique_ips > 5 OR unique_regions > 3
+| eval rule_id="SP-701012", tactic="Credential Access", technique="T1552.005", severity="HIGH", confidence=78
+| table actor, key_id, unique_ips, ips, unique_regions, regions
+
+`comment("SP-701013 | Identity-AWSIAM | IAM Inline Policy mit Wildcard (Action:* / Resource:*)")`
+index=aws sourcetype="aws:cloudtrail" eventName IN ("PutUserPolicy","PutRolePolicy","PutGroupPolicy")
+| where match('requestParameters.policyDocument', "(?i)(\"Action\".*\"\\*\"|\"Resource\".*\"\\*\")")
+| eval actor='userIdentity.arn', target=coalesce('requestParameters.userName','requestParameters.roleName','requestParameters.groupName')
+| eval rule_id="SP-701013", tactic="Privilege Escalation", technique="T1098.003", severity="CRITICAL", confidence=88
+| table _time, actor, target, sourceIPAddress
+
+`comment("SP-701014 | Identity-AWSIAM | Permission Boundary entfernt")`
+index=aws sourcetype="aws:cloudtrail" eventName IN ("DeleteUserPermissionsBoundary","DeleteRolePermissionsBoundary")
+| eval actor='userIdentity.arn', target=coalesce('requestParameters.userName','requestParameters.roleName')
+| eval rule_id="SP-701014", tactic="Privilege Escalation", technique="T1548", severity="HIGH", confidence=88
+| table _time, actor, target, sourceIPAddress
+
+`comment("SP-701015 | Identity-AWSIAM | IAM Access Analyzer deaktiviert")`
+index=aws sourcetype="aws:cloudtrail" eventName IN ("DeleteAnalyzer","UpdateArchiveRule") eventSource="access-analyzer.amazonaws.com"
+| eval rule_id="SP-701015", tactic="Defense Evasion", technique="T1562", severity="HIGH", confidence=88
+| table _time, 'userIdentity.arn', eventName, sourceIPAddress
+
+`comment("SP-701016 | Identity-AWSIAM | Account-level Public Access Block deaktiviert")`
+index=aws sourcetype="aws:cloudtrail" eventName="PutAccountPublicAccessBlock"
+| where 'requestParameters.publicAccessBlockConfiguration.blockPublicAcls'="false"
+OR 'requestParameters.publicAccessBlockConfiguration.blockPublicPolicy'="false"
+| eval rule_id="SP-701016", tactic="Exfiltration", technique="T1537", severity="HIGH", confidence=88
+| table _time, 'userIdentity.arn', sourceIPAddress
+
+`comment("SP-701017 | Identity-AWSIAM | Enumeration Burst (>50 ListPolicies/GetUser/ListRoles in 5 Min)")`
+index=aws sourcetype="aws:cloudtrail" eventName IN ("ListUsers","ListRoles","ListPolicies","ListGroups","GetUser","ListAttachedRolePolicies","ListAttachedUserPolicies","GetAccountAuthorizationDetails")
+| bin _time span=5m
+| stats count dc(eventName) as unique_calls by _time, 'userIdentity.arn', sourceIPAddress
+| where count > 50
+| eval rule_id="SP-701017", tactic="Discovery", technique="T1069.003", severity="HIGH", confidence=85
+| table _time, 'userIdentity.arn', sourceIPAddress, count, unique_calls
+
+`comment("SP-701018 | Identity-AWSIAM | IAM-Rolle an EC2/Lambda weitergegeben (Privilege Escalation Pfad)")`
+index=aws sourcetype="aws:cloudtrail" eventName IN ("PassRole")
+| where match('requestParameters.roleName', "(?i)(admin|power|full|OrganizationAccountAccess)") OR match('requestParameters.roleArn', "(?i)(admin)")
+| eval actor='userIdentity.arn'
+| eval rule_id="SP-701018", tactic="Privilege Escalation", technique="T1548", severity="HIGH", confidence=82
+| table _time, actor, 'requestParameters.roleName', sourceIPAddress
+
+`comment("SP-701019 | Identity-AWSIAM | Organizations LeaveOrganization oder RemoveAccount")`
+index=aws sourcetype="aws:cloudtrail" eventName IN ("LeaveOrganization","RemoveAccountFromOrganization","CloseAccount")
+eventSource="organizations.amazonaws.com"
+| eval rule_id="SP-701019", tactic="Impact", technique="T1531", severity="CRITICAL", confidence=95
+| table _time, 'userIdentity.arn', eventName, sourceIPAddress
+
+`comment("SP-701020 | Identity-AWSIAM | Langlebige Credentials (>90 Tage) aktiv genutzt")`
+index=aws sourcetype="aws:cloudtrail" NOT errorCode="*"
+| eval key_id='userIdentity.accessKeyId', actor='userIdentity.arn'
+| where isnotnull(key_id) AND key_id!=""
+| eval event_epoch=_time
+| lookup aws_access_keys key_id OUTPUT key_created_epoch
+| where isnotnull(key_created_epoch) AND (event_epoch - key_created_epoch) > 7776000
+| eval age_days=round((event_epoch - key_created_epoch)/86400,0)
+| eval rule_id="SP-701020", tactic="Credential Access", technique="T1552.005", severity="MEDIUM", confidence=72
+| table _time, actor, key_id, age_days, sourceIPAddress

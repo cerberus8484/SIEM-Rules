@@ -1,0 +1,136 @@
+// GS-700001 | Identity | Entra ID: Global Admin direkt zugewiesen (kein PIM)
+// Tactic: Privilege Escalation | T1078.004 | Severity: CRITICAL
+metadata.product_name = "Azure AD" AND
+metadata.product_event_type = "Add member to role" AND
+(target.user.attribute.roles = "Global Administrator" OR
+ target.user.attribute.roles = "Privileged Role Administrator") AND
+NOT principal.application = /pim/i
+
+// GS-700002 | Identity | Entra ID: Break-Glass Account Login
+// Tactic: Initial Access | T1078.004 | Severity: CRITICAL
+(metadata.product_name = "Azure AD" OR metadata.product_name = "Microsoft Azure") AND
+metadata.event_type = "USER_LOGIN" AND
+(target.user.email_addresses = /breakglass/i OR
+ target.user.email_addresses = /break-glass/i OR
+ target.user.email_addresses = /emergency.*admin/i)
+
+// GS-700003 | Identity | Entra ID: Conditional Access Policy gelöscht/deaktiviert
+// Tactic: Defense Evasion | T1556 | Severity: CRITICAL
+metadata.product_name = "Azure AD" AND
+(metadata.product_event_type = "Update conditional access policy" OR
+ metadata.product_event_type = "Delete conditional access policy") AND
+target.resource.resource_type = "Policy"
+
+// GS-700004 | Identity | Entra ID: MFA-Gerät gelöscht
+// Tactic: Defense Evasion | T1556.006 | Severity: HIGH
+metadata.product_name = "Azure AD" AND
+(metadata.product_event_type = "Delete StrongAuthentication" OR
+ metadata.product_event_type = "Delete Authentication Method") AND
+principal.user.email_addresses != target.user.email_addresses
+
+// GS-700005 | Identity | Entra ID: OAuth App mit hochsensiblen Scopes genehmigt
+// Tactic: Credential Access | T1528 | Severity: HIGH
+metadata.product_name = "Azure AD" AND
+metadata.product_event_type = "Consent to application" AND
+(target.resource.attribute.labels["requestedScopes"] = /Mail\.ReadWrite/i OR
+ target.resource.attribute.labels["requestedScopes"] = /Files\.ReadWrite\.All/i OR
+ target.resource.attribute.labels["requestedScopes"] = /Directory\.ReadWrite\.All/i OR
+ target.resource.attribute.labels["requestedScopes"] = /offline_access.*Mail/i)
+
+// GS-700006 | Identity | Entra ID: Service Principal Secret hinzugefügt
+// Tactic: Persistence | T1098.001 | Severity: HIGH
+metadata.product_name = "Azure AD" AND
+(metadata.product_event_type = "Add service principal credentials" OR
+ metadata.product_event_type = "Update application – Certificates and secrets management")
+
+// GS-700007 | Identity | Entra ID: Federated Credential zu Service Principal
+// Tactic: Persistence | T1550.001 | Severity: HIGH
+metadata.product_name = "Azure AD" AND
+metadata.product_event_type = "Add federated identity credential"
+
+// GS-700008 | Identity | Entra ID: Anmeldung über Tor / anonymen Proxy
+// Tactic: Defense Evasion | T1090.003 | Severity: HIGH
+(metadata.product_name = "Azure AD" OR metadata.product_name = "Microsoft Azure") AND
+metadata.event_type = "USER_LOGIN" AND
+(network.http.parsed_uri.hostname = /185\.220\./i OR
+ network.http.parsed_uri.hostname = /193\.32\./i OR
+ about.labels["riskEventType"] = /anonymizedIPAddress/i OR
+ about.labels["riskEventType"] = /tor/i)
+
+// GS-700009 | Identity | AWS IAM: Root Account Login
+// Tactic: Initial Access | T1078.004 | Severity: CRITICAL
+metadata.product_name = "AWS CloudTrail" AND
+metadata.product_event_type = "ConsoleLogin" AND
+principal.user.userid = "Root"
+
+// GS-700010 | Identity | AWS IAM: AdministratorAccess Policy gebunden
+// Tactic: Privilege Escalation | T1098.003 | Severity: CRITICAL
+metadata.product_name = "AWS CloudTrail" AND
+(metadata.product_event_type = "AttachUserPolicy" OR
+ metadata.product_event_type = "AttachRolePolicy") AND
+target.resource.name = /AdministratorAccess/i
+
+// GS-700011 | Identity | AWS IAM: IAM Access Analyzer deaktiviert
+// Tactic: Defense Evasion | T1562 | Severity: HIGH
+metadata.product_name = "AWS CloudTrail" AND
+(metadata.product_event_type = "DeleteAnalyzer") AND
+metadata.ingestion_labels["eventSource"] = "access-analyzer.amazonaws.com"
+
+// GS-700012 | Identity | Okta: MFA Push-Bombing (Okta Verify Deny)
+// Tactic: Credential Access | T1621 | Severity: HIGH
+metadata.product_name = "Okta" AND
+metadata.product_event_type = "user.authentication.auth_via_mfa" AND
+security_result.action = "BLOCK" AND
+target.resource.attribute.labels["factor"] = /OKTA_VERIFY_PUSH/i
+
+// GS-700013 | Identity | Okta: Admin-Rolle vergeben
+// Tactic: Privilege Escalation | T1098 | Severity: CRITICAL
+metadata.product_name = "Okta" AND
+metadata.product_event_type = "user.account.privilege.grant" AND
+target.resource.attribute.labels["newValue"] = /admin/i
+
+// GS-700014 | Identity | Okta: API-Token erstellt
+// Tactic: Persistence | T1098.001 | Severity: HIGH
+metadata.product_name = "Okta" AND
+metadata.product_event_type = "system.api_token.create"
+
+// GS-700015 | Identity | Generisch: Service Account interaktiver Login
+// Tactic: Privilege Escalation | T1078.002 | Severity: HIGH
+metadata.event_type = "USER_LOGIN" AND
+principal.user.userid = /^(svc[_\-]|srv[_\-]|sa[_\-]|service[_\-])/i AND
+network.application_protocol = "RDP" OR network.application_protocol = "SSH" OR
+about.labels["logonType"] = "Interactive"
+
+// GS-700016 | Identity | Generisch: Passwort-Spray (viele Accounts, gleiche IP)
+// Tactic: Credential Access | T1110.003 | Severity: HIGH
+// Use Detection: threshold on failed logins from single IP across unique users
+metadata.event_type = "USER_UNCATEGORIZED" AND
+security_result.action = "BLOCK" AND
+security_result.description = /invalid.*password|wrong.*password|BadPassword/i
+
+// GS-700017 | Identity | Entra ID: Nutzer zu hochprivilegierter Gruppe hinzugefügt
+// Tactic: Privilege Escalation | T1098.002 | Severity: CRITICAL
+metadata.product_name = "Azure AD" AND
+metadata.product_event_type = "Add member to group" AND
+(target.group.group_display_name = /Domain Admin/i OR
+ target.group.group_display_name = /Enterprise Admin/i OR
+ target.group.group_display_name = /Schema Admin/i OR
+ target.group.group_display_name = /Tier.?0/i)
+
+// GS-700018 | Identity | AWS IAM: Cross-Account-Role erstellt
+// Tactic: Persistence | T1098.003 | Severity: HIGH
+metadata.product_name = "AWS CloudTrail" AND
+metadata.product_event_type = "CreateRole" AND
+about.labels["requestParameters.assumeRolePolicyDocument"] = /arn:aws:iam::[0-9]{12}/
+
+// GS-700019 | Identity | AWS IAM: Organizations SCP entfernt
+// Tactic: Defense Evasion | T1562 | Severity: CRITICAL
+metadata.product_name = "AWS CloudTrail" AND
+metadata.product_event_type = "DetachPolicy" AND
+metadata.ingestion_labels["eventSource"] = "organizations.amazonaws.com"
+
+// GS-700020 | Identity | Entra ID: PIM-Einstellungen geändert
+// Tactic: Privilege Escalation | T1078.004 | Severity: HIGH
+metadata.product_name = "Azure AD" AND
+metadata.product_event_type = /Update role setting/i AND
+target.resource.name = /PIM|Privileged Identity Management/i

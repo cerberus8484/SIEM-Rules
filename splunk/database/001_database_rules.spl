@@ -1,0 +1,161 @@
+
+`comment("SP-760001 | Database | Massen-SELECT (>10.000 Zeilen in einer Query)")`
+index=database sourcetype IN ("mssql:audit","mysql:audit","postgres:audit","oracle:audit","db2:audit")
+| where match(_raw,"(?i)(rows.*returned|rows_examined|rows_sent|ROWS_EXAMINED)")
+| eval rows=tonumber(replace(replace(_raw, ".*rows.*?(\d+).*", "\1"), "[^0-9]", ""))
+| where rows > 10000
+| eval user_db=coalesce('database_user','user','SessionLoginName')
+| eval rule_id="SP-760001", tactic="Collection", technique="T1213", severity="HIGH", confidence=80
+| table _time, host, user_db, rows, 'database_name', _raw
+
+`comment("SP-760002 | Database | Datenbank-Dump Befehl (mysqldump / pg_dump / expdp)")`
+index=windows OR index=linux (EventCode=1 OR sourcetype="linux:audit")
+| where match(Image,"(?i)(mysqldump|pg_dump|pg_dumpall|expdp|impdp|sqlcmd|bcp|RMAN|exp\.exe|imp\.exe)")
+OR (match(CommandLine,"(?i)(mysqldump|pg_dump|expdp|bcp)") AND match(CommandLine,"(?i)(--all-databases|-Fc|-c -o|/FULL|--schema)"))
+| eval user=coalesce(User,uid,'SubjectUserName')
+| eval rule_id="SP-760002", tactic="Collection", technique="T1213", severity="CRITICAL", confidence=88
+| table _time, host, user, Image, CommandLine
+
+`comment("SP-760003 | Database | Neuer Datenbank-Admin-Benutzer erstellt")`
+index=database sourcetype IN ("mssql:audit","mysql:audit","postgres:audit","oracle:audit")
+| where match(_raw,"(?i)(CREATE.*LOGIN|CREATE.*USER|GRANT.*sysadmin|ALTER.*SERVER ROLE.*sysadmin|GRANT.*DBA|GRANT.*SYSDBA|CREATE.*SUPERUSER|GRANT.*ALL.*ON.*\*\.\*)")
+| eval user_db=coalesce('database_user','user','SessionLoginName')
+| eval rule_id="SP-760003", tactic="Persistence", technique="T1136", severity="CRITICAL", confidence=88
+| table _time, host, user_db, 'database_name', _raw
+
+`comment("SP-760004 | Database | Datenbank-Login außerhalb Wartungsfenster")`
+index=database sourcetype IN ("mssql:audit","mysql:audit","postgres:audit","oracle:audit")
+| where match(_raw,"(?i)(Login.*Success|Authentication.*Success|CONNECT.*success)")
+| eval user_db=coalesce('database_user','user','SessionLoginName')
+| eval hour=tonumber(strftime(_time,"%H")), weekday=strftime(_time,"%u")
+| where (hour < 5 OR hour > 23) AND weekday NOT IN ("6","7")
+AND match(user_db,"(?i)(^dba|^sa$|^root|^postgres$|^oracle$|^admin)")
+| eval rule_id="SP-760004", tactic="Initial Access", technique="T1078", severity="HIGH", confidence=78
+| table _time, host, user_db, hour, weekday, 'client_ip'
+
+`comment("SP-760005 | Database | xp_cmdshell aktiviert (MSSQL Remote Code Execution)")`
+index=database sourcetype="mssql:audit"
+| where match(_raw,"(?i)(xp_cmdshell|sp_configure.*xp_cmdshell|xp_cmdshell.*1|show advanced options)")
+| eval user_db=coalesce('database_user','SessionLoginName')
+| eval rule_id="SP-760005", tactic="Execution", technique="T1059", severity="CRITICAL", confidence=95
+| table _time, host, user_db, _raw
+
+`comment("SP-760006 | Database | Linked Server erstellt (MSSQL Lateral Movement Pfad)")`
+index=database sourcetype="mssql:audit"
+| where match(_raw,"(?i)(sp_addlinkedserver|CREATE.*LINKED.*SERVER|EXEC.*sp_addlinkedsrvlogin)")
+| eval user_db=coalesce('database_user','SessionLoginName')
+| eval rule_id="SP-760006", tactic="Lateral Movement", technique="T1021", severity="HIGH", confidence=88
+| table _time, host, user_db, _raw
+
+`comment("SP-760007 | Database | Datenbank-Audit-Log deaktiviert")`
+index=database sourcetype IN ("mssql:audit","mysql:audit","postgres:audit","oracle:audit")
+| where match(_raw,"(?i)(ALTER.*SERVER AUDIT.*DISABLE|DISABLE.*AUDIT|audit_log.*off|general_log.*off|log.*disable|auditd.*stop)")
+| eval user_db=coalesce('database_user','user')
+| eval rule_id="SP-760007", tactic="Defense Evasion", technique="T1562.008", severity="CRITICAL", confidence=90
+| table _time, host, user_db, _raw
+
+`comment("SP-760008 | Database | Sensitive Tabelle erstmals von diesem User abgefragt")`
+index=database sourcetype IN ("mssql:audit","mysql:audit","postgres:audit","oracle:audit")
+| where match(_raw,"(?i)(SELECT.*FROM.*(customer|credit_card|ssn|salary|payroll|password|personal_data|pii|gdpr|dsgvo|kunden|passwort|kundendaten))")
+| eval user_db=coalesce('database_user','user','SessionLoginName')
+| stats dc(_time) as query_count earliest(_time) as first_seen by user_db, 'table_name'
+| where query_count = 1
+| eval rule_id="SP-760008", tactic="Collection", technique="T1213", severity="HIGH", confidence=78
+| table first_seen, user_db, 'table_name', query_count
+
+`comment("SP-760009 | Database | Schema-Enumeration (information_schema / sys.tables Abfragen)")`
+index=database sourcetype IN ("mssql:audit","mysql:audit","postgres:audit","oracle:audit")
+| where match(_raw,"(?i)(information_schema\.(tables|columns|user_privileges|schemata)|sys\.tables|sys\.columns|pg_catalog\.pg_tables|ALL_TABLES|ALL_USERS|DBA_TABLES)")
+| eval user_db=coalesce('database_user','user','SessionLoginName')
+| bin _time span=5m
+| stats count by _time, user_db, 'client_ip'
+| where count > 10
+| eval rule_id="SP-760009", tactic="Discovery", technique="T1213", severity="HIGH", confidence=82
+| table _time, user_db, 'client_ip', count
+
+`comment("SP-760010 | Database | Externes Script in Datenbank ausgeführt (R/Python via MSSQL)")`
+index=database sourcetype="mssql:audit"
+| where match(_raw,"(?i)(sp_execute_external_script|ExternalScriptRequest|LANGUAGE.*Python|LANGUAGE.*R)")
+| eval user_db=coalesce('database_user','SessionLoginName')
+| eval rule_id="SP-760010", tactic="Execution", technique="T1059", severity="HIGH", confidence=88
+| table _time, host, user_db, _raw
+
+`comment("SP-760011 | Database | Backup / Export zu externem Netzwerkpfad")`
+index=database sourcetype IN ("mssql:audit","mysql:audit","postgres:audit")
+| where match(_raw,"(?i)(BACKUP.*TO.*\\\\\\\\|BACKUP.*TO.*UNC|INTO OUTFILE.*\\\\\\\\|pg_dump.*-h.*|expdp.*dumpfile.*network)")
+AND NOT match(_raw,"(?i)(192\.168\.|10\.|172\.(1[6-9]|2[0-9]|3[01])\.)")
+| eval user_db=coalesce('database_user','user','SessionLoginName')
+| eval rule_id="SP-760011", tactic="Exfiltration", technique="T1537", severity="CRITICAL", confidence=88
+| table _time, host, user_db, _raw
+
+`comment("SP-760012 | Database | Datenbank-User Berechtigung eskaliert")`
+index=database sourcetype IN ("mssql:audit","mysql:audit","postgres:audit","oracle:audit")
+| where match(_raw,"(?i)(GRANT.*sysadmin|GRANT.*DBA|GRANT.*SUPERUSER|GRANT.*ALL.*PRIVILEGES|ALTER.*USER.*IDENTIFIED|sp_addsrvrolemember.*sysadmin)")
+| eval actor=coalesce('database_user','user'), target=coalesce('target_user','grantee')
+| eval rule_id="SP-760012", tactic="Privilege Escalation", technique="T1078", severity="CRITICAL", confidence=90
+| table _time, host, actor, target, _raw
+
+`comment("SP-760013 | Database | Login Brute Force (>10 Fails in 5 Min)")`
+index=database sourcetype IN ("mssql:audit","mysql:audit","postgres:audit","oracle:audit")
+| where match(_raw,"(?i)(Login.*fail|Authentication.*fail|Access.*denied|invalid.*password|ORA-01017|ORA-01005)")
+| eval user_db=coalesce('database_user','user'), client=coalesce('client_ip','host_ip')
+| bin _time span=5m
+| stats count by _time, client, user_db
+| where count > 10
+| eval rule_id="SP-760013", tactic="Credential Access", technique="T1110.001", severity="HIGH", confidence=85
+| table _time, client, user_db, count
+
+`comment("SP-760014 | Database | SQL Injection Indikator in Query-Log")`
+index=database sourcetype IN ("mssql:audit","mysql:audit","postgres:audit","oracle:audit","waf")
+| where match(_raw,"(?i)(UNION.*SELECT|UNION.*ALL.*SELECT|'.*OR.*'.*=.*'|DROP.*TABLE|1=1|1 = 1|OR 1--|xp_cmdshell|SLEEP\([0-9]+\)|WAITFOR.*DELAY|BENCHMARK\([0-9]+)")
+| eval client=coalesce('client_ip','src_ip','host_ip')
+| eval rule_id="SP-760014", tactic="Initial Access", technique="T1190", severity="CRITICAL", confidence=88
+| table _time, host, client, _raw
+
+`comment("SP-760015 | Database | Datenbank-Verbindung von ungewöhnlichem Host oder App")`
+index=database sourcetype IN ("mssql:audit","mysql:audit","postgres:audit","oracle:audit")
+| where match(_raw,"(?i)(Login.*Success|CONNECT.*success)")
+| eval client=coalesce('client_ip','host_ip','ApplicationName')
+| where NOT match(client,"(?i)(<KNOWN_APP_SERVER>|<KNOWN_APP_IP>|localhost|127\.0\.0\.1|::1)")
+AND NOT match(client,"(?i)(^10\.|^192\.168\.|^172\.(1[6-9]|2[0-9]|3[01])\.)")
+| eval user_db=coalesce('database_user','user','SessionLoginName')
+| eval rule_id="SP-760015", tactic="Initial Access", technique="T1078", severity="HIGH", confidence=78
+| table _time, host, user_db, client
+
+`comment("SP-760016 | Database | Gespeicherte Prozedur erstellt oder geändert")`
+index=database sourcetype IN ("mssql:audit","mysql:audit","postgres:audit","oracle:audit")
+| where match(_raw,"(?i)(CREATE.*PROCEDURE|ALTER.*PROCEDURE|CREATE.*FUNCTION|CREATE.*TRIGGER|REPLACE.*PROCEDURE)")
+AND NOT match(_raw,"(?i)(deploy|migration|flyway|liquibase|alembic)")
+| eval user_db=coalesce('database_user','user')
+| eval hour=tonumber(strftime(_time,"%H"))
+| where hour < 6 OR hour > 21
+| eval rule_id="SP-760016", tactic="Persistence", technique="T1505.001", severity="HIGH", confidence=78
+| table _time, host, user_db, hour, _raw
+
+`comment("SP-760017 | Database | SQL Agent Job geändert (MSSQL Persistence)")`
+index=database sourcetype="mssql:audit"
+| where match(_raw,"(?i)(sp_add_job|sp_update_job|msdb\.dbo\.sp_add_jobstep|sp_add_schedule|AGENT.*JOB.*ADD)")
+| eval user_db=coalesce('database_user','SessionLoginName')
+| eval rule_id="SP-760017", tactic="Persistence", technique="T1053.002", severity="HIGH", confidence=82
+| table _time, host, user_db, _raw
+
+`comment("SP-760018 | Database | Row-Level Security deaktiviert")`
+index=database sourcetype IN ("mssql:audit","postgres:audit")
+| where match(_raw,"(?i)(ALTER.*TABLE.*DISABLE.*ROW LEVEL SECURITY|DROP POLICY|DISABLE ROW LEVEL SECURITY|sp_dropsrvrolemember)")
+| eval user_db=coalesce('database_user','user')
+| eval rule_id="SP-760018", tactic="Defense Evasion", technique="T1562", severity="HIGH", confidence=82
+| table _time, host, user_db, _raw
+
+`comment("SP-760019 | Database | Verschlüsselte Spalte / TDE deaktiviert")`
+index=database sourcetype IN ("mssql:audit","mysql:audit","oracle:audit")
+| where match(_raw,"(?i)(ALTER.*COLUMN.*ENCRYPTED.*PLAINTEXT|DROP.*COLUMN MASTER KEY|DROP.*COLUMN ENCRYPTION KEY|ALTER.*DATABASE.*ENCRYPTION.*OFF|DROP.*WALLET)")
+| eval user_db=coalesce('database_user','user')
+| eval rule_id="SP-760019", tactic="Defense Evasion", technique="T1562", severity="CRITICAL", confidence=88
+| table _time, host, user_db, _raw
+
+`comment("SP-760020 | Database | Datenbank-Replikation gestoppt oder geändert")`
+index=database sourcetype IN ("mssql:audit","mysql:audit","postgres:audit","oracle:audit")
+| where match(_raw,"(?i)(STOP.*REPLICA|STOP.*SLAVE|DROP.*REPLICATION|sp_removedbreplication|DROP.*PUBLICATION|DROP.*SUBSCRIPTION|RESET.*SLAVE|RESET.*REPLICA)")
+| eval user_db=coalesce('database_user','user')
+| eval rule_id="SP-760020", tactic="Impact", technique="T1485", severity="CRITICAL", confidence=88
+| table _time, host, user_db, _raw

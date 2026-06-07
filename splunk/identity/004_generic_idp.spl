@@ -1,0 +1,180 @@
+
+`comment("SP-703001 | Identity-Generic | MFA Fatigue Attack — Push-Flood von gleicher IP")`
+index=* (eventType="mfa*" OR EventCode=4625 OR sourcetype="*:signin*" OR sourcetype="*:auth*")
+| eval upn=coalesce('actor.alternateId','TargetUserName','properties.userPrincipalName','user')
+| eval src_ip=coalesce(client.ipAddress,'IpAddress','properties.ipAddress','sourceIPAddress','src')
+| eval mfa_fail=if(match(_raw,"(?i)(mfa.*denied|push.*denied|authentication.*fail|factor.*fail)"),1,0)
+| where mfa_fail=1
+| bin _time span=5m
+| stats count by _time, upn, src_ip
+| where count > 3
+| eval rule_id="SP-703001", tactic="Credential Access", technique="T1621", severity="HIGH", confidence=85
+| table _time, upn, src_ip, count
+
+`comment("SP-703002 | Identity-Generic | Credential Stuffing Burst (viele Accounts, gleiche IP, schnell)")`
+index=* (EventCode=4625 OR sourcetype="*:signin*" OR sourcetype="*:auth*")
+| eval upn=coalesce('TargetUserName','actor.alternateId','properties.userPrincipalName','user')
+| eval src_ip=coalesce('IpAddress','client.ipAddress','properties.ipAddress','sourceIPAddress')
+| where isnotnull(src_ip) AND isnotnull(upn)
+| bin _time span=10m
+| stats dc(upn) as unique_accounts count as total_attempts by _time, src_ip
+| where unique_accounts > 15 AND total_attempts > 20
+| eval rule_id="SP-703002", tactic="Credential Access", technique="T1110.004", severity="HIGH", confidence=88
+| table _time, src_ip, unique_accounts, total_attempts
+
+`comment("SP-703003 | Identity-Generic | ATO Chain: Failed Login → MFA-Änderung → Privileged Action")`
+index=* (EventCode IN (4625,4624) OR sourcetype IN ("azure:aad:signin","okta:im2:log","aws:cloudtrail"))
+| eval upn=coalesce('TargetUserName','actor.alternateId','properties.userPrincipalName')
+| eval event_type=case(
+    (EventCode=4625 OR match(_raw,"(?i)(fail.*login|login.*fail|invalid.*password)"),"LOGIN_FAIL"),
+    (EventCode=4624 OR match(_raw,"(?i)(success.*login|login.*success|signin.*success)"),"LOGIN_SUCCESS"),
+    match(_raw,"(?i)(mfa.*reset|factor.*delete|mfa.*change)"),"MFA_CHANGE",
+    match(_raw,"(?i)(role.*grant|admin.*add|privilege.*grant)"),"PRIV_GRANT",
+    true(), null())
+| where isnotnull(event_type)
+| bin _time span=30m
+| stats dc(event_type) as phases values(event_type) as phase_list by _time, upn
+| where phases >= 3 AND mvfind(phase_list,"LOGIN_FAIL")>=0 AND mvfind(phase_list,"LOGIN_SUCCESS")>=0 AND (mvfind(phase_list,"MFA_CHANGE")>=0 OR mvfind(phase_list,"PRIV_GRANT")>=0)
+| eval rule_id="SP-703003", tactic="Initial Access", technique="T1078", severity="CRITICAL", confidence=88
+| table _time, upn, phases, phase_list
+
+`comment("SP-703004 | Identity-Generic | Service-Account interaktiv eingeloggt (sollte nie interaktiv sein)")`
+index=* (EventCode=4624 OR sourcetype="*:signin*")
+| eval upn=coalesce('TargetUserName','properties.userPrincipalName','actor.alternateId')
+| where match(upn, "(?i)(^svc[-_]|^srv[-_]|^sa[-_]|^service[-_]|[-_]svc$|[-_]sa$|^adsync|^aadsync|^msol)")
+| eval logon_type=coalesce(LogonType,'properties.authenticationDetails{}.authenticationMethod')
+| where logon_type IN ("2","10","11") OR match(logon_type,"(?i)(interactive|RemoteInteractive)")
+| eval rule_id="SP-703004", tactic="Privilege Escalation", technique="T1078.002", severity="HIGH", confidence=85
+| table _time, upn, logon_type, host, 'IpAddress'
+
+`comment("SP-703005 | Identity-Generic | Geteiltes Privileged Account (gleichzeitige Sessions, verschiedene IPs)")`
+index=* (EventCode=4624 OR sourcetype="*:signin*") NOT (EventCode=4634 OR EventCode=4647)
+| eval upn=coalesce('TargetUserName','properties.userPrincipalName','actor.alternateId')
+| eval src_ip=coalesce('IpAddress','properties.ipAddress','client.ipAddress')
+| where match(upn, "(?i)(admin|adm[-_]|[-_]adm|superuser|root|operator)")
+| bin _time span=5m
+| stats dc(src_ip) as unique_src values(src_ip) as src_list by _time, upn
+| where unique_src >= 2
+| eval rule_id="SP-703005", tactic="Initial Access", technique="T1078", severity="HIGH", confidence=80
+| table _time, upn, unique_src, src_list
+
+`comment("SP-703006 | Identity-Generic | Admin-Login außerhalb Geschäftszeiten (vor 07:00 oder nach 21:00)")`
+index=* (EventCode=4624 OR sourcetype IN ("azure:aad:signin","okta:im2:log"))
+| eval upn=coalesce('TargetUserName','properties.userPrincipalName','actor.alternateId')
+| eval hour=tonumber(strftime(_time,"%H")), weekday=strftime(_time,"%u")
+| where match(upn,"(?i)(admin|adm[-_]|[-_]adm|sysadmin|devops|infosec)") AND (hour < 7 OR hour > 21 OR weekday >= 6)
+| eval rule_id="SP-703006", tactic="Initial Access", technique="T1078", severity="MEDIUM", confidence=72
+| table _time, upn, hour, weekday, host
+
+`comment("SP-703007 | Identity-Generic | Neuer Admin erstellt und innerhalb 10 Min genutzt")`
+index=* (EventCode IN (4720,4728,4732) OR operationName="Add member to role" OR eventType="user.account.privilege.grant")
+| eval new_admin=coalesce('TargetUserName',mvindex('properties.targetResources{}.userPrincipalName',0),mvindex('target{}.alternateId',0))
+| eval created_by=coalesce('SubjectUserName','properties.initiatedBy.user.userPrincipalName','actor.alternateId')
+| eval create_time=_time
+| join type=inner new_admin [
+    search index=* (EventCode=4624 OR sourcetype="*:signin*") earliest=-10m
+    | eval new_admin=coalesce('TargetUserName','actor.alternateId')
+    | eval login_time=_time
+    | table new_admin, login_time
+]
+| where (login_time - create_time) > 0 AND (login_time - create_time) < 600
+| eval rule_id="SP-703007", tactic="Persistence", technique="T1136", severity="CRITICAL", confidence=88
+| table create_time, login_time, new_admin, created_by
+
+`comment("SP-703008 | Identity-Generic | Login von Tor / bekannten VPN-Provider-IPs")`
+index=* (EventCode=4624 OR sourcetype IN ("azure:aad:signin","okta:im2:log","aws:cloudtrail"))
+| eval src_ip=coalesce('IpAddress','properties.ipAddress','client.ipAddress','sourceIPAddress')
+| where match(src_ip, "^(185\.220\.|193\.32\.|91\.92\.|45\.142\.|198\.54\.|23\.129\.|46\.166\.|185\.100\.|5\.188\.10|185\.195\.)")
+OR match(_raw,"(?i)(tor.*exit|anonymized.*ip|anonymous.*proxy)")
+| eval upn=coalesce('TargetUserName','properties.userPrincipalName','actor.alternateId')
+| eval rule_id="SP-703008", tactic="Defense Evasion", technique="T1090.003", severity="HIGH", confidence=82
+| table _time, upn, src_ip
+
+`comment("SP-703009 | Identity-Generic | Login aus nie-zuvor-gesehenem Land für diesen Nutzer")`
+index=* (sourcetype IN ("azure:aad:signin","okta:im2:log") OR EventCode=4624)
+| eval upn=coalesce('properties.userPrincipalName','actor.alternateId','TargetUserName')
+| eval country=coalesce('properties.location.countryOrRegion','client.geographicalContext.country')
+| where isnotnull(country) AND isnotnull(upn)
+| stats dc(country) as unique_countries values(country) as country_list by upn
+| where unique_countries > 3
+| eval rule_id="SP-703009", tactic="Initial Access", technique="T1078", severity="MEDIUM", confidence=70
+| table upn, unique_countries, country_list
+
+`comment("SP-703010 | Identity-Generic | Reaktivierter Account sofort genutzt (<5 Min nach Enable)")`
+index=* (EventCode=4722 OR eventType="user.lifecycle.activate" OR operationName="Enable account")
+| eval target_user=coalesce('TargetUserName',mvindex('target{}.alternateId',0))
+| eval enable_time=_time
+| join type=inner target_user [
+    search index=* (EventCode=4624 OR eventType="user.session.start" OR operationName="Sign-in activity") earliest=-5m
+    | eval target_user=coalesce('TargetUserName','actor.alternateId')
+    | eval login_time=_time
+    | table target_user, login_time
+]
+| where (login_time - enable_time) > 0 AND (login_time - enable_time) < 300
+| eval rule_id="SP-703010", tactic="Initial Access", technique="T1078", severity="HIGH", confidence=85
+| table enable_time, login_time, target_user
+
+`comment("SP-703011 | Identity-Generic | Passwort geändert + sofort Massenaktionen (Datenabfluss)")`
+index=* (EventCode=4723 OR eventType="user.credentials.change_password" OR operationName="Change user password")
+| eval upn=coalesce('TargetUserName','actor.alternateId')
+| eval pw_change_time=_time
+| join type=inner upn [
+    search index=* earliest=-10m
+    | eval upn=coalesce('SubjectUserName','actor.alternateId','properties.userPrincipalName')
+    | eval action_type=case(
+        match(_raw,"(?i)(download|export|copy|transfer)"),"DATA_ACCESS",
+        match(_raw,"(?i)(forwarding|rule.*create|inbox.*rule)"),"MAIL_RULE",
+        true(),null())
+    | where isnotnull(action_type)
+    | bin _time span=10m
+    | stats count dc(action_type) as unique_actions by _time, upn
+    | where count > 20
+]
+| eval rule_id="SP-703011", tactic="Collection", technique="T1114", severity="HIGH", confidence=82
+| table pw_change_time, upn, count, unique_actions
+
+`comment("SP-703012 | Identity-Generic | Session Token von unterschiedlicher IP genutzt")`
+index=* sourcetype IN ("azure:aad:signin","okta:im2:log")
+| eval upn=coalesce('properties.userPrincipalName','actor.alternateId')
+| eval session_id=coalesce('properties.correlationId','debugContext.debugData.dtHash','sessionId')
+| eval src_ip=coalesce('properties.ipAddress','client.ipAddress')
+| where isnotnull(session_id)
+| stats dc(src_ip) as unique_ips values(src_ip) as ip_list by upn, session_id
+| where unique_ips >= 2
+| eval rule_id="SP-703012", tactic="Credential Access", technique="T1550.004", severity="HIGH", confidence=85
+| table upn, session_id, unique_ips, ip_list
+
+`comment("SP-703013 | Identity-Generic | Inaktiver Account genutzt (>90 Tage kein Login)")`
+index=* (EventCode=4624 OR sourcetype IN ("azure:aad:signin","okta:im2:log"))
+| eval upn=coalesce('TargetUserName','properties.userPrincipalName','actor.alternateId')
+| eval login_time=_time
+| lookup user_last_login upn OUTPUT last_login_epoch
+| where isnotnull(last_login_epoch) AND (login_time - last_login_epoch) > 7776000
+| eval dormant_days=round((login_time - last_login_epoch)/86400,0)
+| eval rule_id="SP-703013", tactic="Initial Access", technique="T1078", severity="HIGH", confidence=82
+| table _time, upn, dormant_days, host
+
+`comment("SP-703014 | Identity-Generic | Gleichzeitige Sessions aus verschiedenen Ländern (Unmögliche Reise)")`
+index=* sourcetype IN ("azure:aad:signin","okta:im2:log")
+| eval upn=coalesce('properties.userPrincipalName','actor.alternateId')
+| eval country=coalesce('properties.location.countryOrRegion','client.geographicalContext.country')
+| where isnotnull(country)
+| bin _time span=1h
+| stats dc(country) as unique_countries values(country) as countries by _time, upn
+| where unique_countries >= 2
+| eval rule_id="SP-703014", tactic="Initial Access", technique="T1078", severity="CRITICAL", confidence=90
+| table _time, upn, unique_countries, countries
+
+`comment("SP-703015 | Identity-Generic | Admin-Rolle temporär hinzugefügt und sofort entfernt (In/Out Cleanup)")`
+index=* (operationName IN ("Add member to role","Remove member from role") OR EventCode IN (4728,4729,4732,4733))
+| eval upn=coalesce(mvindex('properties.targetResources{}.userPrincipalName',0),'TargetUserName')
+| eval action=case(
+    (operationName="Add member to role" OR EventCode IN (4728,4732)),"ADD",
+    (operationName="Remove member from role" OR EventCode IN (4729,4733)),"REMOVE",
+    true(),null())
+| where isnotnull(action) AND match(coalesce('properties.targetResources{}.displayName','MemberName'),"(?i)(admin|privileged|tier)")
+| bin _time span=30m
+| stats values(action) as actions dc(action) as unique_actions by _time, upn
+| where unique_actions >= 2 AND mvfind(actions,"ADD")>=0 AND mvfind(actions,"REMOVE")>=0
+| eval rule_id="SP-703015", tactic="Defense Evasion", technique="T1098", severity="HIGH", confidence=85
+| table _time, upn, actions

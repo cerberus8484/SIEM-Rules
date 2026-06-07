@@ -1,0 +1,106 @@
+
+`comment("SP-800001 | Deception | Canary File geöffnet (Honeypot-Dokument)")`
+index=windows EventCode IN (4663,11)
+| where match(ObjectName,"(?i)(canary|honeypot|honey_doc|lure|fake.*budget|Q[0-9].*Financial.*CONFIDENTIAL|passwords.*DO_NOT_OPEN|IT.*Admin.*Credentials|HR.*Salary.*2024|secret.*backup|employee.*list.*private|M&A.*targets)")
+| eval user=coalesce(SubjectUserName,User)
+| eval rule_id="SP-800001", tactic="Detection", technique="T1078", severity="CRITICAL", confidence=97
+| table _time, host, user, ObjectName, ProcessName
+
+`comment("SP-800002 | Deception | Honey Credential genutzt (Fake Passwort aus Passwortliste)")`
+index=* (EventCode=4625 OR EventCode=4624 OR sourcetype IN ("azure:aad:signin","okta:im2:log","cisco:asa"))
+| eval user=coalesce(TargetUserName,'properties.userPrincipalName','actor.alternateId')
+| where match(user,"(?i)(honeyadmin|honeyuser|decoy.*admin|lure.*user|fake.*admin|trap.*account|h0ney|_canary_|_honeypot_)")
+| eval rule_id="SP-800002", tactic="Detection", technique="T1078", severity="CRITICAL", confidence=98
+| table _time, host, user, src_ip, 'IpAddress'
+
+`comment("SP-800003 | Deception | AWS Honey Token Access Key genutzt")`
+index=aws sourcetype="aws:cloudtrail"
+| eval key='userIdentity.accessKeyId'
+| where match(key,"(?i)(<HONEY_ACCESS_KEY_ID>|HONEYTOKENAKIA|AKIAIOSFODNN7EXAMPLE)")
+| eval rule_id="SP-800003", tactic="Detection", technique="T1552.005", severity="CRITICAL", confidence=98
+| table _time, 'userIdentity.arn', key, sourceIPAddress, eventName, awsRegion
+
+`comment("SP-800004 | Deception | Honeypot Host via RDP kontaktiert")`
+index=network sourcetype IN ("zeek:conn","paloalto:firewall","cisco:asa","windows:eventlog")
+| where match(dst_ip,"(?i)(<HONEYPOT_RDP_IP>|<DECOY_HOST_IP>)") AND (dest_port=3389 OR match(_raw,"(?i)(rdp.*honeypot|honey.*rdp)"))
+| eval src=coalesce(src_ip,id.orig_h)
+| eval rule_id="SP-800004", tactic="Detection", technique="T1021.001", severity="CRITICAL", confidence=97
+| table _time, src, dst_ip, dest_port
+
+`comment("SP-800005 | Deception | Honeypot SSH Login Versuch")`
+index=network OR index=linux
+| where (match(dst_ip,"<HONEYPOT_SSH_IP>") AND dest_port=22) OR match(_raw,"(?i)(honeypot.*ssh.*connect|ssh.*honey.*login)")
+| eval src=coalesce(src_ip,id.orig_h)
+| eval rule_id="SP-800005", tactic="Detection", technique="T1021.004", severity="CRITICAL", confidence=97
+| table _time, src, dst_ip
+
+`comment("SP-800006 | Deception | Fake Admin Share zugegriffen (\\SERVER\ADMIN$ Honeypot)")`
+index=windows EventCode IN (5140,5145)
+| where match(ShareName,"(?i)(ADMIN\$|C\$|IPC\$)") AND match(ComputerName,"(?i)(<HONEYPOT_HOST>|decoy|honey)")
+| eval user=coalesce(SubjectUserName,'SubjectUser'), src=coalesce(IpAddress,ClientAddress)
+| eval rule_id="SP-800006", tactic="Detection", technique="T1021.002", severity="CRITICAL", confidence=97
+| table _time, host, user, src, ShareName, RelativeTargetName
+
+`comment("SP-800007 | Deception | Canary DNS Record abgefragt")`
+index=network sourcetype IN ("zeek:dns","cisco:umbrella","infoblox","windows:dns")
+| where match(query,"(?i)(canary\.<COMPANY_DOMAIN>|honeydns\.|decoy\.<COMPANY_DOMAIN>|<CANARY_DNS_RECORD>)")
+| eval src=coalesce(src_ip,id.orig_h)
+| eval rule_id="SP-800007", tactic="Detection", technique="T1071.004", severity="CRITICAL", confidence=97
+| table _time, src, query
+
+`comment("SP-800008 | Deception | Honey API Endpoint aufgerufen")`
+index=web sourcetype IN ("access_combined","iis","nginx","apache")
+| where match(uri_path,"(?i)(/api/v1/honey|/api/canary|/admin/trap|/internal/decoy|/api/secrets/honey|/v2/honey_token|/_canary)")
+| eval src=coalesce(clientip,src_ip,'c-ip')
+| eval rule_id="SP-800008", tactic="Detection", technique="T1190", severity="CRITICAL", confidence=97
+| table _time, src, uri_path, useragent, status
+
+`comment("SP-800009 | Deception | Fake Service-Account genutzt")`
+index=* (EventCode=4624 OR sourcetype IN ("azure:aad:signin","okta:im2:log"))
+| eval user=coalesce(TargetUserName,'properties.userPrincipalName','actor.alternateId')
+| where match(user,"(?i)(svc_canary|svc_honey|fake_svc|lure_service|decoy_sa|trap_svc|honeysvc)")
+| eval rule_id="SP-800009", tactic="Detection", technique="T1078", severity="CRITICAL", confidence=98
+| table _time, host, user, src_ip, 'IpAddress'
+
+`comment("SP-800010 | Deception | Canary Datenbank-Tabelle abgefragt")`
+index=database sourcetype IN ("mssql:audit","mysql:audit","postgres:audit")
+| where match(_raw,"(?i)(SELECT.*FROM.*(honeytable|canary_data|decoy_customers|fake_passwords|trap_records|lure_ssn|honey_credit))")
+| eval user=coalesce('database_user','user','SessionLoginName')
+| eval rule_id="SP-800010", tactic="Detection", technique="T1213", severity="CRITICAL", confidence=97
+| table _time, host, user, _raw
+
+`comment("SP-800011 | Deception | Canary E-Mail-Adresse hat E-Mail erhalten (Spear Phishing Indikator)")`
+index=email sourcetype IN ("ms:o365:management","exchange:messagetrace","mimecast:siem","proofpoint:siem")
+| eval recipient=coalesce('RecipientAddress','recipient')
+| where match(recipient,"(?i)(canary@<COMPANY_DOMAIN>|honeypot@<COMPANY_DOMAIN>|trap@<COMPANY_DOMAIN>|decoy@<COMPANY_DOMAIN>|lure@<COMPANY_DOMAIN>)")
+| eval sender=coalesce('SenderAddress','sender')
+| eval rule_id="SP-800011", tactic="Detection", technique="T1566.001", severity="CRITICAL", confidence=97
+| table _time, sender, recipient, 'Subject', 'SenderIPAddress'
+
+`comment("SP-800012 | Deception | Canary Registry-Schlüssel gelesen (Windows Registry Honeypot)")`
+index=windows EventCode IN (4657,4663)
+| where match(ObjectName,"(?i)(HKLM\\SOFTWARE\\HoneyToken|HKCU\\Software\\Canary|HKLM\\.*\\DecoyKey|HKCU\\.*\\TrapKey|<CANARY_REGKEY>)")
+| eval user=coalesce(SubjectUserName,User)
+| eval rule_id="SP-800012", tactic="Detection", technique="T1012", severity="CRITICAL", confidence=97
+| table _time, host, user, ObjectName, ProcessName
+
+`comment("SP-800013 | Deception | Netzwerk-Honeypot Service getriggert (unerwarteter Port)")`
+index=network sourcetype IN ("zeek:conn","paloalto:firewall","cisco:asa","snort","suricata")
+| where match(dst_ip,"(?i)(<HONEYPOT_IP_RANGE>|<DECEPTION_SENSOR>)")
+| eval src=coalesce(src_ip,id.orig_h)
+| eval rule_id="SP-800013", tactic="Detection", technique="T1046", severity="CRITICAL", confidence=97
+| table _time, src, dst_ip, dest_port, proto
+
+`comment("SP-800014 | Deception | Fake Backup-Datei zugegriffen")`
+index=windows EventCode IN (4663,11)
+| where match(ObjectName,"(?i)(fake.*backup|honey.*backup|backup.*trap|decoy.*\.bak|canary.*backup\.zip|lure.*backup|trap.*backup)") OR match(ObjectName,"(?i)(<CANARY_BACKUP_PATH>)")
+| eval user=coalesce(SubjectUserName,User)
+| eval rule_id="SP-800014", tactic="Detection", technique="T1083", severity="CRITICAL", confidence=97
+| table _time, host, user, ObjectName, ProcessName
+
+`comment("SP-800015 | Deception | Honey Zertifikat Private-Key zugegriffen")`
+index=windows OR index=linux
+| where match(coalesce(ObjectName,name),"(?i)(honey.*\.key|canary.*\.pem|decoy.*\.pfx|trap.*private.*key|lure.*cert.*\.pem|<CANARY_CERT_PATH>)")
+| eval user=coalesce(SubjectUserName,User,uid)
+| eval rule_id="SP-800015", tactic="Detection", technique="T1552.004", severity="CRITICAL", confidence=97
+| table _time, host, user, coalesce(ObjectName,name)

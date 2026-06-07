@@ -1,0 +1,165 @@
+
+`comment("SP-702001 | Identity-Okta | MFA-Faktor-Registrierung von neuem Gerät")`
+index=okta sourcetype="okta:im2:log" eventType="user.mfa.factor.activate"
+| eval upn='actor.alternateId', device='target{}.displayName', src_ip=client.ipAddress
+| where NOT match(client.userAgent.rawUserAgent, "(?i)(Okta|corporate|endpoint)")
+| eval rule_id="SP-702001", tactic="Defense Evasion", technique="T1556.006", severity="HIGH", confidence=82
+| table _time, upn, device, src_ip, client.userAgent.rawUserAgent
+
+`comment("SP-702002 | Identity-Okta | MFA-Faktor durch Admin zurückgesetzt")`
+index=okta sourcetype="okta:im2:log" eventType="user.mfa.factor.reset_all"
+| eval admin='actor.alternateId', target_user=mvindex('target{}.alternateId', 0)
+| where admin != target_user
+| eval rule_id="SP-702002", tactic="Defense Evasion", technique="T1556.006", severity="HIGH", confidence=88
+| table _time, admin, target_user, client.ipAddress
+
+`comment("SP-702003 | Identity-Okta | Okta Admin-Rolle vergeben")`
+index=okta sourcetype="okta:im2:log" eventType IN ("user.account.privilege.grant","group.user_membership.add")
+| eval target_group=mvindex('target{}.displayName', 0)
+| where match(target_group, "(?i)(admin|super.*admin|org.*admin|readonly.*admin)")
+| eval actor='actor.alternateId', target_user=mvindex('target{}.alternateId', 0)
+| eval rule_id="SP-702003", tactic="Privilege Escalation", technique="T1098", severity="CRITICAL", confidence=90
+| table _time, actor, target_user, target_group, client.ipAddress
+
+`comment("SP-702004 | Identity-Okta | Authentication Policy geändert")`
+index=okta sourcetype="okta:im2:log" eventType IN ("policy.lifecycle.update","policy.rule.update","policy.rule.delete","policy.lifecycle.delete")
+| where match('target{}.type', "(?i)(POLICY|policy)")
+| eval actor='actor.alternateId', policy=mvindex('target{}.displayName', 0)
+| eval rule_id="SP-702004", tactic="Defense Evasion", technique="T1556", severity="HIGH", confidence=85
+| table _time, actor, policy, eventType, client.ipAddress
+
+`comment("SP-702005 | Identity-Okta | API-Token erstellt")`
+index=okta sourcetype="okta:im2:log" eventType="system.api_token.create"
+| eval actor='actor.alternateId', token_name=mvindex('target{}.displayName', 0)
+| eval rule_id="SP-702005", tactic="Persistence", technique="T1098.001", severity="HIGH", confidence=85
+| table _time, actor, token_name, client.ipAddress
+
+`comment("SP-702006 | Identity-Okta | Netzwerkzone geändert oder deaktiviert (Zone-Bypass)")`
+index=okta sourcetype="okta:im2:log" eventType IN ("network_zone.rule.update","network_zone.update","network_zone.deactivate","network_zone.delete")
+| eval actor='actor.alternateId', zone=mvindex('target{}.displayName', 0)
+| eval rule_id="SP-702006", tactic="Defense Evasion", technique="T1562", severity="HIGH", confidence=85
+| table _time, actor, zone, eventType, client.ipAddress
+
+`comment("SP-702007 | Identity-Okta | Passwort-Reset für mehrere User (>5 in 10 Min)")`
+index=okta sourcetype="okta:im2:log" eventType IN ("user.account.reset_password","user.credentials.reset_password")
+| eval actor='actor.alternateId'
+| bin _time span=10m
+| stats count dc('target{}.alternateId') as unique_targets by _time, actor, client.ipAddress
+| where unique_targets > 5
+| eval rule_id="SP-702007", tactic="Impact", technique="T1531", severity="HIGH", confidence=85
+| table _time, actor, unique_targets, client.ipAddress
+
+`comment("SP-702008 | Identity-Okta | Account wiederholt entsperrt (>3 in 1h — mögliche ATO-Unterstützung)")`
+index=okta sourcetype="okta:im2:log" eventType="user.account.unlock"
+| eval actor='actor.alternateId', target_user=mvindex('target{}.alternateId', 0)
+| bin _time span=1h
+| stats count by _time, target_user, actor
+| where count > 3
+| eval rule_id="SP-702008", tactic="Persistence", technique="T1078", severity="MEDIUM", confidence=75
+| table _time, target_user, actor, count
+
+`comment("SP-702009 | Identity-Okta | OAuth App mit riskanten Scopes genehmigt")`
+index=okta sourcetype="okta:im2:log" eventType IN ("app.oauth2.as.consent.grant","user.oauth2.access_token.grant")
+| eval scopes='debugContext.debugData.requestedScopes'
+| where match(scopes, "(?i)(offline_access|okta\.users\.manage|okta\.apps\.manage|okta\.groups\.manage|admin:org|admin:read)")
+| eval actor='actor.alternateId', app=mvindex('target{}.displayName', 0)
+| eval rule_id="SP-702009", tactic="Credential Access", technique="T1528", severity="HIGH", confidence=82
+| table _time, actor, app, scopes, client.ipAddress
+
+`comment("SP-702010 | Identity-Okta | Session-Cookie-Hijack (gleiche Session, neue IP/User-Agent)")`
+index=okta sourcetype="okta:im2:log" outcome.result="SUCCESS" eventType="user.session.access"
+| eval upn='actor.alternateId', session_id='debugContext.debugData.dtHash'
+| stats values(client.ipAddress) as ips dc(client.ipAddress) as unique_ips values(client.userAgent.rawUserAgent) as uas dc(client.userAgent.rawUserAgent) as unique_uas by upn, session_id
+| where unique_ips > 1 OR unique_uas > 2
+| eval rule_id="SP-702010", tactic="Credential Access", technique="T1550.004", severity="HIGH", confidence=82
+| table upn, session_id, unique_ips, ips, unique_uas
+
+`comment("SP-702011 | Identity-Okta | MFA Push-Bombing / Fatigue (>3 Push-Requests in 5 Min)")`
+index=okta sourcetype="okta:im2:log" eventType="user.authentication.auth_via_mfa" outcome.result="FAILURE"
+| where match('debugContext.debugData.factor', "(?i)(OKTA_VERIFY_PUSH|push)")
+| eval upn='actor.alternateId'
+| bin _time span=5m
+| stats count by _time, upn, client.ipAddress
+| where count > 3
+| eval rule_id="SP-702011", tactic="Credential Access", technique="T1621", severity="HIGH", confidence=90
+| table _time, upn, count, client.ipAddress
+
+`comment("SP-702012 | Identity-Okta | SCIM API Massen-Zugriff (>100 Calls in 5 Min)")`
+index=okta sourcetype="okta:im2:log" eventType IN ("user.lifecycle.create","user.lifecycle.deactivate","group.user_membership.add")
+| where match(client.userAgent.rawUserAgent, "(?i)(SCIM|scimmy|okta-scim)")
+| bin _time span=5m
+| stats count by _time, 'actor.alternateId', client.ipAddress
+| where count > 100
+| eval rule_id="SP-702012", tactic="Discovery", technique="T1087", severity="MEDIUM", confidence=72
+| table _time, 'actor.alternateId', client.ipAddress, count
+
+`comment("SP-702013 | Identity-Okta | App-Zuweisung zu Allen Nutzern (Massenfreigabe)")`
+index=okta sourcetype="okta:im2:log" eventType="application.user_membership.add"
+| eval target_app=mvindex('target{}.displayName', 0)
+| eval assigned_to=mvindex('target{}.displayName', 1)
+| where match(assigned_to, "(?i)(everyone|all users|all.*employees)")
+| eval actor='actor.alternateId'
+| eval rule_id="SP-702013", tactic="Persistence", technique="T1098", severity="MEDIUM", confidence=72
+| table _time, actor, target_app, assigned_to, client.ipAddress
+
+`comment("SP-702014 | Identity-Okta | Okta Verify Gerät still hinzugefügt (kein User-Prompt)")`
+index=okta sourcetype="okta:im2:log" eventType="user.mfa.factor.activate"
+| where match('target{}.type', "(?i)(token:software:totp|OKTA|okta_verify)")
+| where outcome.result="SUCCESS" AND NOT match('debugContext.debugData.requestUri', "(?i)(users/me|self|myaccount)")
+| eval admin='actor.alternateId', target_user=mvindex('target{}.alternateId', 0)
+| where admin != target_user
+| eval rule_id="SP-702014", tactic="Defense Evasion", technique="T1556.006", severity="HIGH", confidence=85
+| table _time, admin, target_user, client.ipAddress
+
+`comment("SP-702015 | Identity-Okta | Nutzer-Profil durch Nicht-Besitzer geändert")`
+index=okta sourcetype="okta:im2:log" eventType="user.account.update_profile"
+| eval actor='actor.alternateId', target_user=mvindex('target{}.alternateId', 0)
+| where actor != target_user
+| eval rule_id="SP-702015", tactic="Persistence", technique="T1098", severity="MEDIUM", confidence=75
+| table _time, actor, target_user, client.ipAddress, 'debugContext.debugData.changedAttributes'
+
+`comment("SP-702016 | Identity-Okta | Verdächtiger User-Agent in Okta-Events (Automation/Scanner)")`
+index=okta sourcetype="okta:im2:log" outcome.result="SUCCESS"
+| where match(client.userAgent.rawUserAgent, "(?i)(python-requests|curl|wget|okta-sdk|go-http|ruby|axios|node-fetch|aiohttp)")
+AND NOT match(client.userAgent.rawUserAgent, "(?i)(okta|saml|integration)")
+| eval actor='actor.alternateId'
+| bin _time span=5m
+| stats count by _time, actor, client.ipAddress, client.userAgent.rawUserAgent
+| where count > 20
+| eval rule_id="SP-702016", tactic="Discovery", technique="T1087", severity="MEDIUM", confidence=72
+| table _time, actor, client.ipAddress, client.userAgent.rawUserAgent, count
+
+`comment("SP-702017 | Identity-Okta | Brute-Force-Erfolg (Fails dann Success)")`
+index=okta sourcetype="okta:im2:log" eventType="user.session.start"
+| eval upn='actor.alternateId', src_ip=client.ipAddress
+| eval success=if(outcome.result="SUCCESS",1,0)
+| stats sum(success) as successes count as total by upn, src_ip
+| where total > 5 AND successes > 0 AND (total - successes) > 4
+| eval rule_id="SP-702017", tactic="Credential Access", technique="T1110.001", severity="HIGH", confidence=88
+| table upn, src_ip, total, successes
+
+`comment("SP-702018 | Identity-Okta | Login aus neuem Land für Admin-Account")`
+index=okta sourcetype="okta:im2:log" outcome.result="SUCCESS" eventType="user.session.start"
+| eval upn='actor.alternateId', country=client.geographicalContext.country
+| where match(upn, "(?i)(admin|svc|service)")
+| stats values(country) as countries dc(country) as unique_countries by upn
+| where unique_countries > 2
+| eval rule_id="SP-702018", tactic="Initial Access", technique="T1078", severity="HIGH", confidence=80
+| table upn, countries, unique_countries
+
+`comment("SP-702019 | Identity-Okta | Nutzer-Account deaktiviert und sofort reaktiviert (Manipulation)")`
+index=okta sourcetype="okta:im2:log" eventType IN ("user.lifecycle.deactivate","user.lifecycle.activate")
+| eval target_user=mvindex('target{}.alternateId', 0), actor='actor.alternateId'
+| bin _time span=10m
+| stats values(eventType) as actions dc(eventType) as unique_actions by _time, target_user, actor
+| where unique_actions >= 2 AND mvfind(actions,"deactivate")>=0 AND mvfind(actions,"activate")>=0
+| eval rule_id="SP-702019", tactic="Persistence", technique="T1098", severity="HIGH", confidence=82
+| table _time, target_user, actor, actions
+
+`comment("SP-702020 | Identity-Okta | Okta Admin-Session von unbekanntem IP-Bereich")`
+index=okta sourcetype="okta:im2:log" outcome.result="SUCCESS" eventType="user.session.start"
+| eval upn='actor.alternateId', src_ip=client.ipAddress
+| where match(upn, "(?i)(admin)")
+| where NOT match(src_ip, "^(10\.|192\.168\.|172\.(1[6-9]|2[0-9]|3[01])\.|<CORPORATE_CIDR>)")
+| eval rule_id="SP-702020", tactic="Initial Access", technique="T1078", severity="HIGH", confidence=85
+| table _time, upn, src_ip, client.geographicalContext.country

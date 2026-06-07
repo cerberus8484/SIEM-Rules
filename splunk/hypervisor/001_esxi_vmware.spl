@@ -1,0 +1,148 @@
+
+`comment("SP-740001 | Hypervisor-ESXi | SSH auf ESXi-Host aktiviert")`
+index=vmware sourcetype IN ("vmware:esxi:syslog","vsphere:events","vmware:vcenter:syslog")
+| where match(_raw, "(?i)(SSH.*service.*started|SSH daemon started|sshd.*start|TSM-SSH.*running|SSH access.*enabled)")
+AND NOT match(_raw,"(?i)(test|lab|dev|maintenance)")
+| eval rule_id="SP-740001", tactic="Initial Access", technique="T1133", severity="CRITICAL", confidence=88
+| table _time, host, _raw
+
+`comment("SP-740002 | Hypervisor-ESXi | Neuer vCenter / ESXi Admin-Account erstellt")`
+index=vmware sourcetype="vsphere:events"
+| where match(EventTypeId, "(?i)(VimEvent.UserLoginSessionEvent|com.vmware.sso.PrincipalManagement)")
+AND match(_raw,"(?i)(role.*assign.*Admin|user.*creat.*Admin|Administrator.*grant)")
+| eval actor=coalesce(userName,'userAgent'), host_target=datacenter
+| eval rule_id="SP-740002", tactic="Persistence", technique="T1136", severity="CRITICAL", confidence=88
+| table _time, actor, host_target, _raw
+
+`comment("SP-740003 | Hypervisor-ESXi | Massen-Snapshot-Löschung (>3 in 10 Min)")`
+index=vmware sourcetype="vsphere:events"
+| where match(EventTypeId, "(?i)(VmRemoveSnapshotEvent|SnapshotDeleteEvent|RemoveAllSnapshotsEvent)")
+| bin _time span=10m
+| stats count by _time, userName, datacenter
+| where count > 3
+| eval rule_id="SP-740003", tactic="Impact", technique="T1490", severity="CRITICAL", confidence=90
+| table _time, userName, datacenter, count
+
+`comment("SP-740004 | Hypervisor-ESXi | vCenter SAML Zertifikat manipuliert")`
+index=vmware sourcetype IN ("vsphere:events","vmware:vcenter:syslog")
+| where match(_raw, "(?i)(SAML.*certif.*replac|SAML.*certif.*updat|IdP.*certif.*change|ssoconfig.*update)")
+| eval rule_id="SP-740004", tactic="Credential Access", technique="T1550.001", severity="CRITICAL", confidence=88
+| table _time, host, _raw
+
+`comment("SP-740005 | Hypervisor-ESXi | ESXi Lockdown-Modus deaktiviert")`
+index=vmware sourcetype="vsphere:events"
+| where match(EventTypeId,"(?i)(ExitLockdownModeEvent|LockdownDisabled)")
+OR match(_raw,"(?i)(lockdown.*mode.*exit|lockdown.*disabled)")
+| eval actor=coalesce(userName,'user')
+| eval rule_id="SP-740005", tactic="Defense Evasion", technique="T1562", severity="CRITICAL", confidence=88
+| table _time, host, actor, _raw
+
+`comment("SP-740006 | Hypervisor-ESXi | VM-Konfigurationsdatei (.vmx) direkt geändert")`
+index=vmware sourcetype IN ("vsphere:events","vmware:esxi:syslog")
+| where match(_raw,"(?i)(\.vmx.*modif|ReconfigVM.*Event|vmx.*changed|vmx.*written)") AND NOT match(_raw,"(?i)(snapshot|checkpoint)")
+| eval actor=coalesce(userName,'user')
+| eval rule_id="SP-740006", tactic="Persistence", technique="T1542", severity="HIGH", confidence=82
+| table _time, host, actor, 'vm_name', _raw
+
+`comment("SP-740007 | Hypervisor-ESXi | Virtuelle Festplatte (.vmdk) exportiert")`
+index=vmware sourcetype="vsphere:events"
+| where match(EventTypeId,"(?i)(ExportOvfEvent|ExportVmEvent|VmExportedEvent)")
+OR match(_raw,"(?i)(vmdk.*export|ova.*export|ovf.*export|ExportVM)")
+| eval actor=coalesce(userName,'user')
+| eval rule_id="SP-740007", tactic="Exfiltration", technique="T1041", severity="CRITICAL", confidence=88
+| table _time, host, actor, 'vm_name', _raw
+
+`comment("SP-740008 | Hypervisor-ESXi | VM zu unbekanntem Host geklont oder migriert (vMotion)")`
+index=vmware sourcetype="vsphere:events"
+| where match(EventTypeId,"(?i)(VmMigratedEvent|VmRelocatedEvent|CloneVmEvent)")
+| eval dest_host=mvindex(split(_raw, "destination:"), 1)
+| where NOT match(dest_host, "(?i)(<KNOWN_HOST1>|<KNOWN_HOST2>|<KNOWN_CLUSTER>)")
+| eval actor=coalesce(userName,'user')
+| eval rule_id="SP-740008", tactic="Lateral Movement", technique="T1021", severity="HIGH", confidence=78
+| table _time, actor, 'vm_name', dest_host, _raw
+
+`comment("SP-740009 | Hypervisor-ESXi | ESXi Shell-Befehl via API ausgeführt (ESXi Shell API)")`
+index=vmware sourcetype="vsphere:events"
+| where match(EventTypeId,"(?i)(VmShell|ShellCommandEvent)") OR match(_raw,"(?i)(esxcli|vim-cmd.*exec|shell.*command)")
+| eval actor=coalesce(userName,'user')
+| eval rule_id="SP-740009", tactic="Execution", technique="T1059", severity="HIGH", confidence=85
+| table _time, host, actor, _raw
+
+`comment("SP-740010 | Hypervisor-ESXi | Host-Level Firewall-Regel hinzugefügt")`
+index=vmware sourcetype="vmware:esxi:syslog"
+| where match(_raw,"(?i)(esxcli.*network.*firewall.*set.*allow|esxcli.*network.*firewall.*rule.*allow|firewall.*ruleset.*set.*enabled.*true)")
+| eval rule_id="SP-740010", tactic="Defense Evasion", technique="T1562.004", severity="HIGH", confidence=82
+| table _time, host, _raw
+
+`comment("SP-740011 | Hypervisor-ESXi | Management-Netzwerk VLAN geändert")`
+index=vmware sourcetype="vsphere:events"
+| where match(_raw,"(?i)(management.*network.*vlan|VswitchReconfiguredEvent.*management|PortGroupReconfiguredEvent.*Management)")
+| eval actor=coalesce(userName,'user')
+| eval rule_id="SP-740011", tactic="Impact", technique="T1565", severity="CRITICAL", confidence=85
+| table _time, host, actor, _raw
+
+`comment("SP-740012 | Hypervisor-ESXi | vSphere Web Client Login von unbekannter IP")`
+index=vmware sourcetype="vsphere:events"
+| where match(EventTypeId,"(?i)(UserLoginSessionEvent|com.vmware.cis.LoginEvent)")
+AND NOT match(ipAddress,"(?i)(^10\.|^192\.168\.|^172\.(1[6-9]|2[0-9]|3[01])\.)")
+| eval actor=coalesce(userName,'user')
+| eval rule_id="SP-740012", tactic="Initial Access", technique="T1133", severity="HIGH", confidence=82
+| table _time, actor, ipAddress, _raw
+
+`comment("SP-740013 | Hypervisor-ESXi | ESXi Ransomware Indikator (.args/.zoldon/.lock Erweiterungen auf Datastore)")`
+index=vmware sourcetype IN ("vsphere:events","vmware:esxi:syslog")
+| where match(_raw,"(?i)(\.args$|\.zoldon$|\.lock$|\.enc$|ESXiArgs|README.*RECOVER|HOW_TO_DECRYPT)")
+| eval rule_id="SP-740013", tactic="Impact", technique="T1486", severity="CRITICAL", confidence=95
+| table _time, host, _raw
+
+`comment("SP-740014 | Hypervisor-ESXi | Hypervisor-Log geleert oder Syslog-Weiterleitung deaktiviert")`
+index=vmware sourcetype="vsphere:events"
+| where match(_raw,"(?i)(syslog.*disabled|log.*clear|audit.*log.*stop|syslog.*server.*remov)")
+| eval actor=coalesce(userName,'user')
+| eval rule_id="SP-740014", tactic="Defense Evasion", technique="T1070", severity="CRITICAL", confidence=88
+| table _time, host, actor, _raw
+
+`comment("SP-740015 | Hypervisor-ESXi | VM Memory Snapshot (mögliche Credential-Extraktion)")`
+index=vmware sourcetype="vsphere:events"
+| where match(EventTypeId,"(?i)(VmSuspendedEvent|CreateSnapshotEvent)")
+AND match(_raw,"(?i)(memory.*snapshot|includeMemory.*true)")
+AND match('vm_name',"(?i)(dc|domain.controller|ad-|lsass|auth|kdc|jump|bastion)")
+| eval actor=coalesce(userName,'user')
+| eval rule_id="SP-740015", tactic="Credential Access", technique="T1003", severity="CRITICAL", confidence=88
+| table _time, actor, 'vm_name', _raw
+
+`comment("SP-740016 | Hypervisor-ESXi | DRS / HA Konfiguration außerhalb Wartungsfenster geändert")`
+index=vmware sourcetype="vsphere:events"
+| where match(EventTypeId,"(?i)(ClusterReconfiguredEvent|DrsConfigChangedEvent|VmDisconnectedEvent)")
+| eval hour=tonumber(strftime(_time,"%H"))
+| where hour < 6 OR hour > 22
+| eval actor=coalesce(userName,'user')
+| eval rule_id="SP-740016", tactic="Impact", technique="T1565", severity="HIGH", confidence=75
+| table _time, hour, actor, _raw
+
+`comment("SP-740017 | Hypervisor-ESXi | VMware Tools in VM deaktiviert (Anti-Forensic)")`
+index=vmware sourcetype="vsphere:events"
+| where match(_raw,"(?i)(VMware Tools.*disabled|toolsStatus.*notInstalled|vmtools.*stop|VMtools.*removed)")
+| eval actor=coalesce(userName,'user')
+| eval rule_id="SP-740017", tactic="Defense Evasion", technique="T1562", severity="MEDIUM", confidence=72
+| table _time, actor, 'vm_name', _raw
+
+`comment("SP-740018 | Hypervisor-ESXi | ESXi Host dem Cluster ohne Genehmigung hinzugefügt")`
+index=vmware sourcetype="vsphere:events"
+| where match(EventTypeId,"(?i)(HostConnectedEvent|HostAddedEvent|AddHostToCluster)")
+AND NOT match(userName,"(?i)(vcenter|vsphere-admin|automation)")
+| eval actor=coalesce(userName,'user')
+| eval rule_id="SP-740018", tactic="Lateral Movement", technique="T1021", severity="HIGH", confidence=80
+| table _time, actor, host, _raw
+
+`comment("SP-740019 | Hypervisor-Proxmox | Proxmox: Neuer Benutzer mit Admin-Rechten erstellt")`
+index=proxmox sourcetype="proxmox:tasks"
+| where match(_raw,"(?i)(user.*add.*role.*Administrator|pveum.*user.*add.*admin|pveum.*acl.*modify.*root)") OR match(description,"(?i)(user.*add|acl.*update)") AND match(_raw,"(?i)(admin|root)")
+| eval rule_id="SP-740019", tactic="Privilege Escalation", technique="T1136", severity="CRITICAL", confidence=85
+| table _time, host, _raw
+
+`comment("SP-740020 | Hypervisor-Proxmox | Proxmox: CT / VM Backup deaktiviert oder gelöscht")`
+index=proxmox sourcetype="proxmox:tasks"
+| where match(description,"(?i)(vzdump.*cancel|vzdump.*abort|backup.*remov|prune.*all|maxfiles.*0)")
+| eval rule_id="SP-740020", tactic="Impact", technique="T1490", severity="CRITICAL", confidence=85
+| table _time, host, description, _raw

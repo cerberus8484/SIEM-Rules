@@ -1,0 +1,304 @@
+
+`comment("SP-810001 | Correlation | ATO Kill Chain: Impossible Travel → MFA-Änderung → Forwarding Rule (30 Min)")`
+index=* (sourcetype IN ("azure:aad:signin","azure:aad:audit","ms:o365:management"))
+| eval upn=coalesce('properties.userPrincipalName','actor.alternateId',UserId)
+| eval stage=case(
+    sourcetype="azure:aad:signin" AND match(_raw,"(?i)(two.*country|different.*country|impossible.*travel|anonymizedIPAddress|Tor)"),"S1_TRAVEL_ANOMALY",
+    sourcetype="azure:aad:audit" AND match(operationName,"(?i)(Delete.*MFA|Delete.*StrongAuth|Delete.*Authentication Method)"),"S2_MFA_CHANGE",
+    sourcetype="ms:o365:management" AND match(Operation,"(?i)(New-InboxRule|Set-InboxRule)") AND match(_raw,"(?i)(ForwardTo|RedirectTo)"),"S3_MAIL_RULE",
+    true(),null())
+| where isnotnull(stage)
+| bin _time span=30m
+| stats dc(stage) as stages values(stage) as stage_list by _time, upn
+| where stages >= 2 AND mvfind(stage_list,"S1_TRAVEL_ANOMALY")>=0
+| eval rule_id="SP-810001", tactic="Multi-Stage ATO", technique="T1078/T1556/T1114", severity="CRITICAL", confidence=92
+| table _time, upn, stages, stage_list
+
+`comment("SP-810002 | Correlation | Cloud PrivEsc Chain: IAM Policy Change → AccessKey → S3 Data Access (1h)")`
+index=aws sourcetype="aws:cloudtrail"
+| eval actor='userIdentity.arn'
+| eval stage=case(
+    eventName IN ("AttachUserPolicy","AttachRolePolicy","PutUserPolicy","PutRolePolicy") AND match('requestParameters.policyArn',"(?i)(Admin|Power|FullAccess)"),"S1_POLICY_CHANGE",
+    eventName="CreateAccessKey","S2_KEY_CREATE",
+    eventName IN ("GetObject","ListBucket","ListObjects","GetBucketAcl") AND match('requestParameters.bucketName',"(?i)(data|backup|sensitive|prod|pii|customer|finance)"),"S3_DATA_ACCESS",
+    true(),null())
+| where isnotnull(stage)
+| bin _time span=1h
+| stats dc(stage) as stages values(stage) as stage_list by _time, actor
+| where stages >= 2 AND mvfind(stage_list,"S1_POLICY_CHANGE")>=0
+| eval rule_id="SP-810002", tactic="Multi-Stage Cloud PrivEsc", technique="T1098.003/T1552.005/T1537", severity="CRITICAL", confidence=90
+| table _time, actor, stages, stage_list
+
+`comment("SP-810003 | Correlation | Ransomware Prep Chain: Backup-Kill → Admin Share → Mass File-Rename (15 Min)")`
+index=windows EventCode IN (1,2)
+| eval host_name=host
+| eval stage=case(
+    EventCode=1 AND match(CommandLine,"(?i)(vssadmin.*delete.*shadows|wbadmin.*delete|bcdedit.*recoveryenabled.*no|net stop.*vss|sc stop.*VSS)"), "S1_VSS_KILL",
+    EventCode=1 AND match(CommandLine,"(?i)(net use.*\\\\|\\\\.*ADMIN\$|psexec.*\\\\)"), "S2_ADMIN_SHARE",
+    EventCode=2 AND NOT match(TargetFilename,"(?i)(\.tmp$|\.log$|~|AppData)"), "S3_FILE_RENAME",
+    true(), null())
+| where isnotnull(stage)
+| bin _time span=15m
+| stats dc(stage) as stages values(stage) as stage_list sum(if(stage="S3_FILE_RENAME",1,0)) as renames by _time, host_name
+| where stages >= 2 AND mvfind(stage_list,"S1_VSS_KILL")>=0 AND (mvfind(stage_list,"S2_ADMIN_SHARE")>=0 OR renames > 50)
+| eval rule_id="SP-810003", tactic="Multi-Stage Ransomware", technique="T1490/T1021.002/T1486", severity="CRITICAL", confidence=95
+| table _time, host_name, stages, stage_list, renames
+
+`comment("SP-810004 | Correlation | Insider Exfil Chain: After-Hours Login → Mass Download → Cloud Upload (2h)")`
+index=* (EventCode IN (4624,4663) OR sourcetype IN ("ms:o365:management","bluecoat:proxysg"))
+| eval user=coalesce(TargetUserName,SubjectUserName,UserId,cs_username)
+| eval hour=tonumber(strftime(_time,"%H"))
+| eval stage=case(
+    EventCode=4624 AND (hour < 7 OR hour > 21),"S1_AFTERHOURS_LOGIN",
+    sourcetype="ms:o365:management" AND Operation="FileDownloaded","S2_MASS_DOWNLOAD",
+    sourcetype="bluecoat:proxysg" AND method IN ("POST","PUT") AND match(cs_host,"(?i)(dropbox|drive\.google|mega\.nz|wetransfer|box\.com|onedrive)"),"S3_CLOUD_UPLOAD",
+    true(),null())
+| where isnotnull(stage)
+| bin _time span=2h
+| stats dc(stage) as stages values(stage) as stage_list count(eval(stage="S2_MASS_DOWNLOAD")) as dl_count by _time, user
+| where stages >= 2 AND mvfind(stage_list,"S1_AFTERHOURS_LOGIN")>=0 AND dl_count > 20
+| eval rule_id="SP-810004", tactic="Multi-Stage Insider Exfil", technique="T1078/T1213/T1567", severity="HIGH", confidence=85
+| table _time, user, stages, stage_list, dl_count
+
+`comment("SP-810005 | Correlation | C2 Beacon Chain: New Process → DNS Beaconing → Proxy Beaconing (1h)")`
+index=* (EventCode=1 OR sourcetype IN ("zeek:dns","bluecoat:proxysg"))
+| eval host_name=coalesce(host,'id.orig_h',src)
+| eval stage=case(
+    EventCode=1 AND match(Image,"(?i)(/tmp/|\\\\Temp\\\\|\\\\AppData.*Roaming\\\\)") AND NOT match(ParentImage,"(?i)(svchost|explorer|chrome|firefox)"), "S1_UNUSUAL_PROC",
+    sourcetype="zeek:dns" AND match(query,"(?i)([A-Za-z0-9]{15,}\.(xyz|top|tk|ml|cf|ga|pw|cc|su|info))"), "S2_RARE_DNS",
+    sourcetype="bluecoat:proxysg" AND match(cs_host,"(?i)([A-Za-z0-9]{8,}\.(xyz|top|tk|ml|cf|ga|pw|cc))") AND method="GET" AND cs_bytes < 500 AND sc_bytes BETWEEN 100 AND 1000, "S3_PROXY_BEACON",
+    true(), null())
+| where isnotnull(stage)
+| bin _time span=1h
+| stats dc(stage) as stages values(stage) as stage_list by _time, host_name
+| where stages >= 2 AND mvfind(stage_list,"S1_UNUSUAL_PROC")>=0
+| eval rule_id="SP-810005", tactic="Multi-Stage C2", technique="T1071.001/T1071.004", severity="HIGH", confidence=85
+| table _time, host_name, stages, stage_list
+
+`comment("SP-810006 | Correlation | Linux Persistence Chain: SSH Login → authorized_keys → systemd Unit (1h)")`
+index=linux (sourcetype="linux:audit" OR sourcetype="linux:syslog")
+| eval host_name=host
+| eval stage=case(
+    match(_raw,"(?i)(sshd.*Accepted|authentication.*success.*sshd|pam_unix.*sshd.*session opened)"), "S1_SSH_LOGIN",
+    match(_raw,"(?i)(authorized_keys.*modified|authorized_keys.*WRITE|authorized_keys.*create)"), "S2_AUTH_KEYS",
+    match(_raw,"(?i)(/etc/systemd/system/.*\.service.*create|systemctl.*enable.*\.service|systemd.*unit.*new)"), "S3_SYSTEMD_PERSIST",
+    true(), null())
+| where isnotnull(stage)
+| bin _time span=1h
+| stats dc(stage) as stages values(stage) as stage_list by _time, host_name
+| where stages >= 2 AND mvfind(stage_list,"S1_SSH_LOGIN")>=0
+| eval rule_id="SP-810006", tactic="Multi-Stage Linux Persistence", technique="T1021.004/T1098.004/T1543.002", severity="HIGH", confidence=85
+| table _time, host_name, stages, stage_list
+
+`comment("SP-810007 | Correlation | Kubernetes Attack Chain: Secret Read → Privileged Pod → API Escalation (30 Min)")`
+index=kubernetes sourcetype IN ("kube:audit","kubernetes:audit")
+| eval stage=case(
+    verb IN ("get","list") AND match('objectRef.resource',"secret"), "S1_SECRET_READ",
+    verb="create" AND match('objectRef.resource',"pod") AND match('requestObject.spec.containers{}.securityContext.privileged',"true"), "S2_PRIV_POD",
+    verb IN ("create","update") AND match('objectRef.resource',"clusterrolebindings"), "S3_RBAC_ESCALATION",
+    true(), null())
+| eval actor='user.username'
+| where isnotnull(stage)
+| bin _time span=30m
+| stats dc(stage) as stages values(stage) as stage_list by _time, actor
+| where stages >= 2 AND mvfind(stage_list,"S1_SECRET_READ")>=0
+| eval rule_id="SP-810007", tactic="Multi-Stage K8s Attack", technique="T1552.007/T1611/T1548", severity="CRITICAL", confidence=88
+| table _time, actor, stages, stage_list
+
+`comment("SP-810008 | Correlation | Phishing → Macro → Payload Drop Chain (1h)")`
+index=* (sourcetype IN ("proofpoint:siem","mimecast:siem") OR EventCode IN (1,11))
+| eval host_name=coalesce(host,endpoint)
+| eval stage=case(
+    sourcetype IN ("proofpoint:siem","mimecast:siem") AND match(_raw,"(?i)(macro.*block|malicious.*macro|blocked.*attachment|phish.*click)"), "S1_PHISHING",
+    EventCode=1 AND match(ParentImage,"(?i)(winword|excel|outlook|powerpnt)") AND match(Image,"(?i)(powershell|cmd|wscript|cscript|mshta)"), "S2_MACRO_EXEC",
+    EventCode=11 AND match(TargetFilename,"(?i)(\\\\Temp\\\\.*\.(exe|dll|bat|vbs|ps1)$|\\\\AppData.*\.(exe|dll))"), "S3_PAYLOAD_DROP",
+    true(), null())
+| where isnotnull(stage)
+| bin _time span=1h
+| stats dc(stage) as stages values(stage) as stage_list by _time, host_name
+| where stages >= 2
+| eval rule_id="SP-810008", tactic="Multi-Stage Initial Access", technique="T1566.001/T1059.001/T1105", severity="CRITICAL", confidence=88
+| table _time, host_name, stages, stage_list
+
+`comment("SP-810009 | Correlation | Lateral Movement Chain: New Service + PsExec + SMB Access (30 Min)")`
+index=windows EventCode IN (7045,4697,5140,1)
+| eval stage=case(
+    EventCode IN (7045,4697) AND match(ServiceFileName,"(?i)(\\\\Temp\\\\|ADMIN\$|[0-9a-f]{8}\.exe)"), "S1_REMOTE_SERVICE",
+    EventCode=1 AND match(Image,"(?i)(PsExec|psexec64)"), "S2_PSEXEC",
+    EventCode=5140 AND match(ShareName,"(?i)(ADMIN\$|IPC\$|C\$)"), "S3_SMB_ACCESS",
+    true(), null())
+| where isnotnull(stage)
+| bin _time span=30m
+| stats dc(stage) as stages values(stage) as stage_list dc(host) as unique_hosts by _time, SubjectUserName
+| where stages >= 2 AND unique_hosts > 1
+| eval rule_id="SP-810009", tactic="Multi-Stage Lateral Movement", technique="T1021.002/T1570", severity="HIGH", confidence=88
+| table _time, SubjectUserName, unique_hosts, stages, stage_list
+
+`comment("SP-810010 | Correlation | Credential Theft → Lateral Movement → DCSync Chain (2h)")`
+index=windows EventCode IN (10,4624,4662)
+| eval stage=case(
+    EventCode=10 AND match(TargetImage,"(?i)lsass\.exe") AND NOT match(SourceImage,"(?i)(MsMpEng|CrowdStrike|SentinelOne|Sophos)"), "S1_LSASS_ACCESS",
+    EventCode=4624 AND LogonType IN ("3","9","10") AND match(_raw,"(?i)(NTLM|Kerberos)"), "S2_REMOTE_LOGIN",
+    EventCode=4662 AND match(Properties,"(?i)(Replicating Directory Changes|1131f6ad|1131f6aa)"), "S3_DCSYNC",
+    true(), null())
+| where isnotnull(stage)
+| bin _time span=2h
+| stats dc(stage) as stages values(stage) as stage_list dc(host) as hosts by _time, SubjectUserName
+| where stages >= 2 AND mvfind(stage_list,"S1_LSASS_ACCESS")>=0
+| eval rule_id="SP-810010", tactic="Multi-Stage Credential Theft", technique="T1003.001/T1021/T1003.006", severity="CRITICAL", confidence=90
+| table _time, SubjectUserName, hosts, stages, stage_list
+
+`comment("SP-810011 | Correlation | Defense Evasion Trifecta: AV-Stop + Log-Clear + FW-Regel (1h)")`
+index=windows EventCode IN (1,7036,1102,4719,4657)
+| eval stage=case(
+    EventCode=7036 AND match(Message,"(?i)(MsMpEng|WinDefend|SentinelOne|CrowdStrike|Sophos|McAfee|ESET)") AND match(Message,"(?i)(stopped)"), "S1_AV_STOP",
+    EventCode IN (1102,517), "S2_LOG_CLEAR",
+    EventCode=4719 AND match(CategoryId,"(?i)(%%8272)"), "S2_AUDITPOL_CHANGE",
+    EventCode IN (1,4657) AND match(coalesce(CommandLine,ObjectName),"(?i)(netsh.*advfirewall.*add|New-NetFirewallRule|netsh firewall add)"), "S3_FW_RULE_ADD",
+    true(), null())
+| where isnotnull(stage)
+| bin _time span=1h
+| stats dc(stage) as stages values(stage) as stage_list by _time, host
+| where stages >= 2 AND (mvfind(stage_list,"S1_AV_STOP")>=0 OR mvfind(stage_list,"S2_LOG_CLEAR")>=0)
+| eval rule_id="SP-810011", tactic="Multi-Stage Defense Evasion", technique="T1562.001/T1070.001/T1562.004", severity="CRITICAL", confidence=92
+| table _time, host, stages, stage_list
+
+`comment("SP-810012 | Correlation | Supply Chain Attack Chain: Build Modified → Artifact Replaced → Deploy (2h)")`
+index=* (sourcetype="github:audit" OR sourcetype IN ("jenkins:log","github:actions:log") OR sourcetype="kubernetes:audit")
+| eval stage=case(
+    sourcetype="github:audit" AND match(action,"(?i)(push|commit)") AND match(_raw,"(?i)(workflow|\.github/actions)"), "S1_BUILD_MODIFIED",
+    sourcetype IN ("jenkins:log","github:actions:log") AND match(_raw,"(?i)(artifact.*upload|artifact.*publish|release.*asset)"), "S2_ARTIFACT_PUSH",
+    sourcetype="kubernetes:audit" AND verb="create" AND match('objectRef.resource',"deployment"), "S3_DEPLOY",
+    true(), null())
+| where isnotnull(stage)
+| bin _time span=2h
+| stats dc(stage) as stages values(stage) as stage_list by _time, 'repository.full_name'
+| where stages >= 2 AND mvfind(stage_list,"S1_BUILD_MODIFIED")>=0
+| eval rule_id="SP-810012", tactic="Multi-Stage Supply Chain", technique="T1195.002/T1525", severity="HIGH", confidence=82
+| table _time, 'repository.full_name', stages, stage_list
+
+`comment("SP-810013 | Correlation | Data Discovery → Staging → Exfil Chain (4h)")`
+index=* (EventCode IN (1,4663,11) OR sourcetype IN ("ms:o365:management","bluecoat:proxysg","zeek:dns"))
+| eval user=coalesce(User,SubjectUserName,UserId,cs_username)
+| eval stage=case(
+    EventCode=1 AND match(CommandLine,"(?i)(where.*\.xlsx|dir.*sensitive|dir.*confidential|Get-ChildItem.*HR|find.*\.pem|find.*password)"),"S1_DISCOVERY",
+    EventCode=1 AND match(Image,"(?i)(7z|rar|zip|tar|compress)") AND match(CommandLine,"(?i)(a |add )"),"S2_STAGING",
+    sourcetype="bluecoat:proxysg" AND method="POST" AND cs_bytes > 5242880 AND NOT match(cs_host,"(?i)(<COMPANY_DOMAIN>)"),"S3_EXFIL_PROXY",
+    sourcetype="ms:o365:management" AND match(Operation,"(?i)(AnonymousLinkCreated|FileCopied.*External)"),"S3_EXFIL_CLOUD",
+    true(), null())
+| where isnotnull(stage)
+| bin _time span=4h
+| stats dc(stage) as stages values(stage) as stage_list by _time, user, host
+| where stages >= 2 AND mvfind(stage_list,"S1_DISCOVERY")>=0 AND (mvfind(stage_list,"S3_EXFIL_PROXY")>=0 OR mvfind(stage_list,"S3_EXFIL_CLOUD")>=0)
+| eval rule_id="SP-810013", tactic="Multi-Stage Data Exfil", technique="T1083/T1560/T1048", severity="HIGH", confidence=85
+| table _time, user, host, stages, stage_list
+
+`comment("SP-810014 | Correlation | Cloud Identity Attack Chain: App Reg → Consent → Token → Data (1h)")`
+index=* sourcetype IN ("azure:aad:audit","azure:aad:signin","ms:o365:management")
+| eval user=coalesce('properties.initiatedBy.user.userPrincipalName','properties.userPrincipalName',UserId)
+| eval stage=case(
+    sourcetype="azure:aad:audit" AND match(operationName,"(?i)(Add application|Create application)"),"S1_APP_REGISTER",
+    sourcetype="azure:aad:audit" AND match(operationName,"(?i)(Consent to application|Add delegated permission)"),"S2_CONSENT",
+    sourcetype="azure:aad:audit" AND match(operationName,"(?i)(Add service principal credentials|issue token)"),"S3_TOKEN_ISSUE",
+    sourcetype="ms:o365:management" AND match(Operation,"(?i)(FileDownloaded|MailItemsAccessed|FileAccessed)"),"S4_DATA_ACCESS",
+    true(), null())
+| where isnotnull(stage)
+| bin _time span=1h
+| stats dc(stage) as stages values(stage) as stage_list by _time, user
+| where stages >= 3 AND mvfind(stage_list,"S1_APP_REGISTER")>=0 AND mvfind(stage_list,"S4_DATA_ACCESS")>=0
+| eval rule_id="SP-810014", tactic="Multi-Stage Cloud Identity Attack", technique="T1550.001/T1528/T1114", severity="CRITICAL", confidence=90
+| table _time, user, stages, stage_list
+
+`comment("SP-810015 | Correlation | Hypervisor Attack Chain: Admin Login → SSH Enabled → VM Snapshot → Export (2h)")`
+index=vmware sourcetype="vsphere:events"
+| eval stage=case(
+    match(EventTypeId,"(?i)(UserLoginSessionEvent)") AND match(_raw,"(?i)(Admin|admin)"),"S1_ADMIN_LOGIN",
+    match(_raw,"(?i)(SSH.*service.*started|SSH.*enabled|TSM-SSH.*running)"),"S2_SSH_ENABLED",
+    match(EventTypeId,"(?i)(CreateSnapshotEvent|VmSuspendedEvent)") AND match(_raw,"(?i)(memory)"),"S3_MEM_SNAPSHOT",
+    match(EventTypeId,"(?i)(ExportOvfEvent|ExportVmEvent)"),"S4_VM_EXPORT",
+    true(), null())
+| where isnotnull(stage)
+| bin _time span=2h
+| stats dc(stage) as stages values(stage) as stage_list by _time, host
+| where stages >= 2 AND mvfind(stage_list,"S1_ADMIN_LOGIN")>=0
+| eval rule_id="SP-810015", tactic="Multi-Stage Hypervisor Attack", technique="T1133/T1003/T1041", severity="CRITICAL", confidence=88
+| table _time, host, stages, stage_list
+
+`comment("SP-810016 | Correlation | Low-and-Slow Passwort Spray (verteilt über 24h, <5 Fails pro IP)")`
+index=* (EventCode=4625 OR sourcetype IN ("azure:aad:signin","okta:im2:log"))
+| eval upn=coalesce(TargetUserName,'properties.userPrincipalName','actor.alternateId')
+| eval src=coalesce('IpAddress','properties.ipAddress','client.ipAddress')
+| bin _time span=1h
+| stats count by _time, src, upn
+| where count <= 5
+| stats dc(upn) as unique_accounts sum(count) as total_attempts values(src) as src_list dc(src) as unique_src by upn
+| where unique_accounts > 20 AND total_attempts > 50
+| eval rule_id="SP-810016", tactic="Credential Access Low-and-Slow", technique="T1110.003", severity="HIGH", confidence=85
+| table upn, unique_accounts, total_attempts, unique_src
+
+`comment("SP-810017 | Correlation | Service Account Abuse Chain: SVC Login → Admin Escalation → Service Install (1h)")`
+index=windows EventCode IN (4624,4728,4732,7045)
+| eval stage=case(
+    EventCode=4624 AND match(TargetUserName,"(?i)(^svc[-_]|^srv[-_]|^sa[-_])") AND LogonType IN ("3","10"), "S1_SVC_LOGIN",
+    EventCode IN (4728,4732) AND match(MemberName,"(?i)(^svc[-_]|^srv[-_])") AND match(TargetUserName,"(?i)(admin|Domain Admin|Administrators)"), "S2_ADMIN_ADD",
+    EventCode=7045, "S3_SERVICE_INSTALL",
+    true(), null())
+| where isnotnull(stage)
+| eval user=coalesce(TargetUserName,SubjectUserName)
+| bin _time span=1h
+| stats dc(stage) as stages values(stage) as stage_list by _time, host, user
+| where stages >= 2 AND mvfind(stage_list,"S1_SVC_LOGIN")>=0
+| eval rule_id="SP-810017", tactic="Multi-Stage SVC Abuse", technique="T1078.002/T1098/T1543.003", severity="HIGH", confidence=85
+| table _time, host, user, stages, stage_list
+
+`comment("SP-810018 | Correlation | Container Escape Chain: Privileged Pod → docker.sock → Host Access (30 Min)")`
+index=* (sourcetype IN ("kube:audit","kubernetes:audit") OR sourcetype="linux:audit")
+| eval stage=case(
+    sourcetype IN ("kube:audit","kubernetes:audit") AND verb="create" AND match('objectRef.resource',"pod") AND (match('requestObject.spec.containers{}.securityContext.privileged',"true") OR match('requestObject.spec.volumes{}.hostPath.path',"/var/run/docker.sock")), "S1_PRIV_POD",
+    sourcetype="linux:audit" AND match(name,"(?i)(/var/run/docker.sock)") AND type="OPEN", "S2_DOCKER_SOCK",
+    sourcetype="linux:audit" AND match(exe,"(?i)(nsenter|chroot)") AND match(cmdline,"(?i)(-t 1|-n 1)"), "S3_HOST_ESCAPE",
+    true(), null())
+| where isnotnull(stage)
+| eval host_name=host
+| bin _time span=30m
+| stats dc(stage) as stages values(stage) as stage_list by _time, host_name
+| where stages >= 2 AND mvfind(stage_list,"S1_PRIV_POD")>=0
+| eval rule_id="SP-810018", tactic="Multi-Stage Container Escape", technique="T1611/T1059", severity="CRITICAL", confidence=90
+| table _time, host_name, stages, stage_list
+
+`comment("SP-810019 | Correlation | Email-to-Compromise Chain: Phishing → OAuth Consent → Mailbox Forwarding → BEC (2h)")`
+index=* (sourcetype IN ("proofpoint:siem","mimecast:siem","azure:aad:audit","ms:o365:management"))
+| eval user=coalesce(UserId,'properties.initiatedBy.user.userPrincipalName','actor.alternateId')
+| eval stage=case(
+    sourcetype IN ("proofpoint:siem","mimecast:siem") AND match(_raw,"(?i)(phish.*click|credential.*harvest|malicious.*link.*click)"), "S1_PHISH_CLICK",
+    sourcetype="azure:aad:audit" AND match(operationName,"(?i)(Consent to application)") AND match(_raw,"(?i)(Mail\.Read|offline_access)"), "S2_OAUTH_CONSENT",
+    sourcetype="ms:o365:management" AND match(Operation,"(?i)(New-InboxRule|Set-InboxRule)") AND match(_raw,"(?i)(ForwardTo|RedirectTo)"), "S3_MAIL_FORWARD",
+    sourcetype="ms:o365:management" AND match(Operation,"(?i)(Send|SendAs)") AND match(_raw,"(?i)(CEO|CFO|Wire.*transfer|Urgently|Invoice|Payment)"), "S4_BEC",
+    true(), null())
+| where isnotnull(stage)
+| bin _time span=2h
+| stats dc(stage) as stages values(stage) as stage_list by _time, user
+| where stages >= 3 AND mvfind(stage_list,"S1_PHISH_CLICK")>=0 AND mvfind(stage_list,"S4_BEC")>=0
+| eval rule_id="SP-810019", tactic="Multi-Stage BEC", technique="T1566/T1528/T1114/T1534", severity="CRITICAL", confidence=90
+| table _time, user, stages, stage_list
+
+`comment("SP-810020 | Correlation | Full Kill Chain Scorer — Phasen aggregieren zu Risiko-Score")`
+index=* (index=windows OR index=linux OR index=aws OR index=azure OR index=network OR index=kubernetes)
+| eval host_user=coalesce(host."||".User, host."||".TargetUserName, 'userIdentity.arn', 'actor.alternateId')
+| eval phase=case(
+    (EventCode IN (4624,4625) OR sourcetype IN ("azure:aad:signin","okta:im2:log")),"INITIAL_ACCESS",
+    (EventCode=1 AND match(Image,"(?i)(mshta|wscript|powershell)") AND match(ParentImage,"(?i)(winword|excel|outlook)")),"EXECUTION",
+    (EventCode IN (7045,4657) OR match(_raw,"(?i)(scheduled.*task.*new|registry.*run.*key.*add)")),"PERSISTENCE",
+    (EventCode=10 AND match(TargetImage,"(?i)lsass")),"CREDENTIAL_ACCESS",
+    (EventCode IN (4663,11) AND match(_raw,"(?i)(sensitive|confidential|HR|Finance)")),"COLLECTION",
+    ((match(_raw,"(?i)(curl.*http|wget.*http)") AND EventCode=3) OR match(cs_host,"(?i)(dropbox|mega\.nz|wetransfer)")),"EXFILTRATION",
+    (match(_raw,"(?i)(vssadmin.*delete|bcdedit.*no|cipher.*\\/w)")),"IMPACT",
+    true(), null())
+| where isnotnull(phase)
+| bin _time span=4h
+| stats dc(phase) as kill_chain_phases values(phase) as phases count as events by _time, host_user
+| eval risk_score=kill_chain_phases * 15 + if(mvfind(phases,"CREDENTIAL_ACCESS")>=0,25,0) + if(mvfind(phases,"EXFILTRATION")>=0,20,0) + if(mvfind(phases,"IMPACT")>=0,30,0)
+| where risk_score >= 50
+| eval rule_id="SP-810020", tactic="Full Kill Chain", technique="Multiple", severity=case(risk_score>=90,"CRITICAL",risk_score>=70,"HIGH",true(),"MEDIUM"), confidence=min(95,risk_score)
+| sort -risk_score
+| table _time, host_user, kill_chain_phases, phases, events, risk_score, severity

@@ -1,0 +1,189 @@
+
+`comment("SP-790001 | DLP-Exfil | Großer HTTP POST Upload (>50 MB in einer Session)")`
+index=network sourcetype IN ("bluecoat:proxysg","squid","zscaler:proxy","symantec:proxy","forcepoint")
+| where method="POST" AND cs_bytes > 52428800
+AND NOT match(cs_host,"(?i)(sharepoint\.com|onedrive\.live\.com|teams\.microsoft\.com|drive\.google\.com|<COMPANY_DOMAIN>)")
+| eval size_mb=round(cs_bytes/1048576,1)
+| eval user=coalesce(cs_username,username,'User')
+| eval rule_id="SP-790001", tactic="Exfiltration", technique="T1048.003", severity="HIGH", confidence=80
+| table _time, user, src, cs_host, cs_uri_stem, size_mb
+
+`comment("SP-790002 | DLP-Exfil | Upload-Spike zu Cloud-Storage (>500MB/h)")`
+index=network sourcetype IN ("bluecoat:proxysg","squid","zscaler:proxy","paloalto:firewall")
+| where match(cs_host,"(?i)(dropbox\.com|box\.com|drive\.google\.com|mega\.nz|wetransfer\.com|mediafire\.com|sendspace\.com|anonfiles\.com|transfer\.sh)") AND method IN ("POST","PUT")
+| eval user=coalesce(cs_username,username)
+| bin _time span=1h
+| stats sum(cs_bytes) as total_bytes by _time, user, cs_host
+| eval gb=round(total_bytes/1073741824,2)
+| where gb > 0.5
+| eval rule_id="SP-790002", tactic="Exfiltration", technique="T1567.002", severity="HIGH", confidence=82
+| table _time, user, cs_host, gb
+
+`comment("SP-790003 | DLP-Exfil | Komprimierung sensitiver Verzeichnisse")`
+index=windows EventCode=1
+| where match(Image,"(?i)(7z\.exe|7za\.exe|zip\.exe|rar\.exe|winrar\.exe|winzip\.exe|tar\.exe)") AND match(CommandLine,"(?i)(\\\\Documents|\\\\Desktop|sensitive|confidential|HR|Finance|Payroll|Strategy|Customer|Kunden|Vertraulich)")
+| eval user=coalesce(User,'SubjectUserName')
+| eval rule_id="SP-790003", tactic="Collection", technique="T1560.001", severity="HIGH", confidence=82
+| table _time, host, user, Image, CommandLine
+
+`comment("SP-790004 | DLP-Exfil | Base64-kodierte Daten in URL-Parametern (>100 Zeichen)")`
+index=network sourcetype IN ("bluecoat:proxysg","squid","zscaler:proxy")
+| where match(cs_uri_query,"(?i)([A-Za-z0-9+/=]{100,})")
+| rex field=cs_uri_query "(?<b64>[A-Za-z0-9+/=]{100,})"
+| eval decoded=urldecode(b64)
+| where len(b64) > 100
+| eval user=coalesce(cs_username,'User')
+| eval rule_id="SP-790004", tactic="Exfiltration", technique="T1048.003", severity="MEDIUM", confidence=72
+| table _time, user, cs_host, cs_uri_stem, b64
+
+`comment("SP-790005 | DLP-Exfil | DNS-Query mit ungewöhnlich langer Subdomain (>50 Zeichen)")`
+index=network sourcetype IN ("zeek:dns","cisco:umbrella","infoblox","windows:dns")
+| eval subdomain=replace(query,"(?i)\.[a-z]{2,}\.[a-z]{2,6}$","")
+| where len(subdomain) > 50
+AND NOT match(query,"(?i)(_dmarc\.|_domainkey\.|_mta-sts\.|autodiscover\.|lyncdiscover\.)")
+| eval src=coalesce(id.orig_h,src_ip,'QueryName_IP')
+| eval rule_id="SP-790005", tactic="Exfiltration", technique="T1048.003", severity="HIGH", confidence=82
+| table _time, src, query, subdomain
+
+`comment("SP-790006 | DLP-Exfil | FTP Upload zu externem Host")`
+index=network sourcetype IN ("zeek:ftp","cisco:asa","paloalto:firewall") dest_port IN (20,21)
+| where match(command,"(?i)(STOR|STOU|APPE|PUT)") OR (action="allowed" AND bytes_out > 1048576)
+AND NOT match(dst_ip,"^(10\.|192\.168\.|172\.(1[6-9]|2[0-9]|3[01])\.)")
+| eval user=coalesce(user,username)
+| eval rule_id="SP-790006", tactic="Exfiltration", technique="T1048.003", severity="HIGH", confidence=85
+| table _time, user, src_ip, dst_ip, command, bytes_out
+
+`comment("SP-790007 | DLP-Exfil | SCP / SFTP Upload zu Nicht-Inventar-Host")`
+index=network sourcetype IN ("zeek:conn","cisco:asa","paloalto:firewall") dest_port=22
+| where bytes_out > 10485760 AND NOT match(dst_ip,"^(10\.|192\.168\.|172\.(1[6-9]|2[0-9]|3[01])\.)")
+| lookup known_ssh_hosts dst_ip OUTPUT is_known
+| where isnotnull(is_known) AND is_known="false"
+| eval mb_out=round(bytes_out/1048576,1)
+| eval rule_id="SP-790007", tactic="Exfiltration", technique="T1048.002", severity="HIGH", confidence=80
+| table _time, src_ip, dst_ip, mb_out
+
+`comment("SP-790008 | DLP-Exfil | Sensitive Dateitypen auf Removable Media kopiert")`
+index=windows EventCode IN (4663,11)
+| where match(ObjectName,"(?i)(\.pdf$|\.docx?$|\.xlsx?$|\.csv$|\.pptx?$|\.zip$|\.mdb$|\.accdb$|\.sql$|\.bak$)") AND match(ObjectName,"(?i)(^[D-Z]:)")
+AND match(SubjectUserName,".*") AND NOT match(ObjectName,"(?i)(AppData|Local\\Temp|Windows)")
+| lookup removable_drive_letters drive_letter OUTPUT is_removable
+| where isnotnull(is_removable) AND is_removable="true"
+| eval user=coalesce(SubjectUserName,User)
+| eval rule_id="SP-790008", tactic="Exfiltration", technique="T1052.001", severity="HIGH", confidence=80
+| table _time, host, user, ObjectName
+
+`comment("SP-790009 | DLP-Exfil | AWS CLI: Daten-Upload zu externem S3-Bucket")`
+index=aws sourcetype="aws:cloudtrail" eventName IN ("CopyObject","PutObject","UploadPart","CreateMultipartUpload")
+| where NOT match('requestParameters.bucketName',"(?i)(<COMPANY_BUCKET_PREFIX>|<COMPANY_S3>)")
+| eval actor='userIdentity.arn', bucket='requestParameters.bucketName'
+| bin _time span=1h
+| stats count sum('responseElements.contentLength') as bytes by _time, actor, bucket
+| eval mb=round(bytes/1048576,1)
+| where mb > 100 OR count > 50
+| eval rule_id="SP-790009", tactic="Exfiltration", technique="T1537", severity="HIGH", confidence=85
+| table _time, actor, bucket, count, mb
+
+`comment("SP-790010 | DLP-Exfil | Git Push zu externem Repository (große Datenmenge)")`
+index=windows OR index=linux EventCode=1 OR sourcetype="linux:audit"
+| where match(Image,"(?i)(git\.exe|git$)") AND match(CommandLine,"(?i)(push.*http|push.*git@|remote.*add.*github|remote.*add.*gitlab)")
+AND NOT match(CommandLine,"(?i)(<INTERNAL_GIT>|<COMPANY_GIT>)")
+| eval user=coalesce(User,uid)
+| eval rule_id="SP-790010", tactic="Exfiltration", technique="T1048", severity="HIGH", confidence=78
+| table _time, host, user, Image, CommandLine
+
+`comment("SP-790011 | DLP-Exfil | ZIP / RAR in Temp erstellt und sofort gelöscht")`
+index=windows (EventCode=11 OR EventCode=4660)
+| eval user=coalesce(User,SubjectUserName)
+| eval is_archive=if(EventCode=11 AND match(TargetFilename,"(?i)(\.zip$|\.rar$|\.7z$|\.tar\.gz$)"),"CREATE",null())
+| eval is_delete=if(EventCode=4660 AND match(ObjectName,"(?i)(\.zip$|\.rar$|\.7z$|\.tar\.gz$)"),"DELETE",null())
+| eval action=coalesce(is_archive, is_delete)
+| where isnotnull(action)
+| eval filepath=coalesce(TargetFilename, ObjectName)
+| where match(filepath,"(?i)(\\\\Temp\\\\|\\\\Downloads\\\\|\\\\AppData\\\\)")
+| bin _time span=10m
+| stats values(action) as actions dc(action) as unique_actions by _time, host, user, filepath
+| where unique_actions >= 2
+| eval rule_id="SP-790011", tactic="Exfiltration", technique="T1560", severity="HIGH", confidence=82
+| table _time, host, user, filepath, actions
+
+`comment("SP-790012 | DLP-Exfil | Daten-Staging im Webserver-Verzeichnis")`
+index=windows OR index=linux EventCode=11 OR sourcetype="linux:audit"
+| where match(coalesce(TargetFilename,name),"(?i)(wwwroot|inetpub|htdocs|html.*public|/var/www/|nginx.*html)") AND match(coalesce(TargetFilename,name),"(?i)(\.zip$|\.tar$|\.gz$|\.csv$|\.sql$|\.bak$|\.dump$|\.xlsx$)")
+| eval user=coalesce(User,uid)
+| eval rule_id="SP-790012", tactic="Exfiltration", technique="T1071.001", severity="HIGH", confidence=82
+| table _time, host, user, coalesce(TargetFilename,name)
+
+`comment("SP-790013 | DLP-Exfil | Screenshot-Burst (>10 Screenshots in 5 Min)")`
+index=windows EventCode=1
+| where match(Image,"(?i)(nircmd|snippingtool|screencapture|greenshot|lightshot|ShareX|ScreenToGif)") OR (match(Image,"(?i)(PrintScreen|psr\.exe|SnippingTool)") AND match(CommandLine,"(?i)(save|capture|screenshot)"))
+| bin _time span=5m
+| stats count by _time, host, User
+| where count > 10
+| eval rule_id="SP-790013", tactic="Collection", technique="T1113", severity="HIGH", confidence=80
+| table _time, host, User, count
+
+`comment("SP-790014 | DLP-Exfil | Clipboard-Zugriff durch ungewöhnlichen Prozess")`
+index=windows EventCode=10
+| where match(CallTrace,"(?i)(OpenClipboard|GetClipboardData|SetClipboardData|CF_TEXT)") AND NOT match(SourceImage,"(?i)(explorer|Teams|Slack|chrome|firefox|outlook|excel|word|notepad|putty|rdpclip)")
+| eval rule_id="SP-790014", tactic="Collection", technique="T1115", severity="HIGH", confidence=80
+| table _time, host, SourceImage, TargetImage, CallTrace
+
+`comment("SP-790015 | DLP-Exfil | ICMP Exfiltration (ungewöhnlich große / viele ICMP-Pakete)")`
+index=network sourcetype IN ("zeek:conn","paloalto:firewall","cisco:asa") proto="icmp"
+| where orig_bytes > 512
+AND NOT match(id.orig_h,"^(10\.|192\.168\.|172\.(1[6-9]|2[0-9]|3[01])\.)")
+| bin _time span=5m
+| stats count sum(orig_bytes) as total_bytes by _time, id.orig_h, id.resp_h
+| where count > 10 AND total_bytes > 10240
+| eval kb=round(total_bytes/1024,1)
+| eval rule_id="SP-790015", tactic="Exfiltration", technique="T1048.003", severity="HIGH", confidence=82
+| table _time, id.orig_h, id.resp_h, count, kb
+
+`comment("SP-790016 | DLP-Exfil | Sensitive Keywords in ausgehendem HTTP POST-Body")`
+index=network sourcetype IN ("bluecoat:proxysg","squid","zscaler:proxy","suricata")
+| where method="POST" AND NOT match(cs_host,"(?i)(<COMPANY_DOMAIN>|sharepoint\.com|teams\.microsoft\.com)")
+| where match(_raw,"(?i)(password=|passwd=|ssn=|social_security=|credit_card=|api_key=|access_token=|private_key=|secret=)")
+| eval user=coalesce(cs_username,'User')
+| eval rule_id="SP-790016", tactic="Exfiltration", technique="T1048.003", severity="CRITICAL", confidence=85
+| table _time, user, cs_host, cs_uri_stem
+
+`comment("SP-790017 | DLP-Exfil | Neue externe SharePoint-Sharing-Links für große Bibliothek")`
+index=o365 sourcetype="ms:o365:management" Operation IN ("AnonymousLinkCreated","SecureLinkCreated","AddedToSecureLink")
+| eval user=coalesce(UserId,Operator)
+| where NOT match(coalesce(ObjectId,""),"(?i)(<COMPANY_DOMAIN>)")
+| bin _time span=1h
+| stats count dc(ObjectId) as unique_files by _time, user, ClientIP
+| where count > 10
+| eval rule_id="SP-790017", tactic="Exfiltration", technique="T1567.001", severity="HIGH", confidence=80
+| table _time, user, ClientIP, count, unique_files
+
+`comment("SP-790018 | DLP-Exfil | Datenbankabfrage-Ergebnis in Datei geschrieben und sofort transferiert")`
+index=linux sourcetype="linux:audit"
+| where match(exe,"(?i)(mysql|psql|sqlite3|sqlplus)") AND match(cmdline,"(?i)(>.*\.csv|> /tmp|tee.*\.csv|INTO OUTFILE|> /home/|COPY TO)") AND type="EXECVE"
+| eval user=coalesce(auid,uid)
+| eval rule_id="SP-790018", tactic="Collection", technique="T1213", severity="HIGH", confidence=82
+| table _time, host, user, exe, cmdline
+
+`comment("SP-790019 | DLP-Exfil | Mehrere Exfil-Vektoren in kurzer Zeit (Staging-Indikator)")`
+index=* (index=network OR index=windows OR index=linux)
+| eval exfil_type=case(
+    (sourcetype IN ("bluecoat:proxysg","squid","zscaler:proxy") AND method IN ("POST","PUT") AND cs_bytes > 1048576),"PROXY_UPLOAD",
+    (EventCode=11 AND match(TargetFilename,"(?i)(\.zip$|\.7z$|\.rar$)")),"ARCHIVE_CREATE",
+    (sourcetype="ms:o365:management" AND Operation="AnonymousLinkCreated"),"SHAREPOINT_SHARE",
+    (EventCode=1 AND match(Image,"(?i)(robocopy|xcopy|ftp\.exe)") AND match(CommandLine,"(?i)(ftp://|http://|\\\\)")),"FILE_TRANSFER",
+    true(),null())
+| where isnotnull(exfil_type)
+| eval user=coalesce(cs_username,User,SubjectUserName,UserId)
+| bin _time span=30m
+| stats dc(exfil_type) as unique_vectors values(exfil_type) as vector_list by _time, user, host
+| where unique_vectors >= 2
+| eval rule_id="SP-790019", tactic="Exfiltration", technique="T1048", severity="CRITICAL", confidence=85
+| table _time, user, host, unique_vectors, vector_list
+
+`comment("SP-790020 | DLP-Exfil | rclone / rsync zu externem Storage-Endpoint")`
+index=windows OR index=linux EventCode=1 OR sourcetype="linux:audit"
+| where (match(Image,"(?i)(rclone|rsync|s3cmd|mc\.exe|aws\.exe)") AND match(CommandLine,"(?i)(copy|sync|move|upload|put|send)") AND NOT match(CommandLine,"(?i)(^10\.|^192\.168\.|localhost|<INTERNAL_STORAGE>)"))
+OR (match(Image,"(?i)(aws\.exe|aws$)") AND match(CommandLine,"(?i)(s3 cp|s3 sync|s3 mv)") AND NOT match(CommandLine,"(?i)(<COMPANY_BUCKET>)"))
+| eval user=coalesce(User,uid)
+| eval rule_id="SP-790020", tactic="Exfiltration", technique="T1537", severity="HIGH", confidence=85
+| table _time, host, user, Image, CommandLine

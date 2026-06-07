@@ -1,0 +1,157 @@
+
+`comment("SP-750001 | Email-Security | DMARC-Fail-Cluster (>10 in 5 Min von gleicher Sender-Domain)")`
+index=email sourcetype IN ("ms:o365:management","proofpoint:siem","mimecast:siem","exchange:messagetrace")
+| where match(_raw, "(?i)(dmarc.*fail|p=reject.*fail|DMARC.*policy.*reject|dmarc=fail)")
+| eval sender_domain=replace(lower(mvindex(split(coalesce(sender,from_address,'SenderAddress'),"@"),1))," ","")
+| bin _time span=5m
+| stats count by _time, sender_domain
+| where count > 10
+| eval rule_id="SP-750001", tactic="Initial Access", technique="T1566.001", severity="HIGH", confidence=82
+| table _time, sender_domain, count
+
+`comment("SP-750002 | Email-Security | SPF-Fail mit internem Display-Name (CEO/CFO/IT Impersonation)")`
+index=email sourcetype IN ("ms:o365:management","proofpoint:siem","mimecast:siem","exchange:messagetrace")
+| where match(_raw, "(?i)(spf.*fail|spf=fail)")
+| eval display_name=coalesce('SenderDisplayName','sender_name','from_name')
+| where match(display_name, "(?i)(CEO|CFO|CTO|CISO|IT Support|Helpdesk|HR|Finance|Accounts Payable|Microsoft|Google|Apple)")
+| eval rule_id="SP-750002", tactic="Initial Access", technique="T1566.001", severity="HIGH", confidence=85
+| table _time, display_name, 'SenderAddress', 'RecipientAddress', 'Subject'
+
+`comment("SP-750003 | Email-Security | E-Mail mit .iso / .img / .vhd Anhang")`
+index=email sourcetype IN ("ms:o365:management","proofpoint:siem","mimecast:siem")
+| where match(_raw,"(?i)(attachment.*\.iso|attachment.*\.img|attachment.*\.vhd|attachment.*\.vhdx|filename.*\.iso|filename.*\.img)")
+| eval sender=coalesce('SenderAddress','sender'), recipient=coalesce('RecipientAddress','recipient')
+| eval rule_id="SP-750003", tactic="Initial Access", technique="T1566.001", severity="HIGH", confidence=85
+| table _time, sender, recipient, 'Subject', 'attachment_name'
+
+`comment("SP-750004 | Email-Security | E-Mail mit Makro-fähigem Office-Anhang (.xlsm/.docm/.pptm)")`
+index=email sourcetype IN ("ms:o365:management","proofpoint:siem","mimecast:siem")
+| where match(_raw,"(?i)(\.xlsm|\.docm|\.pptm|\.dotm|\.xltm|\.xlam|\.docb)")
+| eval sender=coalesce('SenderAddress','sender')
+| where NOT match(sender,"(?i)(@<COMPANY_DOMAIN>$)")
+| eval rule_id="SP-750004", tactic="Initial Access", technique="T1566.001", severity="HIGH", confidence=85
+| table _time, sender, 'RecipientAddress', 'Subject'
+
+`comment("SP-750005 | Email-Security | E-Mail von neu registrierter Domain (<30 Tage alt)")`
+index=email sourcetype IN ("ms:o365:management","proofpoint:siem","mimecast:siem")
+| eval sender_domain=replace(lower(mvindex(split(coalesce('SenderAddress','sender'),"@"),1))," ","")
+| lookup domain_age domain AS sender_domain OUTPUT age_days
+| where isnotnull(age_days) AND age_days < 30
+| eval rule_id="SP-750005", tactic="Initial Access", technique="T1566.001", severity="HIGH", confidence=82
+| table _time, sender_domain, age_days, 'SenderAddress', 'RecipientAddress', 'Subject'
+
+`comment("SP-750006 | Email-Security | Lookalike / Homoglyph Sender-Domain")`
+index=email sourcetype IN ("ms:o365:management","proofpoint:siem","mimecast:siem")
+| eval sender_domain=replace(lower(mvindex(split(coalesce('SenderAddress','sender'),"@"),1))," ","")
+| where match(sender_domain,"(?i)(micros0ft|m1crosoft|miicrosoft|micr0soft|g00gle|googl3|paypa1|paypai|amaz0n|linkedln|1inkedin|faceb00k|faceboook|bankofamer1ca|ch4se|paypa\.l)")
+| eval rule_id="SP-750006", tactic="Initial Access", technique="T1566.001", severity="HIGH", confidence=90
+| table _time, sender_domain, 'SenderAddress', 'RecipientAddress', 'Subject'
+
+`comment("SP-750007 | Email-Security | Reply-To-Adresse weicht von Sender-Domain ab")`
+index=email sourcetype IN ("ms:o365:management","proofpoint:siem","mimecast:siem")
+| eval sender_domain=lower(mvindex(split(coalesce('SenderAddress','sender'),"@"),1))
+| eval reply_domain=lower(mvindex(split(coalesce('ReplyToAddress','reply_to'),"@"),1))
+| where isnotnull(reply_domain) AND sender_domain != reply_domain AND NOT match(reply_domain,"<COMPANY_DOMAIN>")
+| eval rule_id="SP-750007", tactic="Initial Access", technique="T1566.001", severity="MEDIUM", confidence=75
+| table _time, 'SenderAddress', 'ReplyToAddress', 'RecipientAddress', 'Subject'
+
+`comment("SP-750008 | Email-Security | E-Mail-Bombardierung (>50 E-Mails an gleiche Inbox in 10 Min)")`
+index=email sourcetype IN ("ms:o365:management","exchange:messagetrace","mimecast:siem")
+| eval recipient=coalesce('RecipientAddress','recipient')
+| bin _time span=10m
+| stats count by _time, recipient
+| where count > 50
+| eval rule_id="SP-750008", tactic="Impact", technique="T1498", severity="HIGH", confidence=82
+| table _time, recipient, count
+
+`comment("SP-750009 | Email-Security | HTML-E-Mail mit obfuszierten Links (URL-Shortener / Redirector)")`
+index=email sourcetype IN ("proofpoint:siem","mimecast:siem")
+| where match(_raw,"(?i)(bit\.ly|t\.co|tinyurl|ow\.ly|rb\.gy|short\.io|is\.gd|cutt\.ly|x\.co|t\.me/|discord\.gg/|linktr\.ee)")
+AND NOT match(_raw,"(?i)(@<COMPANY_DOMAIN>$)")
+| eval sender=coalesce('SenderAddress','sender')
+| eval rule_id="SP-750009", tactic="Initial Access", technique="T1566.002", severity="HIGH", confidence=80
+| table _time, sender, 'RecipientAddress', 'Subject', _raw
+
+`comment("SP-750010 | Email-Security | Kalendar-Einladung mit externem Link von unbekanntem Sender")`
+index=email sourcetype IN ("ms:o365:management","exchange:messagetrace")
+| where match(Operation,"(?i)(CalendarItemReceived|AddCalendarItem)") OR match('ItemClass',"(?i)(IPM\.Schedule)")
+| eval sender=coalesce('SenderAddress','sender')
+| where NOT match(sender,"(?i)(@<COMPANY_DOMAIN>$)")
+AND match(_raw,"(?i)(https?://(?!<COMPANY_DOMAIN>))")
+| eval rule_id="SP-750010", tactic="Initial Access", technique="T1566.001", severity="HIGH", confidence=80
+| table _time, sender, 'RecipientAddress', 'Subject'
+
+`comment("SP-750011 | Email-Security | QR-Code im Anhang (Quishing)")`
+index=email sourcetype IN ("proofpoint:siem","mimecast:siem","ms:defender:atp")
+| where match(_raw,"(?i)(qr.*code.*detect|qr_code.*phish|quishing|qrcode.*malicious|image.*qr.*block)")
+| eval sender=coalesce('SenderAddress','sender')
+| eval rule_id="SP-750011", tactic="Initial Access", technique="T1566.001", severity="HIGH", confidence=82
+| table _time, sender, 'RecipientAddress', 'Subject', _raw
+
+`comment("SP-750012 | Email-Security | DocuSign / Adobe Sign Impersonation")`
+index=email sourcetype IN ("ms:o365:management","proofpoint:siem","mimecast:siem")
+| eval sender_domain=lower(mvindex(split(coalesce('SenderAddress','sender'),"@"),1))
+| where match(_raw,"(?i)(docusign|adobe.*sign|hellosign|pandadoc|signrequest)") AND NOT match(sender_domain,"(?i)(docusign\.com$|adobesign\.com$|echosign\.com$|na3\.docusign\.net)")
+| eval rule_id="SP-750012", tactic="Initial Access", technique="T1566.001", severity="HIGH", confidence=85
+| table _time, 'SenderAddress', sender_domain, 'RecipientAddress', 'Subject'
+
+`comment("SP-750013 | Email-Security | Großer Anhang extern gesendet (>10MB)")`
+index=email sourcetype IN ("ms:o365:management","exchange:messagetrace","mimecast:siem")
+| eval size_mb=tonumber(coalesce('Size','message_size','MessageSize'))/1048576
+| where size_mb > 10 AND NOT match(coalesce('RecipientAddress','recipient'),"(?i)(@<COMPANY_DOMAIN>$)")
+| eval sender=coalesce('SenderAddress','sender')
+| eval rule_id="SP-750013", tactic="Exfiltration", technique="T1048.003", severity="MEDIUM", confidence=72
+| table _time, sender, 'RecipientAddress', 'Subject', size_mb
+
+`comment("SP-750014 | Email-Security | Reply-Chain Injection (Antwort in interner E-Mail-Kette von extern)")`
+index=email sourcetype IN ("ms:o365:management","mimecast:siem")
+| eval sender=coalesce('SenderAddress','sender')
+| where NOT match(sender,"(?i)(@<COMPANY_DOMAIN>$)") AND match('Subject',"(?i)(^Re:|^AW:|^FWD:|^Fwd:|^Aw:)")
+| eval rule_id="SP-750014", tactic="Initial Access", technique="T1566.001", severity="HIGH", confidence=82
+| table _time, sender, 'RecipientAddress', 'Subject'
+
+`comment("SP-750015 | Email-Security | Passwort / Credential Keyword in Betreff extern gesendet")`
+index=email sourcetype IN ("ms:o365:management","exchange:messagetrace","mimecast:siem")
+| where match(Subject,"(?i)(password|passwort|credentials|login.*data|kennwort|zugangsdaten|vpn.*access|ssh.*key)") AND NOT match(coalesce('RecipientAddress','recipient'),"(?i)(@<COMPANY_DOMAIN>$)")
+| eval sender=coalesce('SenderAddress','sender')
+| eval rule_id="SP-750015", tactic="Exfiltration", technique="T1048.003", severity="HIGH", confidence=80
+| table _time, sender, 'RecipientAddress', 'Subject'
+
+`comment("SP-750016 | Email-Security | Executive Impersonation (CEO/CFO im Display-Name, externe Absender)")`
+index=email sourcetype IN ("ms:o365:management","proofpoint:siem","mimecast:siem")
+| eval display_name=coalesce('SenderDisplayName','sender_name','from_name')
+| eval sender=coalesce('SenderAddress','sender')
+| where match(display_name,"(?i)(CEO|CFO|CTO|CISO|Chief Executive|Chief Financial|Managing Director|Geschäftsführer)") AND NOT match(sender,"(?i)(@<COMPANY_DOMAIN>$)")
+| eval rule_id="SP-750016", tactic="Initial Access", technique="T1566.001", severity="CRITICAL", confidence=88
+| table _time, display_name, sender, 'RecipientAddress', 'Subject'
+
+`comment("SP-750017 | Email-Security | Vishing / Voicemail-Phishing Anhang-Pattern")`
+index=email sourcetype IN ("ms:o365:management","proofpoint:siem","mimecast:siem")
+| where match(_raw,"(?i)(voicemail|voice.*message|audio.*message|missed.*call.*attachment|\.wav\.html|\.mp3\.html|\.m4a\.html)")
+| eval sender=coalesce('SenderAddress','sender')
+| eval rule_id="SP-750017", tactic="Initial Access", technique="T1566.001", severity="HIGH", confidence=82
+| table _time, sender, 'RecipientAddress', 'Subject'
+
+`comment("SP-750018 | Email-Security | Intern → Extern: Massen-BCC (>10 externe Empfänger)")`
+index=email sourcetype IN ("ms:o365:management","exchange:messagetrace")
+| where match(coalesce('SenderAddress','sender'),"(?i)(@<COMPANY_DOMAIN>$)")
+| eval bcc_count=mvcount(split(coalesce('BccRecipients','bcc')," "))
+| where bcc_count > 10 AND NOT match(coalesce('BccRecipients','bcc'),"(?i)(@<COMPANY_DOMAIN>$)")
+| eval rule_id="SP-750018", tactic="Exfiltration", technique="T1048.003", severity="HIGH", confidence=78
+| table _time, 'SenderAddress', bcc_count, 'Subject'
+
+`comment("SP-750019 | Email-Security | Kein DMARC / SPF / DKIM auf interner Domain erkannt")`
+index=email sourcetype IN ("proofpoint:siem","mimecast:siem")
+| where match(coalesce('SenderAddress','sender'),"(?i)(@<COMPANY_DOMAIN>$)")
+AND (match(_raw,"(?i)(dmarc=none|spf=none|dkim=none)") OR NOT match(_raw,"(?i)(dmarc=pass|spf=pass|dkim=pass)"))
+| eval rule_id="SP-750019", tactic="Defense Evasion", technique="T1036", severity="HIGH", confidence=80
+| table _time, 'SenderAddress', 'RecipientAddress', _raw
+
+`comment("SP-750020 | Email-Security | Makro / Script-Anhang geblockt (Trend: Spike >10 in 1h)")`
+index=email sourcetype IN ("proofpoint:siem","mimecast:siem","ms:defender:atp")
+| where match(_raw,"(?i)(macro.*blocked|macro.*detected|malicious.*macro|VBA.*script.*block|script.*block)")
+| bin _time span=1h
+| stats count by _time, host
+| where count > 10
+| eval rule_id="SP-750020", tactic="Initial Access", technique="T1566.001", severity="HIGH", confidence=85
+| table _time, host, count

@@ -1,0 +1,155 @@
+
+`comment("SP-720001 | DevOps-CI | GitHub Actions Workflow-Datei geändert")`
+index=github sourcetype IN ("github:audit","github:webhooks")
+| where match(action, "(?i)(push|create|update)") AND match('repository.full_name',".*")
+AND match(ref, "(?i)(main|master|release|prod|staging)")
+| eval changed_files=mvindex('commits{}.modified',0)
+| where match(changed_files, "(?i)(\.github/workflows|\.github/actions)")
+| eval actor='actor', repo='repository.full_name'
+| eval rule_id="SP-720001", tactic="Persistence", technique="T1053.005", severity="HIGH", confidence=82
+| table _time, actor, repo, changed_files, ref
+
+`comment("SP-720002 | DevOps-CI | Neuer Deploy-Key zu Repository hinzugefügt")`
+index=github sourcetype="github:audit"
+| where match(action, "(?i)(deploy_key.create|repo.deploy_key.create)")
+| eval actor=coalesce(actor, 'user'), repo='repo'
+| eval rule_id="SP-720002", tactic="Persistence", technique="T1098.001", severity="HIGH", confidence=85
+| table _time, actor, repo, 'data.key_type', 'data.read_only'
+
+`comment("SP-720003 | DevOps-CI | Self-Hosted Runner registriert")`
+index=github sourcetype="github:audit"
+| where match(action, "(?i)(runner.create|runner.register|self_hosted_runner)")
+| eval actor=coalesce(actor,'user'), org='org', repo='repo'
+| eval rule_id="SP-720003", tactic="Persistence", technique="T1053", severity="HIGH", confidence=85
+| table _time, actor, org, repo
+
+`comment("SP-720004 | DevOps-CI | Pipeline führt curl | bash aus (Code Injection Pattern)")`
+index=windows OR index=linux EventCode=1 OR sourcetype="linux:audit"
+| where match(ParentImage, "(?i)(runner|agent|jenkins|bamboo|gitlab|drone|circle|teamcity|azp_agent)")
+AND match(CommandLine, "(?i)(curl.*\|.*bash|wget.*\|.*sh|curl.*-s.*http.*\|.*bash|bash.*<.*curl|sh.*<.*curl|python.*-c.*exec|eval.*base64)")
+| eval rule_id="SP-720004", tactic="Execution", technique="T1059.004", severity="CRITICAL", confidence=88
+| table _time, host, ParentImage, Image, CommandLine
+
+`comment("SP-720005 | DevOps-CI | Repository Secret erstellt oder aktualisiert")`
+index=github sourcetype="github:audit"
+| where match(action, "(?i)(secret.create|secret.update|org.secret|repo.secret|secret_scanning)")
+| eval actor=coalesce(actor,'user'), repo='repo', org='org'
+| eval rule_id="SP-720005", tactic="Credential Access", technique="T1552", severity="HIGH", confidence=80
+| table _time, actor, org, repo, action
+
+`comment("SP-720006 | DevOps-CI | Dependency-Datei geändert (package.json/requirements.txt/go.mod)")`
+index=github sourcetype IN ("github:audit","github:webhooks")
+| where match(action,"(?i)(push|commit)")
+| eval files=mvindex('commits{}.modified',0)
+| where match(files, "(?i)(package\.json|requirements\.txt|Pipfile|go\.mod|go\.sum|composer\.json|Gemfile|pom\.xml|build\.gradle|\.csproj)")
+| eval actor='actor', repo='repository.full_name'
+| eval rule_id="SP-720006", tactic="Persistence", technique="T1195.001", severity="MEDIUM", confidence=65
+| table _time, actor, repo, files
+
+`comment("SP-720007 | DevOps-CI | Branch Protection Rule entfernt")`
+index=github sourcetype="github:audit"
+| where match(action, "(?i)(protected_branch.policy_override|protected_branch.delete|branch_protection_rule.delete)")
+| eval actor=coalesce(actor,'user'), repo='repo'
+| eval rule_id="SP-720007", tactic="Defense Evasion", technique="T1562", severity="HIGH", confidence=88
+| table _time, actor, repo, action
+
+`comment("SP-720008 | DevOps-CI | Force Push auf geschützten Branch")`
+index=github sourcetype="github:audit"
+| where match(action,"(?i)(push)") AND match('data.push_type',"force")
+AND match(ref, "(?i)(^refs/heads/(main|master|release|prod|staging))")
+| eval actor=coalesce(actor,'user'), repo='repo'
+| eval rule_id="SP-720008", tactic="Defense Evasion", technique="T1070", severity="HIGH", confidence=85
+| table _time, actor, repo, ref
+
+`comment("SP-720009 | DevOps-CI | Neuer Admin-Collaborator zu Repo hinzugefügt")`
+index=github sourcetype="github:audit"
+| where match(action, "(?i)(repo.collaborator.added|member.add|org.member.invite)")
+AND match('data.permission',"(?i)(admin|maintain)")
+| eval actor=coalesce(actor,'user'), repo='repo', invited=coalesce('user_affected','invited_user')
+| eval rule_id="SP-720009", tactic="Persistence", technique="T1136", severity="HIGH", confidence=82
+| table _time, actor, repo, invited, 'data.permission'
+
+`comment("SP-720010 | DevOps-CI | Secret in Build-Log exponiert (Patterns im CI-Output)")`
+index=ci_cd sourcetype IN ("jenkins:log","gitlab:ci:log","github:actions:log","azure:devops:log")
+| where match(_raw, "(?i)(AKIA[0-9A-Z]{16}|ghp_[A-Za-z0-9]{36}|xox[baprs]-[A-Za-z0-9-]{10,}|-----BEGIN RSA PRIVATE KEY|password.*=.*[A-Za-z0-9!@#$%]{8,}|token.*=.*[A-Za-z0-9]{20,})")
+| eval job_name=coalesce(job, pipeline, workflow)
+| eval rule_id="SP-720010", tactic="Credential Access", technique="T1552", severity="CRITICAL", confidence=88
+| table _time, host, job_name, _raw
+
+`comment("SP-720011 | DevOps-CI | Ungewöhnliche externe Verbindung vom CI-Runner")`
+index=network sourcetype IN ("zeek:conn","cisco:asa","paloalto:firewall")
+| where match(src_ip, "^<CI_RUNNER_SUBNET>")
+AND NOT match(dst_ip, "^(10\.|192\.168\.|172\.(1[6-9]|2[0-9]|3[01])\.|<KNOWN_EXTERNAL_CIDR>)")
+AND NOT match(dest_host, "(?i)(github\.com|docker\.io|pypi\.org|npmjs\.com|golang\.org|gcr\.io|amazonaws\.com|azure\.com)")
+| eval rule_id="SP-720011", tactic="C2", technique="T1071", severity="HIGH", confidence=78
+| table _time, src_ip, dst_ip, dest_host, dest_port, bytes_out
+
+`comment("SP-720012 | DevOps-CI | Container Image mit 'latest' aus unbekannter Registry gebaut")`
+index=windows OR index=linux EventCode=1 OR sourcetype="linux:audit"
+| where match(ParentImage,"(?i)(docker|podman|nerdctl|buildah)") AND match(CommandLine,"(?i)(from.*:latest|FROM.*:latest)")
+AND NOT match(CommandLine,"(?i)(FROM.*<INTERNAL_REGISTRY>|FROM.*gcr\.io|FROM.*registry\.k8s\.io)")
+| eval rule_id="SP-720012", tactic="Execution", technique="T1610", severity="MEDIUM", confidence=65
+| table _time, host, Image, CommandLine
+
+`comment("SP-720013 | DevOps-CI | GitHub Personal Access Token mit breiten Rechten erstellt")`
+index=github sourcetype="github:audit"
+| where match(action, "(?i)(personal_access_token.create|token.create)")
+AND match('data.scopes', "(?i)(repo|admin:org|admin:repo_hook|gist|delete_repo)")
+| eval actor=coalesce(actor,'user')
+| eval rule_id="SP-720013", tactic="Credential Access", technique="T1552.001", severity="HIGH", confidence=80
+| table _time, actor, 'data.scopes'
+
+`comment("SP-720014 | DevOps-CI | Release Asset nach Signing ersetzt")`
+index=github sourcetype="github:audit"
+| where match(action, "(?i)(release.update|release_asset.update)") AND match('data.action',"edit")
+| eval actor=coalesce(actor,'user'), repo='repo'
+| eval rule_id="SP-720014", tactic="Supply Chain", technique="T1195.002", severity="CRITICAL", confidence=85
+| table _time, actor, repo, 'data.tag_name', 'data.asset_name'
+
+`comment("SP-720015 | DevOps-CI | Pipeline-Job nutzt privilegierten Container")`
+index=kubernetes sourcetype IN ("kube:audit","kubernetes:audit")
+| where match('objectRef.namespace',"(?i)(ci|build|jenkins|gitlab|github|argo|tekton)")
+AND verb="create" AND match('objectRef.resource',"pod")
+AND match('requestObject.spec.containers{}.securityContext.privileged',"true")
+| eval actor='user.username', ns='objectRef.namespace'
+| eval rule_id="SP-720015", tactic="Privilege Escalation", technique="T1611", severity="CRITICAL", confidence=88
+| table _time, actor, ns, 'objectRef.name'
+
+`comment("SP-720016 | DevOps-CI | Direkt-Push auf main ohne Pull Request")`
+index=github sourcetype="github:audit"
+| where match(action,"(?i)push") AND match(ref,"(?i)(^refs/heads/(main|master)$)")
+AND NOT match('data.pull_request',"[0-9]+")
+| eval actor=coalesce(actor,'user'), repo='repo'
+| eval rule_id="SP-720016", tactic="Defense Evasion", technique="T1070", severity="MEDIUM", confidence=72
+| table _time, actor, repo, ref
+
+`comment("SP-720017 | DevOps-CI | Docker Registry Login von unbekanntem CI-Runner IP")`
+index=docker sourcetype="docker:events"
+| where match(Type,"(?i)(registry|login)") AND match(Action,"(?i)(push|pull|login)")
+AND NOT match(Actor.Attributes.name, "(?i)(<INTERNAL_REGISTRY>|docker\.io|gcr\.io)")
+| eval rule_id="SP-720017", tactic="Persistence", technique="T1525", severity="MEDIUM", confidence=72
+| table _time, host, Action, 'Actor.Attributes.name', 'Actor.Attributes.tag'
+
+`comment("SP-720018 | DevOps-CI | npm/pip Package ähnlich wie bekanntes Paket (Typosquatting)")`
+index=windows OR index=linux EventCode=1 OR sourcetype="linux:audit"
+| where match(Image,"(?i)(npm|pip|pip3|yarn|pnpm|poetry)") AND match(CommandLine,"(?i)(install|add|i )")
+| eval package=mvindex(split(CommandLine," "),2)
+| where match(package,"(?i)(requets|reqeusts|crypt0|pycryto|djnago|flaks|expres|lodas|monogodb|expresjs)")
+| eval rule_id="SP-720018", tactic="Supply Chain", technique="T1195.001", severity="CRITICAL", confidence=82
+| table _time, host, Image, CommandLine, package
+
+`comment("SP-720019 | DevOps-CI | Terraform Plan/Apply mit Destroy-Operationen außerhalb Maintenance")`
+index=windows OR index=linux EventCode=1 OR sourcetype="linux:audit"
+| where match(Image,"(?i)(terraform|tofu)") AND match(CommandLine,"(?i)(destroy|apply.*-destroy)")
+| eval hour=tonumber(strftime(_time,"%H"))
+| where hour < 7 OR hour > 21
+| eval rule_id="SP-720019", tactic="Impact", technique="T1485", severity="HIGH", confidence=78
+| table _time, host, Image, CommandLine, hour
+
+`comment("SP-720020 | DevOps-CI | Neues Org-Level Webhook zu nicht-internem Endpunkt")`
+index=github sourcetype="github:audit"
+| where match(action,"(?i)(hook.create|org.hook.create|hook.update)")
+AND NOT match('data.hook.config.url',"(?i)(<INTERNAL_DOMAIN>|localhost|127\.0\.0\.1)")
+| eval actor=coalesce(actor,'user'), org='org', hook_url='data.hook.config.url'
+| eval rule_id="SP-720020", tactic="Exfiltration", technique="T1048", severity="HIGH", confidence=82
+| table _time, actor, org, hook_url

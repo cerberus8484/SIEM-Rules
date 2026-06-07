@@ -1,0 +1,147 @@
+
+`comment("SP-780001 | macOS | LaunchAgent in ~/Library/LaunchAgents erstellt (User Persistence)")`
+index=macos sourcetype IN ("macos:unified:log","macos:es:events","jamf:pro","kandji:events")
+| where match(_raw,"(?i)(LaunchAgents.*plist|com\.apple\.launchd.*user.*add|/Library/LaunchAgents/.*\.plist)")
+AND NOT match(_raw,"(?i)(com\.apple\.|com\.microsoft\.|com\.google\.|com\.dropbox\.|homebrew\.mxcl)")
+| eval user=coalesce(user,'process.user','actor')
+| eval rule_id="SP-780001", tactic="Persistence", technique="T1543.001", severity="HIGH", confidence=85
+| table _time, host, user, _raw
+
+`comment("SP-780002 | macOS | LaunchDaemon in /Library/LaunchDaemons erstellt (System Persistence)")`
+index=macos sourcetype IN ("macos:unified:log","macos:es:events","jamf:pro")
+| where match(_raw,"(?i)(/Library/LaunchDaemons/.*\.plist|launchd.*daemon.*add|launchctl.*bootstrap.*system)")
+AND NOT match(_raw,"(?i)(com\.apple\.|com\.microsoft\.|com\.google\.|com\.adobe\.|org\.cups)")
+| eval user=coalesce(user,'process.user')
+| eval rule_id="SP-780002", tactic="Persistence", technique="T1543.004", severity="CRITICAL", confidence=88
+| table _time, host, user, _raw
+
+`comment("SP-780003 | macOS | Login Item hinzugefügt (Legacy Persistence)")`
+index=macos sourcetype IN ("macos:unified:log","macos:es:events")
+| where match(_raw,"(?i)(sflist.*add|Login Items.*add|LoginItems.*insert|SMLoginItemSetEnabled|login.*item.*register)")
+AND NOT match(_raw,"(?i)(com\.apple\.|com\.microsoft\.|Dropbox|OneDrive|Zoom|Slack|Chrome)")
+| eval user=coalesce(user,'process.user')
+| eval rule_id="SP-780003", tactic="Persistence", technique="T1547.015", severity="HIGH", confidence=82
+| table _time, host, user, _raw
+
+`comment("SP-780004 | macOS | osascript führt Shell-Befehl aus")`
+index=macos sourcetype IN ("macos:unified:log","macos:es:events","macos:syslog")
+| where match(_raw,"(?i)(osascript.*do shell script|osascript.*-e.*sh|osascript.*bash|applescript.*exec|osascript.*python|osascript.*perl)")
+| eval rule_id="SP-780004", tactic="Execution", technique="T1059.002", severity="HIGH", confidence=85
+| table _time, host, 'process.name', _raw
+
+`comment("SP-780005 | macOS | TCC-Datenbank direkt modifiziert (Privacy-Bypass)")`
+index=macos sourcetype IN ("macos:es:events","macos:unified:log")
+| where match(_raw,"(?i)(TCC\.db.*write|com\.apple\.TCC/TCC\.db|tcc\.db.*INSERT|tcc.*MODIFY|TCC.*override)")
+AND NOT match(_raw,"(?i)(mdmclient|System Preferences|Privacy|tccutil)")
+| eval user=coalesce(user,'process.user')
+| eval rule_id="SP-780005", tactic="Defense Evasion", technique="T1548.004", severity="CRITICAL", confidence=88
+| table _time, host, user, _raw
+
+`comment("SP-780006 | macOS | Keychain-Zugriff durch ungewöhnlichen Prozess")`
+index=macos sourcetype IN ("macos:unified:log","macos:es:events")
+| where match(_raw,"(?i)(SecKeychainFind|kSecClass.*kSecClassGenericPassword|SecItemCopyMatching|keychain.*access)") AND NOT match(_raw,"(?i)(chrome|firefox|safari|wallet|1password|bitwarden|keepass|Keychain Access\.app|com\.apple\.accountsd)")
+| eval proc=coalesce('process.name','executable')
+| eval rule_id="SP-780006", tactic="Credential Access", technique="T1555.001", severity="HIGH", confidence=85
+| table _time, host, proc, _raw
+
+`comment("SP-780007 | macOS | Nicht signiertes Binary in User-Pfad ausgeführt")`
+index=macos sourcetype IN ("macos:es:events","jamf:pro","kandji:events")
+| where match(_raw,"(?i)(codesign.*invalid|signature.*invalid|unsigned.*execut|not.*code.*signed)") AND match(_raw,"(?i)(/Users/|/tmp/|/var/folders/|/private/tmp/)")
+| eval proc=coalesce('process.name','executable')
+| eval rule_id="SP-780007", tactic="Defense Evasion", technique="T1036", severity="HIGH", confidence=82
+| table _time, host, proc, _raw
+
+`comment("SP-780008 | macOS | Gatekeeper deaktiviert (spctl --master-disable)")`
+index=macos sourcetype IN ("macos:unified:log","macos:es:events","macos:syslog")
+| where match(_raw,"(?i)(spctl.*--master-disable|spctl.*master.*disable|Gatekeeper.*disabled|GatekeeperDisabled)")
+| eval user=coalesce(user,'process.user')
+| eval rule_id="SP-780008", tactic="Defense Evasion", technique="T1553.001", severity="CRITICAL", confidence=92
+| table _time, host, user, _raw
+
+`comment("SP-780009 | macOS | SIP (System Integrity Protection) deaktiviert")`
+index=macos sourcetype IN ("macos:unified:log","macos:es:events")
+| where match(_raw,"(?i)(csrutil.*disable|SIP.*disabled|System Integrity Protection.*disabled|csr-active-config)")
+| eval rule_id="SP-780009", tactic="Defense Evasion", technique="T1562", severity="CRITICAL", confidence=92
+| table _time, host, _raw
+
+`comment("SP-780010 | macOS | Kernel Extension (kext) geladen")`
+index=macos sourcetype IN ("macos:unified:log","macos:es:events")
+| where match(_raw,"(?i)(kextload|kext.*load|kernel extension.*loaded|KEXTManager.*load)")
+AND NOT match(_raw,"(?i)(com\.apple\.|com\.vmware\.|com\.parallels\.|com\.sophos\.|com\.crowdstrike\.|com\.sentinelone\.)")
+| eval kext=coalesce('kext.bundle_id','kext_id')
+| eval rule_id="SP-780010", tactic="Persistence", technique="T1547.006", severity="HIGH", confidence=82
+| table _time, host, kext, _raw
+
+`comment("SP-780011 | macOS | Python / Ruby / Perl One-Liner mit Download-Exec Pattern")`
+index=macos sourcetype IN ("macos:unified:log","macos:es:events","macos:syslog")
+| where match(_raw,"(?i)(python.*-c.*urllib|python.*-c.*subprocess|ruby.*-e.*open.*exec|perl.*-e.*system|python3.*exec.*compile|python.*eval.*base64)")
+| eval user=coalesce(user,'process.user')
+| eval rule_id="SP-780011", tactic="Execution", technique="T1059.006", severity="HIGH", confidence=85
+| table _time, host, user, _raw
+
+`comment("SP-780012 | macOS | curl / wget Download in /tmp + bash Ausführung")`
+index=macos sourcetype IN ("macos:unified:log","macos:es:events","macos:syslog")
+| where match(_raw,"(?i)(curl.*-o.*/tmp/|wget.*/tmp/|curl.*-s.*http.*/tmp)") OR (match(_raw,"(?i)(curl|wget).*-s.*http") AND match(_raw,"(?i)(\|.*bash|\|.*sh|> /tmp/)"))
+| eval user=coalesce(user,'process.user')
+| eval rule_id="SP-780012", tactic="Execution", technique="T1059.004", severity="HIGH", confidence=88
+| table _time, host, user, _raw
+
+`comment("SP-780013 | macOS | sudoers Datei modifiziert")`
+index=macos sourcetype IN ("macos:es:events","macos:unified:log")
+| where match(_raw,"(?i)(/etc/sudoers|/private/etc/sudoers|sudoers\.d/.*write|visudo.*executed)")
+AND NOT match(_raw,"(?i)(mdmclient|Puppet|Chef|Ansible|Munki)")
+| eval user=coalesce(user,'process.user')
+| eval rule_id="SP-780013", tactic="Privilege Escalation", technique="T1548.003", severity="CRITICAL", confidence=90
+| table _time, host, user, _raw
+
+`comment("SP-780014 | macOS | SSH authorized_keys geändert")`
+index=macos sourcetype IN ("macos:es:events","macos:unified:log")
+| where match(_raw,"(?i)(authorized_keys.*write|\.ssh/authorized_keys.*modified|authorized_keys.*INSERT)")
+| eval user=coalesce(user,'process.user')
+| eval rule_id="SP-780014", tactic="Persistence", technique="T1098.004", severity="HIGH", confidence=88
+| table _time, host, user, _raw
+
+`comment("SP-780015 | macOS | Jamf / MDM-Enrollment entfernt")`
+index=macos sourcetype IN ("macos:unified:log","jamf:pro","kandji:events")
+| where match(_raw,"(?i)(unenroll.*mdm|mdm.*remove|jamf.*remove|remove.*mdm.*profile|profiles.*remove|MDM.*disenroll)")
+| eval user=coalesce(user,'actor')
+| eval rule_id="SP-780015", tactic="Defense Evasion", technique="T1562", severity="CRITICAL", confidence=88
+| table _time, host, user, _raw
+
+`comment("SP-780016 | macOS | Applikations-Bundle nach Installation geändert (Code Signing Bypass)")`
+index=macos sourcetype IN ("macos:es:events","jamf:pro")
+| where match(_raw,"(?i)(Contents/MacOS/.*write|\.app.*modified.*after.*install|code.*sign.*fail.*after|mach-o.*modified)")
+AND NOT match(_raw,"(?i)(Software Update|com\.apple\.installer|updater\.app|sparkle)")
+| eval rule_id="SP-780016", tactic="Defense Evasion", technique="T1036.001", severity="HIGH", confidence=82
+| table _time, host, 'process.name', _raw
+
+`comment("SP-780017 | macOS | /etc/hosts modifiziert")`
+index=macos sourcetype IN ("macos:es:events","macos:unified:log")
+| where match(_raw,"(?i)(/etc/hosts.*write|/private/etc/hosts.*modified|hosts.*file.*changed)")
+AND NOT match(_raw,"(?i)(mdmclient|Puppet|Chef|VirtualBox|parallels)")
+| eval user=coalesce(user,'process.user')
+| eval rule_id="SP-780017", tactic="Defense Evasion", technique="T1565.001", severity="HIGH", confidence=85
+| table _time, host, user, _raw
+
+`comment("SP-780018 | macOS | Screen Recording ohne TCC-Prompt (Screen Capture)")`
+index=macos sourcetype IN ("macos:unified:log","macos:es:events")
+| where match(_raw,"(?i)(CGDisplayStream.*create|screencapturekit.*permission.*bypass|com\.apple\.screencapture.*execut|tcc.*screen.*bypass)")
+AND NOT match(_raw,"(?i)(Zoom|Teams|WebEx|Slack|Loom|ScreenFlow|QuickTime|com\.apple\.screencapture)")
+| eval proc=coalesce('process.name','executable')
+| eval rule_id="SP-780018", tactic="Collection", technique="T1113", severity="HIGH", confidence=80
+| table _time, host, proc, _raw
+
+`comment("SP-780019 | macOS | defaults write für ungewöhnliche Persistence (Dock / Login)")`
+index=macos sourcetype IN ("macos:unified:log","macos:es:events","macos:syslog")
+| where match(_raw,"(?i)(defaults.*write.*com\.apple\.loginwindow|defaults.*write.*persist.*launch|defaults.*write.*hide.*dock)") AND match(_raw,"(?i)(sudo|root)")
+| eval user=coalesce(user,'process.user')
+| eval rule_id="SP-780019", tactic="Persistence", technique="T1543", severity="MEDIUM", confidence=72
+| table _time, host, user, _raw
+
+`comment("SP-780020 | macOS | crontab installiert (ungewöhnlich auf macOS)")`
+index=macos sourcetype IN ("macos:unified:log","macos:es:events","macos:syslog")
+| where match(_raw,"(?i)(crontab.*-e|crontab.*-l|cron.*task.*add|/var/spool/cron/crontabs/.*write)")
+AND NOT match(_raw,"(?i)(brew|update|backup|TimeMachine)")
+| eval user=coalesce(user,'process.user')
+| eval rule_id="SP-780020", tactic="Persistence", technique="T1053.003", severity="HIGH", confidence=82
+| table _time, host, user, _raw

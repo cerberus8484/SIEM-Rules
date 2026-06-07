@@ -1,0 +1,181 @@
+-- QR-700001 | Identity | Entra ID: Global Admin direkt zugewiesen
+-- Tactic: Privilege Escalation | T1078.004 | Severity: CRITICAL
+SELECT DATEFORMAT(devicetime,'yyyy-MM-dd HH:mm:ss') AS Zeit,
+  username, sourceip,
+  UTF8(payload) AS Details
+FROM events
+WHERE logsourcetypename(logsourceid) ILIKE '%Azure%'
+  AND UTF8(payload) ILIKE '%Add member to role%'
+  AND (UTF8(payload) ILIKE '%Global Admin%' OR UTF8(payload) ILIKE '%Company Admin%'
+    OR UTF8(payload) ILIKE '%Privileged Role Admin%')
+  AND NOT UTF8(payload) ILIKE '%PIM%'
+LAST 24 HOURS
+
+-- QR-700002 | Identity | Entra ID: Break-Glass Account Login
+-- Tactic: Initial Access | T1078.004 | Severity: CRITICAL
+SELECT DATEFORMAT(devicetime,'yyyy-MM-dd HH:mm:ss') AS Zeit,
+  username, sourceip,
+  UTF8(payload) AS Details
+FROM events
+WHERE logsourcetypename(logsourceid) ILIKE '%Azure%'
+  AND category = 13001
+  AND (username ILIKE '%breakglass%' OR username ILIKE '%break-glass%'
+    OR username ILIKE '%emergency%' OR username ILIKE '%bga-%')
+LAST 30 DAYS
+
+-- QR-700003 | Identity | Entra ID: Conditional Access Policy geändert/gelöscht
+-- Tactic: Defense Evasion | T1556 | Severity: CRITICAL
+SELECT DATEFORMAT(devicetime,'yyyy-MM-dd HH:mm:ss') AS Zeit,
+  username, sourceip,
+  UTF8(payload) AS Details
+FROM events
+WHERE logsourcetypename(logsourceid) ILIKE '%Azure%'
+  AND (UTF8(payload) ILIKE '%Update conditional access policy%'
+    OR UTF8(payload) ILIKE '%Delete conditional access policy%')
+LAST 24 HOURS
+
+-- QR-700004 | Identity | Entra ID: MFA-Gerät gelöscht
+-- Tactic: Defense Evasion | T1556.006 | Severity: HIGH
+SELECT DATEFORMAT(devicetime,'yyyy-MM-dd HH:mm:ss') AS Zeit,
+  username, sourceip,
+  UTF8(payload) AS Details
+FROM events
+WHERE logsourcetypename(logsourceid) ILIKE '%Azure%'
+  AND (UTF8(payload) ILIKE '%Delete StrongAuthentication%'
+    OR UTF8(payload) ILIKE '%Delete Authentication Method%'
+    OR UTF8(payload) ILIKE '%strong authentication method deleted%')
+LAST 24 HOURS
+
+-- QR-700005 | Identity | Entra ID: OAuth App mit Mail.ReadWrite genehmigt
+-- Tactic: Credential Access | T1528 | Severity: HIGH
+SELECT DATEFORMAT(devicetime,'yyyy-MM-dd HH:mm:ss') AS Zeit,
+  username, sourceip,
+  UTF8(payload) AS Details
+FROM events
+WHERE logsourcetypename(logsourceid) ILIKE '%Azure%'
+  AND UTF8(payload) ILIKE '%Consent to application%'
+  AND (UTF8(payload) ILIKE '%Mail.ReadWrite%' OR UTF8(payload) ILIKE '%Mail.Read%'
+    OR UTF8(payload) ILIKE '%Files.ReadWrite.All%' OR UTF8(payload) ILIKE '%Directory.ReadWrite.All%'
+    OR UTF8(payload) ILIKE '%offline_access%')
+LAST 24 HOURS
+
+-- QR-700006 | Identity | AWS IAM: Root-Account Login
+-- Tactic: Initial Access | T1078.004 | Severity: CRITICAL
+SELECT DATEFORMAT(devicetime,'yyyy-MM-dd HH:mm:ss') AS Zeit,
+  username, sourceip,
+  UTF8(payload) AS Details
+FROM events
+WHERE logsourcetypename(logsourceid) ILIKE '%CloudTrail%'
+  AND UTF8(payload) ILIKE '%ConsoleLogin%'
+  AND UTF8(payload) ILIKE '%Root%'
+LAST 24 HOURS
+
+-- QR-700007 | Identity | AWS IAM: AdministratorAccess Policy gebunden
+-- Tactic: Privilege Escalation | T1098.003 | Severity: CRITICAL
+SELECT DATEFORMAT(devicetime,'yyyy-MM-dd HH:mm:ss') AS Zeit,
+  username, sourceip,
+  UTF8(payload) AS Details
+FROM events
+WHERE logsourcetypename(logsourceid) ILIKE '%CloudTrail%'
+  AND (UTF8(payload) ILIKE '%AttachUserPolicy%' OR UTF8(payload) ILIKE '%AttachRolePolicy%')
+  AND UTF8(payload) ILIKE '%AdministratorAccess%'
+LAST 24 HOURS
+
+-- QR-700008 | Identity | AWS IAM: IAM Enumeration Burst (>50 Calls in 5 Min)
+-- Tactic: Discovery | T1069.003 | Severity: HIGH
+SELECT DATEFORMAT(devicetime,'yyyy-MM-dd HH:mm:ss') AS Zeit,
+  username, sourceip,
+  COUNT(*) AS Anzahl
+FROM events
+WHERE logsourcetypename(logsourceid) ILIKE '%CloudTrail%'
+  AND (UTF8(payload) ILIKE '%ListUsers%' OR UTF8(payload) ILIKE '%ListRoles%'
+    OR UTF8(payload) ILIKE '%ListPolicies%' OR UTF8(payload) ILIKE '%GetAccountAuthorizationDetails%')
+GROUP BY DATEFORMAT(devicetime,'yyyy-MM-dd HH:mm'), username, sourceip
+HAVING COUNT(*) > 50
+LAST 1 HOURS
+
+-- QR-700009 | Identity | Okta: MFA Push-Bombing (>3 Fails in 5 Min)
+-- Tactic: Credential Access | T1621 | Severity: HIGH
+SELECT DATEFORMAT(devicetime,'yyyy-MM-dd HH:mm:ss') AS Zeit,
+  username, sourceip,
+  COUNT(*) AS PushVersuche
+FROM events
+WHERE logsourcetypename(logsourceid) ILIKE '%Okta%'
+  AND UTF8(payload) ILIKE '%user.mfa.factor%'
+  AND UTF8(payload) ILIKE '%FAILURE%'
+  AND UTF8(payload) ILIKE '%OKTA_VERIFY_PUSH%'
+GROUP BY DATEFORMAT(devicetime,'yyyy-MM-dd HH:mm'), username, sourceip
+HAVING COUNT(*) > 3
+LAST 1 HOURS
+
+-- QR-700010 | Identity | Okta: Brute Force Erfolg (viele Fails + 1 Success)
+-- Tactic: Credential Access | T1110.001 | Severity: HIGH
+SELECT DATEFORMAT(devicetime,'yyyy-MM-dd HH:mm:ss') AS Zeit,
+  username, sourceip,
+  SUM(CASE WHEN UTF8(payload) ILIKE '%SUCCESS%' THEN 1 ELSE 0 END) AS Erfolge,
+  SUM(CASE WHEN UTF8(payload) ILIKE '%FAILURE%' THEN 1 ELSE 0 END) AS Fehlversuche
+FROM events
+WHERE logsourcetypename(logsourceid) ILIKE '%Okta%'
+  AND UTF8(payload) ILIKE '%user.session.start%'
+GROUP BY DATEFORMAT(devicetime,'yyyy-MM-dd HH:mm'), username, sourceip
+HAVING Fehlversuche > 5 AND Erfolge > 0
+LAST 1 HOURS
+
+-- QR-700011 | Identity | Passwort-Spray: >15 verschiedene Accounts, gleiche IP
+-- Tactic: Credential Access | T1110.003 | Severity: HIGH
+SELECT DATEFORMAT(devicetime,'yyyy-MM-dd HH:mm:ss') AS Zeit,
+  sourceip,
+  COUNT(DISTINCT username) AS EindeutigeAccounts,
+  COUNT(*) AS GesamtVersuche
+FROM events
+WHERE logsourcetypename(logsourceid) ILIKE '%Azure%'
+  AND category = 50126
+GROUP BY DATEFORMAT(devicetime,'yyyy-MM-dd HH:mm'), sourceip
+HAVING EindeutigeAccounts > 15
+LAST 1 HOURS
+
+-- QR-700012 | Identity | Service Account interaktiv eingeloggt
+-- Tactic: Privilege Escalation | T1078.002 | Severity: HIGH
+SELECT DATEFORMAT(devicetime,'yyyy-MM-dd HH:mm:ss') AS Zeit,
+  username, sourceip,
+  UTF8(payload) AS Details
+FROM events
+WHERE category = 5001
+  AND (username ILIKE 'svc_%' OR username ILIKE 'svc-%' OR username ILIKE 'srv_%'
+    OR username ILIKE 'sa_%' OR username ILIKE 'service_%')
+  AND UTF8(payload) ILIKE '%interactive%'
+LAST 24 HOURS
+
+-- QR-700013 | Identity | AWS IAM: Organizations LeaveOrganization
+-- Tactic: Impact | T1531 | Severity: CRITICAL
+SELECT DATEFORMAT(devicetime,'yyyy-MM-dd HH:mm:ss') AS Zeit,
+  username, sourceip,
+  UTF8(payload) AS Details
+FROM events
+WHERE logsourcetypename(logsourceid) ILIKE '%CloudTrail%'
+  AND (UTF8(payload) ILIKE '%LeaveOrganization%' OR UTF8(payload) ILIKE '%RemoveAccountFromOrganization%'
+    OR UTF8(payload) ILIKE '%CloseAccount%')
+LAST 30 DAYS
+
+-- QR-700014 | Identity | Entra ID: Bulk Guest-Einladung (>10 in 1h)
+-- Tactic: Initial Access | T1078.004 | Severity: HIGH
+SELECT DATEFORMAT(devicetime,'yyyy-MM-dd HH:mm') AS ZeitBlock,
+  username, sourceip,
+  COUNT(*) AS Einladungen
+FROM events
+WHERE logsourcetypename(logsourceid) ILIKE '%Azure%'
+  AND UTF8(payload) ILIKE '%Invite external user%'
+GROUP BY DATEFORMAT(devicetime,'yyyy-MM-dd HH:mm'), username, sourceip
+HAVING COUNT(*) > 10
+LAST 24 HOURS
+
+-- QR-700015 | Identity | AWS IAM: Permission Boundary entfernt
+-- Tactic: Privilege Escalation | T1548 | Severity: HIGH
+SELECT DATEFORMAT(devicetime,'yyyy-MM-dd HH:mm:ss') AS Zeit,
+  username, sourceip,
+  UTF8(payload) AS Details
+FROM events
+WHERE logsourcetypename(logsourceid) ILIKE '%CloudTrail%'
+  AND (UTF8(payload) ILIKE '%DeleteUserPermissionsBoundary%'
+    OR UTF8(payload) ILIKE '%DeleteRolePermissionsBoundary%')
+LAST 24 HOURS

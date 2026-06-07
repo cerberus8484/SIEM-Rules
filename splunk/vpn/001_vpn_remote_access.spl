@@ -1,0 +1,180 @@
+
+`comment("SP-770001 | VPN-RemoteAccess | Login aus neuem Land für diesen User (erstmalig)")`
+index=vpn sourcetype IN ("cisco:asa","paloalto:globalprotect","fortinet:vpn","checkpoint:vpn","pulse:vpn","anyconnect","openvpn","wireguard")
+| eval user=coalesce(user,username,'User'), country=coalesce(country,src_country,'Country')
+| where isnotnull(country) AND isnotnull(user) AND match(_raw,"(?i)(connected|authenticated|success)")
+| stats values(country) as countries dc(country) as unique_countries by user
+| where unique_countries > 3
+| eval rule_id="SP-770001", tactic="Initial Access", technique="T1078", severity="HIGH", confidence=78
+| table user, unique_countries, countries
+
+`comment("SP-770002 | VPN-RemoteAccess | Login aus Hochrisiko-Land")`
+index=vpn sourcetype IN ("cisco:asa","paloalto:globalprotect","fortinet:vpn","checkpoint:vpn","anyconnect")
+| eval country=coalesce(country,src_country,'Country')
+| where match(country,"(?i)(^Korea.*North|^Russia$|^CN$|^China$|^Iran$|^North Korea$|^Venezuela$|^Cuba$|^Syria$|^Belarus$|^NK$)")
+AND match(_raw,"(?i)(connected|authenticated|success|login.*ok)")
+| eval user=coalesce(user,username)
+| eval rule_id="SP-770002", tactic="Initial Access", technique="T1078", severity="HIGH", confidence=80
+| table _time, user, src_ip, country
+
+`comment("SP-770003 | VPN-RemoteAccess | Viele Failed Logins vor Erfolg (Brute Force)")`
+index=vpn sourcetype IN ("cisco:asa","paloalto:globalprotect","fortinet:vpn","checkpoint:vpn","anyconnect")
+| eval user=coalesce(user,username), src=coalesce(src_ip,'SourceIP')
+| eval success=if(match(_raw,"(?i)(authenticated|connected|login.*ok|success)"),1,0)
+| eval fail=if(match(_raw,"(?i)(fail|denied|reject|invalid.*password|authentication.*error)"),1,0)
+| stats sum(success) as successes sum(fail) as fails by user, src
+| where fails > 5 AND successes > 0
+| eval rule_id="SP-770003", tactic="Credential Access", technique="T1110.001", severity="HIGH", confidence=88
+| table user, src, fails, successes
+
+`comment("SP-770004 | VPN-RemoteAccess | Admin-VPN außerhalb Geschäftszeiten")`
+index=vpn sourcetype IN ("cisco:asa","paloalto:globalprotect","fortinet:vpn","anyconnect")
+| eval user=coalesce(user,username)
+| where match(user,"(?i)(admin|adm[-_]|[-_]adm|sysadmin|devops|netops|secops|root)")
+AND match(_raw,"(?i)(connected|authenticated|success)")
+| eval hour=tonumber(strftime(_time,"%H")), weekday=strftime(_time,"%u")
+| where hour < 6 OR hour > 22 OR weekday >= 6
+| eval rule_id="SP-770004", tactic="Initial Access", technique="T1078", severity="HIGH", confidence=80
+| table _time, user, src_ip, hour, weekday
+
+`comment("SP-770005 | VPN-RemoteAccess | Gleichzeitige VPN-Sessions von verschiedenen IPs (Credential-Sharing)")`
+index=vpn sourcetype IN ("cisco:asa","paloalto:globalprotect","fortinet:vpn","checkpoint:vpn","anyconnect")
+| where match(_raw,"(?i)(connected|authenticated|success)")
+| eval user=coalesce(user,username), src=coalesce(src_ip,'SourceIP')
+| bin _time span=5m
+| stats dc(src) as unique_src values(src) as src_list by _time, user
+| where unique_src >= 2
+| eval rule_id="SP-770005", tactic="Credential Access", technique="T1078", severity="HIGH", confidence=82
+| table _time, user, unique_src, src_list
+
+`comment("SP-770006 | VPN-RemoteAccess | VPN-Login von Tor Exit Node oder bekanntem VPN-Provider")`
+index=vpn sourcetype IN ("cisco:asa","paloalto:globalprotect","fortinet:vpn","anyconnect")
+| eval src=coalesce(src_ip,'SourceIP')
+| where match(src,"^(185\.220\.|193\.32\.|91\.92\.|45\.142\.|198\.54\.|23\.129\.|46\.166\.|51\.77\.|185\.100\.)")
+OR match(_raw,"(?i)(tor.*exit|anonymized.*ip|vpn.*provider|mullvad|protonvpn|nordvpn|expressvpn)")
+| eval user=coalesce(user,username)
+| eval rule_id="SP-770006", tactic="Defense Evasion", technique="T1090.003", severity="HIGH", confidence=85
+| table _time, user, src
+
+`comment("SP-770007 | VPN-RemoteAccess | Neues Gerät über VPN verbunden (unbekannte Device ID)")`
+index=vpn sourcetype IN ("paloalto:globalprotect","cisco:asa:vpn","anyconnect","pulse:vpn")
+| eval user=coalesce(user,username), device=coalesce('machine_name','DeviceID','client_os','endpoint_sn')
+| where isnotnull(device) AND match(_raw,"(?i)(connected|success)")
+| lookup known_vpn_devices user, device OUTPUT is_known
+| where isnotnull(is_known) AND is_known="false"
+| eval rule_id="SP-770007", tactic="Initial Access", technique="T1133", severity="MEDIUM", confidence=72
+| table _time, user, device, src_ip
+
+`comment("SP-770008 | VPN-RemoteAccess | Hohe Bandbreite auf VPN-Session (>1 GB/h)")`
+index=vpn sourcetype IN ("cisco:asa","paloalto:globalprotect","fortinet:vpn","anyconnect")
+| eval user=coalesce(user,username)
+| eval bytes_out=tonumber(coalesce('bytes_out','out_bytes','Bytes_Transmitted'))
+| where bytes_out > 1073741824
+| bin _time span=1h
+| stats sum(bytes_out) as total_bytes by _time, user, src_ip
+| eval gb=round(total_bytes/1073741824,2)
+| where gb > 1
+| eval rule_id="SP-770008", tactic="Exfiltration", technique="T1048", severity="HIGH", confidence=80
+| table _time, user, src_ip, gb
+
+`comment("SP-770009 | VPN-RemoteAccess | Kurze wiederkehrende VPN-Sessions (Beaconing-Pattern)")`
+index=vpn sourcetype IN ("cisco:asa","paloalto:globalprotect","fortinet:vpn","anyconnect")
+| eval user=coalesce(user,username), src=coalesce(src_ip,'SourceIP')
+| eval session_len=tonumber(coalesce('session_duration','duration'))
+| where session_len < 300 AND session_len > 0
+AND match(_raw,"(?i)(disconnected|terminated|logout)")
+| bin _time span=1h
+| stats count by _time, user, src
+| where count > 6
+| eval rule_id="SP-770009", tactic="C2", technique="T1071", severity="MEDIUM", confidence=72
+| table _time, user, src, count
+
+`comment("SP-770010 | VPN-RemoteAccess | VPN-Policy / Split-Tunnel Konfiguration geändert")`
+index=vpn sourcetype IN ("cisco:asa","paloalto:globalprotect","fortinet:vpn")
+| where match(_raw,"(?i)(policy.*change|split.*tunnel.*change|profile.*update|tunnel.*policy.*modif)")
+AND NOT match(_raw,"(?i)(lab|test|dev)")
+| eval user=coalesce(user,username,'admin')
+| eval rule_id="SP-770010", tactic="Defense Evasion", technique="T1562", severity="HIGH", confidence=80
+| table _time, user, host, _raw
+
+`comment("SP-770011 | VPN-RemoteAccess | Service Account nutzt VPN (sollte API/Automation verwenden)")`
+index=vpn sourcetype IN ("cisco:asa","paloalto:globalprotect","fortinet:vpn","anyconnect")
+| eval user=coalesce(user,username)
+| where match(user,"(?i)(^svc[-_]|^srv[-_]|^sa[-_]|^service[-_]|[-_]svc$|^adsync|^aadsync|^msol)")
+AND match(_raw,"(?i)(connected|authenticated|success)")
+| eval rule_id="SP-770011", tactic="Initial Access", technique="T1078.002", severity="HIGH", confidence=85
+| table _time, user, src_ip
+
+`comment("SP-770012 | VPN-RemoteAccess | VPN-Verbindung nach Off-Boarding (Account deaktiviert, Login-Versuch)")`
+index=vpn sourcetype IN ("cisco:asa","paloalto:globalprotect","fortinet:vpn","anyconnect")
+| eval user=coalesce(user,username)
+| lookup offboarded_users user OUTPUT offboarding_date
+| where isnotnull(offboarding_date) AND _time > strptime(offboarding_date,"%Y-%m-%d")
+| eval rule_id="SP-770012", tactic="Initial Access", technique="T1078", severity="CRITICAL", confidence=88
+| table _time, user, src_ip, offboarding_date
+
+`comment("SP-770013 | VPN-RemoteAccess | Unmögliche Reise (zwei VPN-Logins, unterschiedliche Länder, <1h)")`
+index=vpn sourcetype IN ("cisco:asa","paloalto:globalprotect","fortinet:vpn","anyconnect")
+| eval user=coalesce(user,username), country=coalesce(country,src_country)
+| where isnotnull(country) AND match(_raw,"(?i)(connected|authenticated|success)")
+| bin _time span=1h
+| stats dc(country) as unique_countries values(country) as countries by _time, user
+| where unique_countries >= 2
+| eval rule_id="SP-770013", tactic="Initial Access", technique="T1078", severity="CRITICAL", confidence=90
+| table _time, user, unique_countries, countries
+
+`comment("SP-770014 | VPN-RemoteAccess | ZTNA Policy Exception genehmigt")`
+index=vpn sourcetype IN ("zscaler:zia","cloudflare:access","paloalto:prisma","netskope")
+| where match(_raw,"(?i)(exception.*grant|bypass.*approv|policy.*override|exemption.*allow)")
+| eval user=coalesce(user,username,'actor')
+| eval rule_id="SP-770014", tactic="Defense Evasion", technique="T1562", severity="HIGH", confidence=80
+| table _time, user, _raw
+
+`comment("SP-770015 | VPN-RemoteAccess | VPN-Zugriff auf OT / ICS / SCADA Segment")`
+index=vpn sourcetype IN ("cisco:asa","paloalto:globalprotect","fortinet:vpn","anyconnect")
+| eval user=coalesce(user,username), dst=coalesce(dst_ip,'DestinationIP')
+| where match(dst,"(?i)(^<OT_SUBNET>|^<SCADA_SUBNET>|^<ICS_SUBNET>)")
+AND match(_raw,"(?i)(connected|authenticated|success)")
+AND NOT match(user,"(?i)(ot[-_]admin|scada[-_]maint|ics[-_]operator)")
+| eval rule_id="SP-770015", tactic="Lateral Movement", technique="T1021", severity="CRITICAL", confidence=88
+| table _time, user, src_ip, dst
+
+`comment("SP-770016 | VPN-RemoteAccess | Direkter RDP / SSH ohne VPN von extern")`
+index=network sourcetype IN ("cisco:asa","paloalto:firewall","fortinet:firewall")
+| where (dest_port IN (3389, 22, 23, 5900)) AND action="allowed"
+AND NOT match(src_ip,"^(10\.|192\.168\.|172\.(1[6-9]|2[0-9]|3[01])\.)")
+AND NOT match(dst_ip,"^<DMZ_SUBNET>")
+| eval rule_id="SP-770016", tactic="Initial Access", technique="T1133", severity="HIGH", confidence=82
+| table _time, src_ip, dst_ip, dest_port, action
+
+`comment("SP-770017 | VPN-RemoteAccess | VPN-Log-Weiterleitung gestoppt (Blind Spot)")`
+index=internal sourcetype="splunkd"
+| where match(message,"(?i)(input.*stopped|indexing.*stopped|connection.*lost|source.*not.*feeding)")
+AND match(source,"(?i)(vpn|cisco.*asa|globalprotect|anyconnect|fortinet)")
+| eval rule_id="SP-770017", tactic="Defense Evasion", technique="T1562.006", severity="HIGH", confidence=80
+| table _time, host, source, message
+
+`comment("SP-770018 | VPN-RemoteAccess | Zertifikat-Basierte VPN-Auth mit abgelaufenem Zertifikat")`
+index=vpn sourcetype IN ("cisco:asa","paloalto:globalprotect","fortinet:vpn")
+| where match(_raw,"(?i)(certificate.*expired|cert.*invalid|certificate.*revoked|PKI.*auth.*fail)")
+| eval user=coalesce(user,username)
+| eval rule_id="SP-770018", tactic="Initial Access", technique="T1133", severity="MEDIUM", confidence=72
+| table _time, user, src_ip, _raw
+
+`comment("SP-770019 | VPN-RemoteAccess | Jump Host ohne VPN-Prefix direkt aus Internet erreicht")`
+index=network sourcetype IN ("paloalto:firewall","cisco:asa","fortinet:firewall")
+| where match(dst_ip,"(?i)(^<JUMP_HOST_IP>|^<BASTION_IP>)") AND action="allowed"
+AND NOT match(src_ip,"^<VPN_CLIENT_SUBNET>")
+AND NOT match(src_ip,"^(10\.|192\.168\.|172\.(1[6-9]|2[0-9]|3[01])\.)")
+| eval rule_id="SP-770019", tactic="Initial Access", technique="T1133", severity="CRITICAL", confidence=88
+| table _time, src_ip, dst_ip, dest_port
+
+`comment("SP-770020 | VPN-RemoteAccess | Massen-VPN-Login (Password Spray auf VPN Gateway)")`
+index=vpn sourcetype IN ("cisco:asa","paloalto:globalprotect","fortinet:vpn","anyconnect")
+| where match(_raw,"(?i)(fail|denied|reject|invalid.*password|authentication.*error)")
+| eval src=coalesce(src_ip,'SourceIP'), user=coalesce(user,username)
+| bin _time span=5m
+| stats dc(user) as unique_users count as total_fails by _time, src
+| where unique_users > 15
+| eval rule_id="SP-770020", tactic="Credential Access", technique="T1110.003", severity="HIGH", confidence=88
+| table _time, src, unique_users, total_fails

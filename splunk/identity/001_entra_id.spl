@@ -1,0 +1,169 @@
+
+`comment("SP-700001 | Identity-EntraID | Global Administrator direkt zugewiesen (kein PIM)")`
+index=azure sourcetype="azure:aad:audit"
+| where operationName="Add member to role" AND isnotnull('properties.targetResources{}.displayName')
+| eval role=mvindex('properties.targetResources{}.displayName', 0)
+| where match(role, "(?i)(global admin|company admin|privileged role admin|security admin)")
+| eval initiated_by='properties.initiatedBy.user.userPrincipalName'
+| where NOT match(initiated_by, "(?i)pim|privileged identity")
+| eval rule_id="SP-700001", tactic="Privilege Escalation", technique="T1078.004", severity="CRITICAL", confidence=90
+| table _time, host, initiated_by, role, callerIpAddress
+
+`comment("SP-700002 | Identity-EntraID | MFA-Gerät eines privilegierten Nutzers gelöscht")`
+index=azure sourcetype="azure:aad:audit"
+| where operationName IN ("Delete StrongAuthentication", "Delete Authentication Method", "User strong authentication method deleted")
+| eval target='properties.targetResources{}.userPrincipalName'
+| eval actor='properties.initiatedBy.user.userPrincipalName'
+| where target != actor
+| eval rule_id="SP-700002", tactic="Defense Evasion", technique="T1556.006", severity="HIGH", confidence=88
+| table _time, target, actor, callerIpAddress
+
+`comment("SP-700003 | Identity-EntraID | Break-Glass-Account angemeldet")`
+index=azure sourcetype="azure:aad:signin"
+| eval upn='properties.userPrincipalName'
+| where match(upn, "(?i)(breakglass|break-glass|emergency|emerg-admin|bga-|bg-account)")
+| eval rule_id="SP-700003", tactic="Initial Access", technique="T1078.004", severity="CRITICAL", confidence=95
+| table _time, upn, 'properties.ipAddress', 'properties.location.city', 'properties.location.countryOrRegion', 'properties.status.errorCode'
+
+`comment("SP-700004 | Identity-EntraID | Service Principal Secret oder Zertifikat hinzugefügt")`
+index=azure sourcetype="azure:aad:audit"
+| where operationName IN ("Add service principal credentials", "Update application – Certificates and secrets management")
+| eval sp_name=mvindex('properties.targetResources{}.displayName', 0)
+| eval actor='properties.initiatedBy.user.userPrincipalName'
+| eval rule_id="SP-700004", tactic="Persistence", technique="T1098.001", severity="HIGH", confidence=85
+| table _time, sp_name, actor, callerIpAddress
+
+`comment("SP-700005 | Identity-EntraID | Federated Credential zu Service Principal hinzugefügt")`
+index=azure sourcetype="azure:aad:audit"
+| where operationName="Add federated identity credential"
+| eval sp_name=mvindex('properties.targetResources{}.displayName', 0)
+| eval actor='properties.initiatedBy.user.userPrincipalName'
+| eval rule_id="SP-700005", tactic="Persistence", technique="T1550.001", severity="HIGH", confidence=85
+| table _time, sp_name, actor, callerIpAddress
+
+`comment("SP-700006 | Identity-EntraID | OAuth App mit hochsensiblen Scopes genehmigt")`
+index=azure sourcetype="azure:aad:audit"
+| where operationName IN ("Consent to application", "Add delegated permission grant")
+| eval scopes='properties.targetResources{}.modifiedProperties{}.newValue'
+| where match(scopes, "(?i)(Mail\.ReadWrite|Mail\.Read|Files\.ReadWrite\.All|Directory\.ReadWrite\.All|offline_access.*Mail|MailboxSettings\.ReadWrite)")
+| eval app=mvindex('properties.targetResources{}.displayName', 0)
+| eval rule_id="SP-700006", tactic="Credential Access", technique="T1528", severity="HIGH", confidence=82
+| table _time, app, scopes, callerIpAddress
+
+`comment("SP-700007 | Identity-EntraID | Conditional Access Policy geändert oder deaktiviert")`
+index=azure sourcetype="azure:aad:audit"
+| where operationName IN ("Update conditional access policy", "Delete conditional access policy", "Add conditional access policy")
+| eval policy=mvindex('properties.targetResources{}.displayName', 0)
+| eval actor='properties.initiatedBy.user.userPrincipalName'
+| eval rule_id="SP-700007", tactic="Defense Evasion", technique="T1556", severity="CRITICAL", confidence=88
+| table _time, policy, operationName, actor, callerIpAddress
+
+`comment("SP-700008 | Identity-EntraID | Cross-Tenant Access Policy geändert")`
+index=azure sourcetype="azure:aad:audit"
+| where match(operationName, "(?i)(cross.tenant|external identities|B2B)")
+| eval actor='properties.initiatedBy.user.userPrincipalName'
+| eval rule_id="SP-700008", tactic="Initial Access", technique="T1078.004", severity="HIGH", confidence=80
+| table _time, operationName, actor, callerIpAddress
+
+`comment("SP-700009 | Identity-EntraID | PIM-Einstellung geändert (Activation ohne Approval)")`
+index=azure sourcetype="azure:aad:audit"
+| where match(operationName, "(?i)(PIM|Privileged Identity Management|Update role setting)")
+| eval actor='properties.initiatedBy.user.userPrincipalName'
+| eval rule_id="SP-700009", tactic="Privilege Escalation", technique="T1078.004", severity="HIGH", confidence=82
+| table _time, operationName, actor, callerIpAddress
+
+`comment("SP-700010 | Identity-EntraID | Nutzer zu Tier-0-Gruppe hinzugefügt (DA/EA/Schema Admins)")`
+index=azure sourcetype="azure:aad:audit"
+| where operationName="Add member to group"
+| eval group=mvindex('properties.targetResources{}.displayName', 0)
+| where match(group, "(?i)(domain admin|enterprise admin|schema admin|key admins|protected users|tier.?0)")
+| eval actor='properties.initiatedBy.user.userPrincipalName'
+| eval target_user=mvindex('properties.targetResources{}.userPrincipalName', 0)
+| eval rule_id="SP-700010", tactic="Privilege Escalation", technique="T1098.002", severity="CRITICAL", confidence=92
+| table _time, group, target_user, actor, callerIpAddress
+
+`comment("SP-700011 | Identity-EntraID | Application Impersonation Role (EWS-Missbrauch)")`
+index=azure sourcetype="azure:aad:audit"
+| where operationName="Add member to role" AND match('properties.targetResources{}.displayName', "(?i)(application impersonation|exchange admin|organizationmanagement)")
+| eval actor='properties.initiatedBy.user.userPrincipalName'
+| eval target='properties.targetResources{}.userPrincipalName'
+| eval rule_id="SP-700011", tactic="Credential Access", technique="T1114.002", severity="HIGH", confidence=85
+| table _time, target, actor, callerIpAddress
+
+`comment("SP-700012 | Identity-EntraID | Impossible Travel — gleicher User, zwei Länder in <1h)")`
+index=azure sourcetype="azure:aad:signin" 'properties.status.errorCode'=0
+| eval country='properties.location.countryOrRegion', upn='properties.userPrincipalName', src_ip='properties.ipAddress'
+| stats values(country) as countries dc(country) as unique_countries earliest(_time) as first_seen latest(_time) as last_seen by upn
+| where unique_countries >= 2 AND (last_seen - first_seen) < 3600
+| eval rule_id="SP-700012", tactic="Initial Access", technique="T1078.004", severity="CRITICAL", confidence=88
+| table first_seen, last_seen, upn, countries, unique_countries
+
+`comment("SP-700013 | Identity-EntraID | Anmeldung von anonymem Proxy / Tor")`
+index=azure sourcetype="azure:aad:signin"
+| where match('properties.riskEventTypes', "(?i)(anonymizedIPAddress|tor|anonymized)")
+OR match('properties.ipAddress', "^185\.220\.|^193\.32\.|^91\.92\.|^45\.142\.")
+| eval upn='properties.userPrincipalName'
+| eval rule_id="SP-700013", tactic="Defense Evasion", technique="T1090", severity="HIGH", confidence=82
+| table _time, upn, 'properties.ipAddress', 'properties.location.countryOrRegion'
+
+`comment("SP-700014 | Identity-EntraID | Passwort-Spray (>10 verschiedene Accounts, gleiches IP)")`
+index=azure sourcetype="azure:aad:signin" 'properties.status.errorCode'=50126
+| stats dc('properties.userPrincipalName') as unique_accounts values('properties.userPrincipalName') as accounts by 'properties.ipAddress'
+| where unique_accounts > 10
+| eval rule_id="SP-700014", tactic="Credential Access", technique="T1110.003", severity="HIGH", confidence=90
+| table 'properties.ipAddress', unique_accounts, accounts
+
+`comment("SP-700015 | Identity-EntraID | Bulk Guest-Einladung (>10 in 1h)")`
+index=azure sourcetype="azure:aad:audit" operationName="Invite external user"
+| bin _time span=1h
+| stats count dc('properties.targetResources{}.userPrincipalName') as unique_guests by _time, 'properties.initiatedBy.user.userPrincipalName'
+| where count > 10
+| eval rule_id="SP-700015", tactic="Initial Access", technique="T1078.004", severity="HIGH", confidence=80
+| table _time, 'properties.initiatedBy.user.userPrincipalName', count, unique_guests
+
+`comment("SP-700016 | Identity-EntraID | Verzeichnis-Rollenzuweisung außerhalb Geschäftszeiten")`
+index=azure sourcetype="azure:aad:audit"
+| where operationName="Add member to role"
+| eval hour=tonumber(strftime(_time, "%H"))
+| where hour < 7 OR hour > 20
+| eval actor='properties.initiatedBy.user.userPrincipalName'
+| eval role=mvindex('properties.targetResources{}.displayName', 0)
+| eval rule_id="SP-700016", tactic="Privilege Escalation", technique="T1078.004", severity="HIGH", confidence=80
+| table _time, hour, actor, role, callerIpAddress
+
+`comment("SP-700017 | Identity-EntraID | Authentication Method Policy geändert (SSPR / Passwordless)")`
+index=azure sourcetype="azure:aad:audit"
+| where match(operationName, "(?i)(authentication method|SSPR|password reset|passwordless|FIDO|Windows Hello)")
+AND match(operationName, "(?i)(update|change|enable|disable|delete)")
+| eval actor='properties.initiatedBy.user.userPrincipalName'
+| eval rule_id="SP-700017", tactic="Defense Evasion", technique="T1556", severity="HIGH", confidence=82
+| table _time, operationName, actor, callerIpAddress
+
+`comment("SP-700018 | Identity-EntraID | Named Location hinzugefügt oder gelöscht (CAP-Bypass)")`
+index=azure sourcetype="azure:aad:audit"
+| where match(operationName, "(?i)(named location|trusted IP|Add named location|Delete named location|Update named location)")
+| eval actor='properties.initiatedBy.user.userPrincipalName'
+| eval location=mvindex('properties.targetResources{}.displayName', 0)
+| eval rule_id="SP-700018", tactic="Defense Evasion", technique="T1556", severity="MEDIUM", confidence=75
+| table _time, operationName, location, actor, callerIpAddress
+
+`comment("SP-700019 | Identity-EntraID | Token-Diebstahl-Indikator (Refresh Token von neuer IP nach Erfolg)")`
+index=azure sourcetype="azure:aad:signin" 'properties.status.errorCode'=0
+| eval upn='properties.userPrincipalName', src_ip='properties.ipAddress'
+| eval auth_detail='properties.authenticationDetails{}.authenticationMethod'
+| where match(auth_detail, "(?i)(previouslyMFA|satisfiedByToken|refreshToken)")
+| stats values(src_ip) as ips dc(src_ip) as unique_ips by upn
+| where unique_ips >= 3
+| eval rule_id="SP-700019", tactic="Credential Access", technique="T1550.001", severity="HIGH", confidence=80
+| table upn, unique_ips, ips
+
+`comment("SP-700020 | Identity-EntraID | MFA Push-Bombing (>3 Pushes in 5 Min)")`
+index=azure sourcetype="azure:aad:signin"
+| where match('properties.authenticationDetails{}.authenticationStepResultDetail', "(?i)(MFADeniedUser|MFA.*denied|MFAdisabled|mfa pushed)")
+OR 'properties.status.errorCode'=500121
+| eval upn='properties.userPrincipalName'
+| bin _time span=5m
+| stats count by _time, upn, 'properties.ipAddress'
+| where count > 3
+| eval rule_id="SP-700020", tactic="Credential Access", technique="T1621", severity="HIGH", confidence=88
+| table _time, upn, count, 'properties.ipAddress'

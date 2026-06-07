@@ -1,0 +1,149 @@
+
+`comment("SP-730001 | Backup-Resilience | Backup-Job deaktiviert oder gelöscht")`
+index=windows (EventCode IN (7036,7045,4657) OR sourcetype="wineventlog:application")
+| where match(_raw, "(?i)(backup.*disabled|backup.*stopped|backup.*deleted|veeam.*job.*disable|commvault.*job.*disable|veritas.*job.*suspend|arcserve.*job.*delete|nakivo.*job.*disable)")
+AND NOT match(_raw,"(?i)(test|lab|dev)")
+| eval rule_id="SP-730001", tactic="Impact", technique="T1490", severity="CRITICAL", confidence=88
+| table _time, host, _raw
+
+`comment("SP-730002 | Backup-Resilience | Backup Retention Policy drastisch reduziert")`
+index=windows OR index=linux
+| where match(_raw, "(?i)(retention.*reduc|retention.*lower|retention.*day.*[1-3][^0-9]|retentionPeriod.*[1-7][^0-9]|days_to_keep.*[1-3][^0-9])")
+AND match(_raw, "(?i)(backup|veeam|commvault|veritas|nakivo|zerto|rubrik|cohesity)")
+| eval rule_id="SP-730002", tactic="Impact", technique="T1490", severity="HIGH", confidence=80
+| table _time, host, _raw
+
+`comment("SP-730003 | Backup-Resilience | Backup-Repository gelöscht")`
+index=windows OR index=linux EventCode=1 OR sourcetype="linux:audit"
+| where (match(CommandLine,"(?i)(veeam|vbr)") AND match(CommandLine,"(?i)(remove.*repository|delete.*repository|Remove-VBRBackupRepository)"))
+OR match(_raw,"(?i)(backup.*repository.*delet|repository.*remov.*backup)")
+| eval rule_id="SP-730003", tactic="Impact", technique="T1490", severity="CRITICAL", confidence=88
+| table _time, host, Image, CommandLine
+
+`comment("SP-730004 | Backup-Resilience | Immutable / WORM-Modus deaktiviert (AWS S3)")`
+index=aws sourcetype="aws:cloudtrail" eventName IN ("PutBucketObjectLockConfiguration","DeleteObjectLockConfiguration")
+| where match('requestParameters.ObjectLockConfiguration.ObjectLockEnabled',"Disabled") OR eventName="DeleteObjectLockConfiguration"
+| eval rule_id="SP-730004", tactic="Defense Evasion", technique="T1562", severity="CRITICAL", confidence=90
+| table _time, 'userIdentity.arn', 'requestParameters.bucketName', eventName, sourceIPAddress
+
+`comment("SP-730005 | Backup-Resilience | Massenhaftes Löschen von Snapshots")`
+index=aws sourcetype="aws:cloudtrail" eventName IN ("DeleteSnapshot","DeleteDBSnapshot","DeleteClusterSnapshot","DeleteDBClusterSnapshot")
+| bin _time span=10m
+| stats count by _time, 'userIdentity.arn', sourceIPAddress
+| where count > 5
+| eval rule_id="SP-730005", tactic="Impact", technique="T1490", severity="CRITICAL", confidence=92
+| table _time, 'userIdentity.arn', count, sourceIPAddress
+
+`comment("SP-730006 | Backup-Resilience | Backup-Agent-Prozess terminiert")`
+index=windows EventCode=4689 OR (EventCode=1 AND CommandLine="*taskkill*")
+| where match(Image, "(?i)(veeam|commvault|veritas|arcserve|backupagent|BackupExec|TSM|TSMAgent|CBABackup|Avamar|NDMP)")
+OR (match(CommandLine, "(?i)(taskkill|stop-service|net stop)") AND match(CommandLine, "(?i)(veeam|commvault|veritas|backup)"))
+| eval rule_id="SP-730006", tactic="Impact", technique="T1489", severity="CRITICAL", confidence=92
+| table _time, host, Image, CommandLine, 'ProcessId'
+
+`comment("SP-730007 | Backup-Resilience | Backup Storage Credentials geändert")`
+index=windows (EventCode=4657 OR EventCode=4663) OR index=linux sourcetype="linux:audit"
+| where match(ObjectName, "(?i)(backup.*credential|veeam.*credential|backup.*config|\.vbm$|\.vbk$)")
+AND match(EventCode,"4657|13")
+| eval rule_id="SP-730007", tactic="Credential Access", technique="T1552", severity="HIGH", confidence=80
+| table _time, host, SubjectUserName, ObjectName, AccessMask
+
+`comment("SP-730008 | Backup-Resilience | Azure Backup Recovery Services Vault gelöscht")`
+index=azure sourcetype="azure:activity"
+| where match(operationName, "(?i)(Microsoft\.RecoveryServices/vaults/delete|Microsoft\.RecoveryServices/backupPolicies/delete)")
+| eval actor='caller', resource='resourceId'
+| eval rule_id="SP-730008", tactic="Impact", technique="T1490", severity="CRITICAL", confidence=92
+| table _time, actor, resource, callerIpAddress
+
+`comment("SP-730009 | Backup-Resilience | GCP Backup Plan gelöscht oder deaktiviert")`
+index=gcp sourcetype="google:gcp:pubsub:audit"
+| where match('protoPayload.methodName',"(?i)(backupPlans.delete|backupPlans.patch|backups.delete)")
+| eval actor='protoPayload.authenticationInfo.principalEmail'
+| eval rule_id="SP-730009", tactic="Impact", technique="T1490", severity="CRITICAL", confidence=90
+| table _time, actor, 'protoPayload.resourceName', 'protoPayload.requestMetadata.callerIp'
+
+`comment("SP-730010 | Backup-Resilience | Ransomware Prep Chain: VSS + Backup-Kill + Service-Stop")`
+index=windows EventCode=1
+| eval phase=case(
+    match(CommandLine,"(?i)(vssadmin.*delete.*shadows|wbadmin.*delete.*systemstatebackup|bcdedit.*recoveryenabled.*no)"),"VSS_KILL",
+    match(CommandLine,"(?i)(net stop|sc stop|Stop-Service)") AND match(CommandLine,"(?i)(veeam|backup|mssqlserver|sqlserveragent|wuauserv)"),"SERVICE_STOP",
+    match(Image,"(?i)(taskkill)") AND match(CommandLine,"(?i)(veeam|backup|beremote|fdhost)"),"PROCESS_KILL",
+    true(),null())
+| where isnotnull(phase)
+| bin _time span=15m
+| stats dc(phase) as phases values(phase) as phase_list count by _time, host
+| where phases >= 2
+| eval rule_id="SP-730010", tactic="Impact", technique="T1490", severity="CRITICAL", confidence=95
+| table _time, host, phases, phase_list, count
+
+`comment("SP-730011 | Backup-Resilience | Backup Admin Login außerhalb Wartungsfenster")`
+index=windows EventCode=4624
+| where match(TargetUserName, "(?i)(backup.*admin|bkp.*admin|veeam.*admin|backup.*operator)")
+| eval hour=tonumber(strftime(_time,"%H")), weekday=strftime(_time,"%u")
+| where (hour < 6 OR hour > 22) AND weekday NOT IN ("6","7")
+| eval rule_id="SP-730011", tactic="Initial Access", technique="T1078", severity="HIGH", confidence=78
+| table _time, host, TargetUserName, IpAddress, hour, weekday
+
+`comment("SP-730012 | Backup-Resilience | Backup Destination zu externem Endpunkt geändert")`
+index=windows (EventCode=4657 OR EventCode=13 OR sourcetype="wineventlog:application")
+| where match(_raw, "(?i)(backup.*destination.*change|target.*repository.*external|backup.*target.*ftp|backup.*target.*sftp)")
+AND NOT match(_raw,"(?i)(192\.168\.|10\.|172\.(1[6-9]|2[0-9]|3[01])\.)")
+| eval rule_id="SP-730012", tactic="Exfiltration", technique="T1537", severity="HIGH", confidence=80
+| table _time, host, _raw
+
+`comment("SP-730013 | Backup-Resilience | Backup-Datei direkt gelesen/kopiert von Nicht-Backup-Prozess")`
+index=windows EventCode IN (4663,11)
+| where match(ObjectName, "(?i)(\.vbk$|\.vib$|\.vrb$|\.vbm$|backup\.tar|backup\.7z|\.bkf$|\.bak$)")
+AND NOT match(Image, "(?i)(veeam|BackupExec|veritas|commvault|arcserve|robocopy|rsync)")
+| eval rule_id="SP-730013", tactic="Credential Access", technique="T1552", severity="HIGH", confidence=82
+| table _time, host, SubjectUserName, Image, ObjectName
+
+`comment("SP-730014 | Backup-Resilience | Veeam Backup Repository Immutable Mode deaktiviert")`
+index=windows sourcetype="wineventlog:application" source="Veeam Backup"
+| where match(_raw, "(?i)(immutab.*disable|immutab.*off|object.*lock.*disable|hardened.*repositor.*disable)")
+| eval rule_id="SP-730014", tactic="Defense Evasion", technique="T1562", severity="CRITICAL", confidence=90
+| table _time, host, _raw
+
+`comment("SP-730015 | Backup-Resilience | Backup Notification / Alert deaktiviert")`
+index=windows OR index=linux
+| where match(_raw, "(?i)(backup.*alert.*disable|backup.*notification.*off|backup.*email.*disable|alert.*backup.*silence)")
+| eval rule_id="SP-730015", tactic="Defense Evasion", technique="T1562", severity="HIGH", confidence=75
+| table _time, host, _raw
+
+`comment("SP-730016 | Backup-Resilience | Off-Site Replikation gestoppt oder pausiert")`
+index=windows sourcetype="wineventlog:application"
+| where match(_raw, "(?i)(replication.*stop|replication.*pause|offsite.*replication.*fail|remote.*backup.*disconnect)")
+AND match(source, "(?i)(veeam|zerto|commvault|veritas)")
+| eval rule_id="SP-730016", tactic="Impact", technique="T1490", severity="HIGH", confidence=80
+| table _time, host, source, _raw
+
+`comment("SP-730017 | Backup-Resilience | Backup Encryption Key gelöscht (AWS KMS)")`
+index=aws sourcetype="aws:cloudtrail" eventName IN ("ScheduleKeyDeletion","DisableKey","DeleteImportedKeyMaterial")
+| eval key_arn='requestParameters.keyId', actor='userIdentity.arn'
+| eval rule_id="SP-730018", tactic="Impact", technique="T1485", severity="CRITICAL", confidence=90
+| table _time, actor, key_arn, sourceIPAddress
+
+`comment("SP-730018 | Backup-Resilience | Restic / Borg Backup-Konfiguration geändert")`
+index=linux sourcetype="linux:audit"
+| where (match(exe,"(?i)(restic|borg|duplicati|rclone)") AND match(cmdline,"(?i)(forget|prune|delete|purge|unlock --remove-all)"))
+OR match(name,"(?i)(/etc/restic|/etc/borg|\.config/borg|\.restic)")
+| eval rule_id="SP-730019", tactic="Impact", technique="T1490", severity="HIGH", confidence=82
+| table _time, host, auid, exe, cmdline
+
+`comment("SP-730019 | Backup-Resilience | S3 Bucket Versioning deaktiviert (Backup-Bucket)")`
+index=aws sourcetype="aws:cloudtrail" eventName="PutBucketVersioning"
+| where match('requestParameters.VersioningConfiguration.Status',"(?i)(Suspended)")
+AND match('requestParameters.bucketName',"(?i)(backup|bkp|archive|snapshot|recovery)")
+| eval actor='userIdentity.arn'
+| eval rule_id="SP-730019", tactic="Defense Evasion", technique="T1562", severity="HIGH", confidence=85
+| table _time, actor, 'requestParameters.bucketName', sourceIPAddress
+
+`comment("SP-730020 | Backup-Resilience | Backup + Ransomware Frühindikator: Backup-Kill + Datei-Rename-Spike")`
+index=windows
+| eval backup_kill=if(EventCode=1 AND match(CommandLine,"(?i)(vssadmin.*delete|wbadmin.*delete|bcdedit.*no)"),1,0)
+| eval file_rename=if(EventCode=2 AND NOT match(TargetFilename,"(?i)(\.tmp$|\.log$|~)"),1,0)
+| bin _time span=10m
+| stats sum(backup_kill) as kills sum(file_rename) as renames by _time, host
+| where kills > 0 AND renames > 100
+| eval rule_id="SP-730020", tactic="Impact", technique="T1486", severity="CRITICAL", confidence=95
+| table _time, host, kills, renames

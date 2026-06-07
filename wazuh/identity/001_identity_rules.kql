@@ -1,0 +1,134 @@
+-- WZ-700001 | Identity | Entra ID: Global Admin Zuweisung via Wazuh Azure Integration
+-- Tactic: Privilege Escalation | T1078.004 | Severity: CRITICAL
+rule.groups: "azure" AND data.azure.operationName: "Add member to role"
+AND (data.azure.properties.targetResources.displayName: "Global Administrator"
+  OR data.azure.properties.targetResources.displayName: "Privileged Role Administrator")
+AND rule.level >= 10
+
+-- WZ-700002 | Identity | Entra ID: MFA-Gerät gelöscht
+-- Tactic: Defense Evasion | T1556.006 | Severity: HIGH
+rule.groups: "azure" AND
+(data.azure.operationName: "Delete StrongAuthentication"
+  OR data.azure.operationName: "Delete Authentication Method")
+AND rule.level >= 9
+
+-- WZ-700003 | Identity | Entra ID: Conditional Access Policy geändert
+-- Tactic: Defense Evasion | T1556 | Severity: CRITICAL
+rule.groups: "azure" AND
+(data.azure.operationName: "Update conditional access policy"
+  OR data.azure.operationName: "Delete conditional access policy")
+AND rule.level >= 10
+
+-- WZ-700004 | Identity | Entra ID: Service Principal Credentials hinzugefügt
+-- Tactic: Persistence | T1098.001 | Severity: HIGH
+rule.groups: "azure" AND
+data.azure.operationName: "Add service principal credentials"
+AND rule.level >= 9
+
+-- WZ-700005 | Identity | Entra ID: OAuth Consent mit hohen Berechtigungen
+-- Tactic: Credential Access | T1528 | Severity: HIGH
+rule.groups: "azure" AND
+data.azure.operationName: "Consent to application" AND
+(data.azure.properties.targetResources.modifiedProperties.newValue: *Mail.ReadWrite*
+  OR data.azure.properties.targetResources.modifiedProperties.newValue: *Files.ReadWrite.All*
+  OR data.azure.properties.targetResources.modifiedProperties.newValue: *Directory.ReadWrite.All*)
+AND rule.level >= 9
+
+-- WZ-700006 | Identity | AWS IAM: Root-Account Login via Wazuh AWS Integration
+-- Tactic: Initial Access | T1078.004 | Severity: CRITICAL
+rule.groups: "amazon" AND data.aws.eventName: "ConsoleLogin"
+AND data.aws.userIdentity.type: "Root"
+AND rule.level >= 12
+
+-- WZ-700007 | Identity | AWS IAM: AdministratorAccess Policy gebunden
+-- Tactic: Privilege Escalation | T1098.003 | Severity: CRITICAL
+rule.groups: "amazon" AND
+(data.aws.eventName: "AttachUserPolicy" OR data.aws.eventName: "AttachRolePolicy")
+AND data.aws.requestParameters.policyArn: *AdministratorAccess*
+AND rule.level >= 12
+
+-- WZ-700008 | Identity | AWS IAM: IAM Enumeration Burst
+-- Tactic: Discovery | T1069.003 | Severity: HIGH
+rule.groups: "amazon" AND
+(data.aws.eventName: "ListUsers" OR data.aws.eventName: "ListRoles"
+  OR data.aws.eventName: "ListPolicies" OR data.aws.eventName: "GetAccountAuthorizationDetails")
+AND rule.level >= 5
+
+-- WZ-700009 | Identity | AWS IAM: Permission Boundary entfernt
+-- Tactic: Privilege Escalation | T1548 | Severity: HIGH
+rule.groups: "amazon" AND
+(data.aws.eventName: "DeleteUserPermissionsBoundary"
+  OR data.aws.eventName: "DeleteRolePermissionsBoundary")
+AND rule.level >= 10
+
+-- WZ-700010 | Identity | AWS IAM: MFA-Gerät deregistriert
+-- Tactic: Defense Evasion | T1556.006 | Severity: HIGH
+rule.groups: "amazon" AND
+(data.aws.eventName: "DeactivateMFADevice"
+  OR data.aws.eventName: "DeleteVirtualMFADevice")
+AND rule.level >= 10
+
+-- WZ-700011 | Identity | Okta: API-Token erstellt (Wazuh Okta Integration)
+-- Tactic: Persistence | T1098.001 | Severity: HIGH
+rule.groups: "okta" AND data.okta.eventType: "system.api_token.create"
+AND rule.level >= 9
+
+-- WZ-700012 | Identity | Okta: Admin-Rolle vergeben
+-- Tactic: Privilege Escalation | T1098 | Severity: CRITICAL
+rule.groups: "okta" AND data.okta.eventType: "user.account.privilege.grant"
+AND data.okta.target.displayName: *admin*
+AND rule.level >= 10
+
+-- WZ-700013 | Identity | Okta: MFA-Faktor reset durch Admin
+-- Tactic: Defense Evasion | T1556.006 | Severity: HIGH
+rule.groups: "okta" AND data.okta.eventType: "user.mfa.factor.reset_all"
+AND rule.level >= 9
+
+-- WZ-700014 | Identity | Okta: Authentication Policy geändert
+-- Tactic: Defense Evasion | T1556 | Severity: HIGH
+rule.groups: "okta" AND
+(data.okta.eventType: "policy.lifecycle.update"
+  OR data.okta.eventType: "policy.rule.update"
+  OR data.okta.eventType: "policy.lifecycle.delete")
+AND data.okta.target.type: *POLICY*
+AND rule.level >= 9
+
+-- WZ-700015 | Identity | Okta: Netzwerkzone deaktiviert (Bypass-Indikator)
+-- Tactic: Defense Evasion | T1562 | Severity: HIGH
+rule.groups: "okta" AND
+(data.okta.eventType: "network_zone.deactivate"
+  OR data.okta.eventType: "network_zone.delete"
+  OR data.okta.eventType: "network_zone.update")
+AND rule.level >= 9
+
+-- WZ-700016 | Identity | Generisch: Service-Account interaktiver Login (Windows)
+-- Tactic: Privilege Escalation | T1078.002 | Severity: HIGH
+rule.groups: "windows" AND data.win.system.eventID: "4624"
+AND data.win.eventdata.targetUserName: (svc_* OR srv_* OR sa_* OR service_*)
+AND data.win.eventdata.logonType: "2"
+AND rule.level >= 8
+
+-- WZ-700017 | Identity | Generisch: Passwort-Spray (Windows EventCode 4625)
+-- Tactic: Credential Access | T1110.003 | Severity: HIGH
+rule.groups: "authentication_failures" AND data.win.system.eventID: "4625"
+AND rule.level >= 10
+-- Note: Wazuh-Regeln 5551/5503 decken Brute-Force ab; diese KQL-Suche ergänzt manuelle Analyse
+
+-- WZ-700018 | Identity | Generisch: Admin-Login außerhalb Geschäftszeiten
+-- Tactic: Initial Access | T1078 | Severity: MEDIUM
+rule.groups: "authentication_success" AND
+data.win.eventdata.targetUserName: (*admin* OR *adm_* OR *_adm*)
+AND rule.level >= 6
+-- Tipp: Mit Zeitfilter in Kibana/OpenSearch kombinieren (hour < 7 OR hour > 21)
+
+-- WZ-700019 | Identity | AWS IAM: Organizations SCP entfernt
+-- Tactic: Defense Evasion | T1562 | Severity: CRITICAL
+rule.groups: "amazon" AND data.aws.eventName: "DetachPolicy"
+AND data.aws.eventSource: "organizations.amazonaws.com"
+AND rule.level >= 12
+
+-- WZ-700020 | Identity | AWS IAM: Account Access Analyzer deaktiviert
+-- Tactic: Defense Evasion | T1562 | Severity: HIGH
+rule.groups: "amazon" AND data.aws.eventName: "DeleteAnalyzer"
+AND data.aws.eventSource: "access-analyzer.amazonaws.com"
+AND rule.level >= 10
