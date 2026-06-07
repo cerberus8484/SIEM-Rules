@@ -1,0 +1,82 @@
+{
+  "_comment": "TRUE POSITIVE — SP-730010 + SP-810003: Ransomware Prep Kill Chain (VSS + Service Stop + Process Kill)",
+  "rule_ids": ["SP-730010", "SP-810003"],
+  "expected_result": "ALERT",
+  "severity": "CRITICAL",
+  "confidence": 95,
+  "scenario": "Ransomware pre-encryption phase: attacker kills VSS, stops backup services, and kills backup processes before encrypting",
+  "mitre": "T1490",
+  "detection_window_minutes": 15,
+  "chain_events": [
+    {
+      "stage": "VSS_KILL",
+      "time": "2024-01-15T03:10:00Z",
+      "sourcetype": "WinEventLog:Microsoft-Windows-PowerShell/Operational",
+      "EventCode": 4104,
+      "host": "WORKSTATION-42",
+      "user": "CONTOSO\\SYSTEM",
+      "ScriptBlockText": "vssadmin.exe delete shadows /all /quiet",
+      "_note": "Shadow copies deleted — primary backup prevention technique"
+    },
+    {
+      "stage": "VSS_KILL_ALT",
+      "time": "2024-01-15T03:10:05Z",
+      "sourcetype": "WinEventLog:Security",
+      "EventCode": 4688,
+      "host": "WORKSTATION-42",
+      "NewProcessName": "C:\\Windows\\System32\\vssadmin.exe",
+      "CommandLine": "vssadmin delete shadows /all /quiet",
+      "ParentProcessName": "C:\\Windows\\System32\\cmd.exe"
+    },
+    {
+      "stage": "SERVICE_STOP",
+      "time": "2024-01-15T03:10:15Z",
+      "sourcetype": "WinEventLog:System",
+      "EventCode": 7036,
+      "host": "WORKSTATION-42",
+      "param1": "Windows Backup",
+      "param2": "stopped",
+      "_note": "Windows Backup service forcibly stopped"
+    },
+    {
+      "stage": "SERVICE_STOP",
+      "time": "2024-01-15T03:10:18Z",
+      "sourcetype": "WinEventLog:System",
+      "EventCode": 7036,
+      "host": "WORKSTATION-42",
+      "param1": "Volume Shadow Copy",
+      "param2": "stopped"
+    },
+    {
+      "stage": "PROCESS_KILL",
+      "time": "2024-01-15T03:10:30Z",
+      "sourcetype": "WinEventLog:Security",
+      "EventCode": 4688,
+      "host": "WORKSTATION-42",
+      "NewProcessName": "C:\\Windows\\System32\\taskkill.exe",
+      "CommandLine": "taskkill /F /IM sqlservr.exe /IM mysqld.exe /IM veeam.exe",
+      "_note": "Backup/DB processes killed to release file locks before encryption"
+    }
+  ],
+  "correlation_result": {
+    "stages_detected": ["VSS_KILL", "SERVICE_STOP", "PROCESS_KILL"],
+    "distinct_stage_count": 3,
+    "threshold": 2,
+    "time_span_minutes": 1.5,
+    "risk_score": 95
+  },
+  "why_tp": [
+    "VSS (shadow copy) deletion — textbook ransomware preparation",
+    "Backup service stopped within 30 seconds of VSS deletion",
+    "Backup/DB processes killed to release file locks",
+    "All 3 stages completed within 90 seconds on same host",
+    "Process chain initiated by SYSTEM — lateral movement likely already occurred"
+  ],
+  "analyst_action": [
+    "IMMEDIATE: Isolate WORKSTATION-42 from network",
+    "Check if encryption has already started (file rename events, CPU spike)",
+    "Trigger Ransomware Response Playbook PB-001",
+    "Identify how SYSTEM access was obtained (check scheduled tasks, services)",
+    "Check neighboring hosts for same pattern"
+  ]
+}

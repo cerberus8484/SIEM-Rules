@@ -1,0 +1,77 @@
+{
+  "_comment": "TRUE POSITIVE — SP-810001: Account Takeover Kill Chain (Impossible Travel → MFA Device Change → Mail Forwarding Rule)",
+  "rule_id": "SP-810001",
+  "expected_result": "ALERT",
+  "severity": "CRITICAL",
+  "confidence": 92,
+  "scenario": "Full ATO chain: attacker uses stolen credentials from overseas, changes MFA device to maintain access, creates mail forwarding rule for persistent exfiltration",
+  "mitre": "T1078 / T1556.006 / T1114.003",
+  "detection_window_minutes": 30,
+  "chain_stages": {
+    "S1_TRAVEL_ANOMALY": {
+      "time": "2024-01-15T14:00:00Z",
+      "sourcetype": "azure:aad:signin",
+      "properties.userPrincipalName": "cfo@contoso.com",
+      "properties.ipAddress": "213.55.99.17",
+      "properties.location.countryOrRegion": "Nigeria",
+      "properties.status.errorCode": 0,
+      "_note": "Successful login from Nigeria — user's last known location was Frankfurt 6 hours ago (speed: 2800 km/h — impossible)"
+    },
+    "S2_MFA_CHANGE": {
+      "time": "2024-01-15T14:08:33Z",
+      "sourcetype": "azure:aad:audit",
+      "operationName": "Delete authentication method",
+      "properties.targetResources[0].userPrincipalName": "cfo@contoso.com",
+      "properties.targetResources[1].displayName": "Microsoft Authenticator",
+      "properties.initiatedBy.user.userPrincipalName": "cfo@contoso.com",
+      "properties.ipAddress": "213.55.99.17",
+      "_note": "Attacker removes existing MFA device to prevent account recovery"
+    },
+    "S2_MFA_CHANGE_ADD": {
+      "time": "2024-01-15T14:09:01Z",
+      "sourcetype": "azure:aad:audit",
+      "operationName": "Register security info",
+      "properties.targetResources[0].userPrincipalName": "cfo@contoso.com",
+      "properties.targetResources[1].displayName": "Phone Sign-in",
+      "properties.ipAddress": "213.55.99.17",
+      "_note": "New MFA device registered from attacker's IP"
+    },
+    "S3_MAIL_RULE": {
+      "time": "2024-01-15T14:18:45Z",
+      "sourcetype": "ms:o365:management",
+      "Operation": "New-InboxRule",
+      "UserId": "cfo@contoso.com",
+      "Parameters": [
+        {"Name": "ForwardTo", "Value": "attacker_collector@gmail.com"},
+        {"Name": "Name", "Value": "..."},
+        {"Name": "DeleteMessage", "Value": "true"}
+      ],
+      "ClientIPAddress": "213.55.99.17",
+      "_note": "Mail forwarding rule silently redirects all CFO mail to attacker's Gmail and deletes originals"
+    }
+  },
+  "correlation_result": {
+    "stages_detected": ["S1_TRAVEL_ANOMALY", "S2_MFA_CHANGE", "S3_MAIL_RULE"],
+    "distinct_stage_count": 3,
+    "threshold": 2,
+    "time_span_minutes": 18.75,
+    "same_ip": true,
+    "ip": "213.55.99.17",
+    "risk_score": 92
+  },
+  "why_tp": [
+    "Impossible travel: Frankfurt to Nigeria in 6 hours (2800 km/h impossible for commercial travel)",
+    "MFA device deleted and new device registered within 8 minutes of suspicious login",
+    "Mail forwarding rule to external Gmail created 10 minutes later",
+    "All 3 stages from the same source IP",
+    "Target is CFO — high-value account"
+  ],
+  "analyst_action": [
+    "IMMEDIATE: Revoke all sessions for cfo@contoso.com",
+    "Remove the mail forwarding rule created at 14:18",
+    "Reset credentials and force re-enrollment of MFA from trusted location",
+    "Contact CFO to confirm the legitimate location and whether they traveled",
+    "Review all emails forwarded to attacker_collector@gmail.com for data classification",
+    "Check if any financial transactions were initiated from the compromised session"
+  ]
+}

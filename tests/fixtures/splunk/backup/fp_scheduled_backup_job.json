@@ -1,0 +1,36 @@
+{
+  "_comment": "FALSE POSITIVE — SP-730001/730010: Legitimate scheduled backup job with maintenance window",
+  "rule_ids": ["SP-730001", "SP-730010"],
+  "expected_result": "NO_ALERT",
+  "scenario": "Legitimate backup maintenance: admin disables backup temporarily during DR test, re-enables immediately after",
+  "events": [
+    {
+      "time": "2024-01-15T02:00:00Z",
+      "source": "change_management_system",
+      "event_type": "maintenance_window_start",
+      "approved_by": "change_board",
+      "ticket": "CHG-20240115-001",
+      "description": "DR test maintenance window 02:00–04:00 UTC"
+    },
+    {
+      "time": "2024-01-15T02:05:00Z",
+      "sourcetype": "WinEventLog:System",
+      "EventCode": 7036,
+      "param1": "Windows Backup",
+      "param2": "stopped",
+      "host": "BACKUP-SERVER-01",
+      "user": "CONTOSO\\svc_backup"
+    }
+  ],
+  "why_fp": [
+    "Approved change ticket exists for this maintenance window",
+    "Action performed by dedicated service account svc_backup (not SYSTEM or user account)",
+    "During pre-approved maintenance window (02:00–04:00)",
+    "Only backup service stopped — no VSS deletion, no process killing, no file renaming"
+  ],
+  "tuning_recommendation": [
+    "Suppress alerts during approved maintenance windows by correlating with ITSM change calendar",
+    "Allowlist svc_backup and known backup admin accounts for SP-730001",
+    "SP-730010 requires all 3 stages (VSS_KILL + SERVICE_STOP + PROCESS_KILL) — single SERVICE_STOP should not fire"
+  ]
+}

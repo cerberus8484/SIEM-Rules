@@ -1,0 +1,44 @@
+{
+  "_comment": "TRUE POSITIVE — SP-710001: Privilegierter Kubernetes Pod erstellt (Container Escape Risiko)",
+  "rule_id": "SP-710001",
+  "expected_result": "ALERT",
+  "severity": "CRITICAL",
+  "confidence": 90,
+  "scenario": "Attacker with kubectl access creates a privileged pod with hostPath / mount to escape to the node filesystem",
+  "mitre": "T1611",
+  "event": {
+    "sourcetype": "kubernetes:audit",
+    "verb": "create",
+    "objectRef.resource": "pods",
+    "objectRef.namespace": "production",
+    "user.username": "attacker-svc-account",
+    "requestObject.spec.containers[0].securityContext.privileged": true,
+    "requestObject.spec.volumes[0].hostPath.path": "/",
+    "requestObject.spec.volumes[0].name": "host-root",
+    "requestObject.spec.containers[0].volumeMounts[0].mountPath": "/host",
+    "requestObject.spec.containers[0].volumeMounts[0].name": "host-root",
+    "sourceIPs[0]": "10.0.1.55",
+    "responseStatus.code": 201,
+    "time": "2024-01-15T11:22:33Z"
+  },
+  "context": {
+    "namespace": "production",
+    "pod_name": "debug-pod-xk8s2",
+    "node": "k8s-node-03",
+    "attacker_svc_account_bound_to": "cluster-admin ClusterRoleBinding"
+  },
+  "why_tp": [
+    "Pod created with privileged: true — full host capabilities",
+    "hostPath '/' mounted — attacker can read/write the entire node filesystem",
+    "Created in 'production' namespace — high blast radius",
+    "Service account bound to cluster-admin (escalated privileges)",
+    "Pod name 'debug-pod-*' is a common attacker pattern"
+  ],
+  "analyst_action": [
+    "IMMEDIATE: Delete the pod 'debug-pod-xk8s2' in namespace production",
+    "Revoke or restrict the ClusterRoleBinding for 'attacker-svc-account'",
+    "Check if any data was exfiltrated via the hostPath mount (audit node filesystem access)",
+    "Review how 'attacker-svc-account' was granted cluster-admin",
+    "Enable Pod Security Admission (PSA) with 'restricted' policy in production namespace"
+  ]
+}

@@ -1,0 +1,16 @@
+# HuntingThreats Enterprise Hunt Pack — Tools Dependencies
+# Python 3.9+
+#
+# Install:  pip install -r tools/requirements.txt
+
+# rule_linter.py — stdlib only, no external deps required
+# coverage_matrix.py — stdlib only, no external deps required
+
+# Optional: colored terminal output for linter
+colorama>=0.4.6
+
+# Optional: YAML parsing for schema validation (rule_metadata.yaml)
+PyYAML>=6.0
+
+# Optional: JSON schema validation
+jsonschema>=4.17.0

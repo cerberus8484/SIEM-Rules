@@ -1,0 +1,58 @@
+{
+  "_comment": "TRUE POSITIVE — SP-700020: MFA Push-Bombing / MFA Fatigue Attack",
+  "rule_id": "SP-700020",
+  "expected_result": "ALERT",
+  "severity": "HIGH",
+  "confidence": 85,
+  "scenario": "Attacker has valid credentials for a user and sends rapid MFA push requests to fatigue them into approving",
+  "mitre": "T1621",
+  "events": [
+    {
+      "sourcetype": "azure:aad:signin",
+      "properties.userPrincipalName": "victim@contoso.com",
+      "properties.status.errorCode": 500121,
+      "properties.status.failureReason": "Other",
+      "properties.authenticationDetails[0].authenticationStepResultDetail": "MFA denied; user declined the request",
+      "properties.ipAddress": "185.220.101.45",
+      "time": "2024-01-15T23:01:00Z"
+    },
+    {
+      "sourcetype": "azure:aad:signin",
+      "properties.userPrincipalName": "victim@contoso.com",
+      "properties.status.errorCode": 500121,
+      "properties.ipAddress": "185.220.101.45",
+      "time": "2024-01-15T23:01:45Z"
+    },
+    {
+      "sourcetype": "azure:aad:signin",
+      "properties.userPrincipalName": "victim@contoso.com",
+      "properties.status.errorCode": 500121,
+      "properties.ipAddress": "185.220.101.45",
+      "time": "2024-01-15T23:02:30Z"
+    },
+    {
+      "sourcetype": "azure:aad:signin",
+      "properties.userPrincipalName": "victim@contoso.com",
+      "properties.status.errorCode": 0,
+      "properties.status.failureReason": "",
+      "properties.ipAddress": "185.220.101.45",
+      "time": "2024-01-15T23:03:15Z",
+      "_note": "4th attempt succeeds — user approved out of fatigue"
+    }
+  ],
+  "detection_window_minutes": 5,
+  "push_count": 4,
+  "threshold": 3,
+  "why_tp": [
+    "4 MFA push attempts within 5 minutes (threshold: >3)",
+    "All from same external IP (185.220.101.45)",
+    "First 3 rejected, 4th approved — classic fatigue pattern",
+    "Source IP is a known Tor exit node"
+  ],
+  "analyst_action": [
+    "Immediately revoke the user's active sessions",
+    "Contact the user to confirm whether they approved the MFA push",
+    "Reset credentials if user did not intentionally approve",
+    "Block source IP 185.220.101.45 in Conditional Access"
+  ]
+}

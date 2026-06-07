@@ -1,0 +1,37 @@
+{
+  "_comment": "TRUE POSITIVE — WZ-702001: Okta Admin-Rolle vergeben (Wazuh KQL)",
+  "rule_id": "WZ-702001",
+  "expected_result": "ALERT",
+  "severity": "HIGH",
+  "confidence": 80,
+  "scenario": "Okta Super Administrator role granted to a user account — potential privilege escalation or insider threat",
+  "mitre": "T1098.001",
+  "wazuh_event": {
+    "rule.level": 10,
+    "rule.groups": ["okta"],
+    "data.okta.eventType": "user.account.privilege.grant",
+    "data.okta.outcome.result": "SUCCESS",
+    "data.okta.actor.alternateId": "admin@contoso.com",
+    "data.okta.actor.displayName": "Super Admin",
+    "data.okta.target[0].alternateId": "newuser@contoso.com",
+    "data.okta.target[0].displayName": "New User",
+    "data.okta.target[1].displayName": "Super Administrator",
+    "data.okta.client.ipAddress": "203.0.113.77",
+    "data.okta.client.geographicalContext.country": "Russia",
+    "data.eventTime": "2024-01-15T02:15:00Z",
+    "agent.name": "okta-syslog-collector"
+  },
+  "why_tp": [
+    "Super Administrator role granted — highest privilege level in Okta",
+    "Admin account acting from Russia (IP: 203.0.113.77)",
+    "Action at 02:15 — outside business hours",
+    "New user receiving Super Admin is suspicious without change approval"
+  ],
+  "analyst_action": [
+    "Verify if admin@contoso.com performed this action intentionally (call directly)",
+    "If unauthorized: immediately revoke the Super Administrator role from newuser@contoso.com",
+    "Check if admin@contoso.com account was compromised (review their recent activity)",
+    "Review all recent privilege assignments in Okta for the past 24h"
+  ],
+  "kql_query": "rule.groups: \"okta\" AND data.okta.eventType: \"user.account.privilege.grant\" AND rule.level: >= 10"
+}

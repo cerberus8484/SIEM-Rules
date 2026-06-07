@@ -1,0 +1,202 @@
+# HuntingThreats Enterprise Hunt Pack — Rule Metadata Schema v1.0
+# Every rule MUST embed this metadata via `eval` statements in the query.
+# The linter (tools/rule_linter.py) validates all fields below.
+
+# ─────────────────────────────────────────────
+# REQUIRED fields (linter: ERROR if missing)
+# ─────────────────────────────────────────────
+
+rule_id:
+  type: string
+  pattern: "^(SP|QR|GS|WZ|PB)-[0-9]{6,}$"
+  description: "Unique rule identifier. Prefix encodes platform."
+  examples:
+    - SP-700001   # Splunk
+    - QR-700001   # QRadar AQL
+    - GS-700001   # Google SecOps UDM
+    - WZ-700001   # Wazuh KQL
+    - PB-001      # Playbook
+
+tactic:
+  type: string
+  description: "MITRE ATT&CK Tactic name. Free-text, can combine e.g. 'Defense Evasion / C2'."
+  examples:
+    - "Initial Access"
+    - "Privilege Escalation"
+    - "Defense Evasion"
+    - "Credential Access"
+    - "Lateral Movement"
+    - "Collection"
+    - "Command and Control"
+    - "Exfiltration"
+    - "Impact"
+    - "Discovery"
+    - "Execution"
+    - "Persistence"
+    - "Multi-Stage ATO"
+
+technique:
+  type: string
+  description: "MITRE ATT&CK Technique ID. Can combine with slash for sub-techniques."
+  examples:
+    - "T1078.004"
+    - "T1556.006"
+    - "T1486/T1490"
+    - "T1098.001"
+
+severity:
+  type: enum
+  values: [CRITICAL, HIGH, MEDIUM, LOW, INFO]
+  description: "Alert severity. Use CRITICAL only for confirmed high-fidelity detections."
+
+confidence:
+  type: integer
+  min: 0
+  max: 100
+  description: >
+    Probability that a match represents a true positive in a typical enterprise environment.
+    Maps to recommended actions:
+    90–100 → Immediate escalation / isolation
+    70–89  → Analyst review within 1h
+    50–69  → Ticket, log for trending
+    30–49  → Log only
+    <30    → Do not use in production
+
+# ─────────────────────────────────────────────
+# OPTIONAL fields (linter: WARNING if missing in Splunk rules)
+# ─────────────────────────────────────────────
+
+platform:
+  type: string
+  description: "Auto-derived from file path / rule ID prefix. No need to set manually."
+  values: [splunk, qradar, secops, wazuh]
+
+pack:
+  type: string
+  description: "Rule pack name. Auto-derived from directory."
+  examples:
+    - identity
+    - backup
+    - container
+    - correlation
+    - cloud
+    - linux
+
+false_positives:
+  type: list[string]
+  description: >
+    Known benign scenarios that trigger this rule.
+    Document HERE so analysts don't re-investigate the same FP twice.
+  examples:
+    - "Admin maintenance window (authorized)"
+    - "PIM activation by approved role administrator"
+    - "Known service account svc_backup performing scheduled backup"
+    - "CI/CD pipeline using curl for artifact download (approved runner)"
+
+required_fields:
+  type: list[string]
+  description: "Log source fields that must be present for this rule to fire correctly."
+  examples:
+    - user
+    - src_ip
+    - dest_ip
+    - action
+    - CommandLine
+    - Image
+
+response:
+  type: list[string]
+  description: "Recommended analyst response steps."
+  examples:
+    - "Validate user activity with HR / manager"
+    - "Check recent privilege changes in IAM"
+    - "Review authentication events ±24h"
+    - "Isolate host if confirmed malicious"
+    - "Trigger Ransomware Response Playbook PB-001"
+
+references:
+  type: list[string]
+  description: "External references (MITRE, vendor docs, CVE, blog posts)."
+  examples:
+    - "https://attack.mitre.org/techniques/T1078/004/"
+    - "https://learn.microsoft.com/en-us/azure/active-directory/identity-protection/"
+
+status:
+  type: enum
+  values: [draft, testing, stable, deprecated]
+  default: stable
+  description: >
+    Lifecycle status. Correlation rules should start as 'testing' in most environments
+    due to environment-specific FP rates.
+
+# ─────────────────────────────────────────────
+# ID Namespaces
+# ─────────────────────────────────────────────
+
+id_namespaces:
+  SP-1xxxxx:  "Splunk — Windows/Sysmon (Execution, Persistence, ...)"
+  SP-2xxxxx:  "Splunk — Cloud (AWS=200, Azure=201, M365=202, GCP=203)"
+  SP-3xxxxx:  "Splunk — Linux Hunt Rules"
+  SP-4xxxxx:  "Splunk — Network Infrastructure"
+  SP-5xxxxx:  "Splunk — Web Application"
+  SP-6xxxxx:  "Splunk — Threat Intelligence Packs"
+  SP-7xxxxx:  "Splunk — Identity/IAM (Entra=700, AWS IAM=701, Okta=702, Generic=703)"
+  SP-71xxxx:  "Splunk — Container / Kubernetes"
+  SP-72xxxx:  "Splunk — DevOps / CI-CD"
+  SP-73xxxx:  "Splunk — Backup / Resilience"
+  SP-74xxxx:  "Splunk — Hypervisor / VMware"
+  SP-75xxxx:  "Splunk — Email Security"
+  SP-76xxxx:  "Splunk — Database"
+  SP-77xxxx:  "Splunk — VPN / Remote Access"
+  SP-78xxxx:  "Splunk — macOS"
+  SP-79xxxx:  "Splunk — DLP / Exfiltration"
+  SP-80xxxx:  "Splunk — Deception / Canary"
+  SP-81xxxx:  "Splunk — Correlation / Multi-Stage"
+  QR-xxxxxx:  "QRadar AQL (same sub-ranges as SP)"
+  GS-xxxxxx:  "Google SecOps UDM (same sub-ranges as SP)"
+  WZ-xxxxxx:  "Wazuh KQL (same sub-ranges as SP)"
+  PB-xxx:     "Analyst Playbook"
+  AQ-xxx-xxx: "Analyst Queries"
+
+# ─────────────────────────────────────────────
+# Severity vs. Confidence Reference
+# ─────────────────────────────────────────────
+
+severity_confidence_guide:
+  CRITICAL:
+    confidence_range: "85–100"
+    examples:
+      - "Canary token used"
+      - "VSS + Backup-Kill + Mass rename in 15 min"
+      - "Root account login"
+    response: "Immediate: escalate to L2/L3, consider isolation"
+
+  HIGH:
+    confidence_range: "75–95"
+    examples:
+      - "MFA device deleted for admin"
+      - "Process injection to lsass"
+      - "Privileged Pod created in production namespace"
+    response: "Review within 1 hour. Validate with asset owner."
+
+  MEDIUM:
+    confidence_range: "55–80"
+    examples:
+      - "Admin login outside business hours"
+      - "Large upload to cloud storage"
+      - "Service account interactive login"
+    response: "Ticket created. Analyst reviews during shift."
+
+  LOW:
+    confidence_range: "30–65"
+    examples:
+      - "Dependency file modified"
+      - "Direct push to main without PR"
+    response: "Log and trend. No immediate action."
+
+  INFO:
+    confidence_range: "0–50"
+    examples:
+      - "New device first seen on VPN"
+      - "Backup verification failure (single)"
+    response: "Baseline/context enrichment only."

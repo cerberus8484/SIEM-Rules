@@ -1,272 +1,316 @@
-# 🛡️ SIEM Hunt Rules — Enterprise Detection Pack
+# HuntingThreats — Enterprise Hunt Pack
 
-> **1,500 production-ready detection rules** for 3 major SIEM platforms — mapped to 11 MITRE ATT&CK tactics.
+**Production-ready SIEM detection rules for Splunk, QRadar, Google SecOps, and Wazuh.**
 
-![Rules](https://img.shields.io/badge/Rules-1500-00d4ff?style=flat-square)
-![Platforms](https://img.shields.io/badge/Platforms-3-00ff88?style=flat-square)
-![MITRE ATT&CK](https://img.shields.io/badge/MITRE%20ATT%26CK-11%20Tactics-ff8c00?style=flat-square)
-![License](https://img.shields.io/badge/License-MIT-556677?style=flat-square)
+> Focus: Threat hunting, triage, and incident response for enterprise environments.
+> Not a replacement for your EDR — a force multiplier on top of it.
 
 ---
 
-## Overview
+## Quick Start
 
-The **HuntingThreats Enterprise Hunt Pack** is a curated collection of threat hunting and detection rules for Security Information and Event Management (SIEM) systems. Every rule is mapped to a specific [MITRE ATT&CK](https://attack.mitre.org/) technique and written for production deployment.
+```bash
+# Clone
+git clone https://github.com/cerberus8484/SIEM-Rules.git
+cd SIEM-Rules/hunts
 
-**What this pack is:**
-- Threat hunting rules for SOC analysts
-- Detection logic for known attacker techniques and tools
-- Multi-platform: same coverage across all three SIEMs
+# Validate rules (Python 3.9+)
+pip install -r tools/requirements.txt
+python tools/rule_linter.py
 
-**What this pack is not:**
-- An antivirus or EDR replacement
-- Automated response / remediation
-- A guarantee of complete threat coverage
-
----
-
-## Platforms
-
-| Platform | Format | Rules | Status |
-|---|---|---|---|
-| **Wazuh** | XML / PCRE2 | 500 | ✅ Batch 1 |
-| **QRadar** | AQL (Ariel Query Language) | 500 | ✅ Batch 1 |
-| **Google SecOps** | YARA-L 2.0 (Chronicle SIEM) | 500 | ✅ Batch 1 |
-| **Splunk** | SPL + CIM | 500 | 🔜 Planned |
+# Generate coverage matrix
+python tools/coverage_matrix.py
+```
 
 ---
 
-## MITRE ATT&CK Coverage
+## Rule Packs
 
-| Tactic | Directory | Rules per Platform |
-|---|---|---|
-| Initial Access | `initial_access/` | 40 |
-| Execution | `execution/` | 100 |
-| Persistence | `persistence/` | 80 |
-| Privilege Escalation | `privilege_escalation/` | 40 |
-| Defense Evasion | `defense_evasion/` | 35 |
-| Credential Access | `credential_access/` | 35 |
-| Discovery | `discovery/` | 35 |
-| Lateral Movement | `lateral_movement/` | 40 |
-| Command & Control | `c2/` | 35 |
-| Exfiltration | `exfiltration/` | 30 |
-| Impact | `impact/` | 30 |
-| **Total** | | **500 per platform** |
+| Pack | Dir | Description | Splunk | QRadar | SecOps | Wazuh |
+|---|---|---|---|---|---|---|
+| ⚙️ Windows Execution | `splunk/execution/` | PowerShell, LOLBins, WMI, Office Macros | ✅ | ✅ | — | — |
+| 🔒 Windows Persistence | `splunk/persistence/` | Registry Run, Scheduled Tasks, Services | ✅ | ✅ | — | — |
+| 🛡️ Defense Evasion | `splunk/defense_evasion/` | Process Injection, Masquerading, AMSI bypass | ✅ | ✅ | — | — |
+| 🔑 Credential Access | `splunk/credential_access/` | LSASS dump, DCSync, Kerberoasting | ✅ | ✅ | — | — |
+| 📡 Command & Control | `splunk/c2/` | Beaconing, DNS tunneling, C2 ports | ✅ | ✅ | — | — |
+| ↔️ Lateral Movement | `splunk/lateral_movement/` | PsExec, WMI remote, Pass-the-Hash | ✅ | ✅ | — | — |
+| 🔍 Discovery | `splunk/discovery/` | AD enumeration, network scan, BloodHound | ✅ | ✅ | — | — |
+| 📤 Exfiltration | `splunk/exfiltration/` | Large POST, DNS exfil, cloud upload | ✅ | ✅ | — | — |
+| 💥 Impact | `splunk/impact/` | Ransomware execution, wiper, service kill | ✅ | ✅ | — | — |
+| ⬆️ Privilege Escalation | `splunk/privilege_escalation/` | Token manipulation, UAC bypass | ✅ | ✅ | — | — |
+| 🚪 Initial Access | `splunk/initial_access/` | Spearphishing, drive-by, exploit public-facing | ✅ | ✅ | — | — |
+| ☁️ Cloud | `splunk/cloud/` | AWS CloudTrail, Azure AD, M365, GCP | ✅ | ✅ | ✅ | — |
+| 🐧 Linux | `splunk/linux/` | Persistence, privesc, defense evasion | ✅ | — | — | — |
+| 🌐 Network | `splunk/network/` | Firewall anomalies, protocol abuse | ✅ | — | — | — |
+| 🕸️ Web Application | `splunk/web/` | SQLi, LFI/RFI, RCE, WAF evasion | ✅ | — | — | — |
+| 🎯 Threat Intel | `splunk/threat_intel/` | IOC matching, TI feed correlation | ✅ | — | — | — |
+| 👤 Identity / IAM | `splunk/identity/` | Entra ID, AWS IAM, Okta, Generic IdP | ✅ | ✅ | ✅ | ✅ |
+| 📦 Container / K8s | `splunk/container/` | Kubernetes audit, container escape, RBAC | ✅ | — | — | — |
+| 🔧 DevOps / CI-CD | `splunk/devops/` | GitHub Actions, supply chain, secrets in logs | ✅ | — | — | — |
+| 💾 Backup / Resilience | `splunk/backup/` | VSS deletion, backup kill, ransomware prep | ✅ | — | — | — |
+| 🖥️ Hypervisor / VMware | `splunk/hypervisor/` | ESXi, vCenter, Proxmox attacks | ✅ | — | — | — |
+| 📧 Email Security | `splunk/email/` | DMARC fail, macro attachments, BEC | ✅ | — | — | — |
+| 🗄️ Database | `splunk/database/` | SQL injection, xp_cmdshell, mass SELECT | ✅ | — | — | — |
+| 🔐 VPN / Remote Access | `splunk/vpn/` | Impossible travel, concurrent sessions, ZTNA | ✅ | — | — | — |
+| 🍎 macOS | `splunk/macos/` | LaunchAgent, TCC bypass, Gatekeeper disabled | ✅ | — | — | — |
+| 🚨 DLP / Exfiltration | `splunk/dlp/` | Multi-vector exfil chains, staging, rclone | ✅ | — | — | — |
+| 🍯 Deception / Canary | `splunk/deception/` | Canary files, honey credentials, honeypot traps | ✅ | — | — | — |
+| 🔗 Correlation | `splunk/correlation/` | Multi-stage kill chains, risk scoring | ✅ | — | — | — |
+| 📋 Analyst Queries | `analyst_queries/` | Ad-hoc hunt queries for live investigations | ✅ | ✅ | ✅ | ✅ |
 
 ---
 
 ## Directory Structure
 
 ```
-SIEM-Rules/
-├── README.md
-├── ARCHITECTURE.md          ← Rule architecture & design decisions
-├── ARCHITECTURE.html        ← HTML version (dark theme)
-├── DEVELOPER_GUIDE.md       ← How to write, test and deploy rules
-├── DEVELOPER_GUIDE.html     ← HTML version (dark theme)
-│
-├── wazuh/                   ← Wazuh 4.x — XML / PCRE2
-│   ├── initial_access/001_phishing.xml
-│   ├── execution/
-│   │   ├── 001_powershell.xml
-│   │   ├── 002_lolbins.xml
-│   │   └── 003_wmi_office.xml
-│   ├── persistence/
-│   │   ├── 001_registry.xml
-│   │   ├── 002_scheduled_tasks.xml
-│   │   └── 003_services.xml
-│   ├── privilege_escalation/001_privesc.xml
-│   ├── defense_evasion/001_process_injection.xml
-│   ├── credential_access/001_lsass.xml
-│   ├── discovery/001_enumeration.xml
-│   ├── lateral_movement/001_lateral_movement.xml
-│   ├── c2/001_c2_ports.xml
-│   ├── exfiltration/001_exfiltration.xml
-│   └── impact/001_ransomware.xml
-│
-├── qradar/                  ← QRadar 7.4+ — AQL
-│   └── (same structure, .aql files)
-│
-└── secops/                  ← Google SecOps / Chronicle — YARA-L 2.0
-    └── (same structure, .yaral files)
-```
-
----
-
-## Quick Start
-
-### Wazuh
-
-1. Copy rules to your Wazuh manager:
-```bash
-rsync -av wazuh/ user@wazuh-manager:/var/ossec/rules/huntingthreats/
-chown ossec:ossec /var/ossec/rules/huntingthreats/*.xml
-chmod 640 /var/ossec/rules/huntingthreats/*.xml
-```
-
-2. Register in `ossec.conf`:
-```xml
-<ruleset>
-  <rule_dir>rules/huntingthreats</rule_dir>
-</ruleset>
-```
-
-3. Reload:
-```bash
-/var/ossec/bin/ossec-control reload
-```
-
-**Requirements:** Wazuh 4.3+, Sysmon 13+, Script Block Logging (Event 4104) enabled.
-
----
-
-### QRadar AQL
-
-Rules are standalone AQL queries — no import required.
-
-```
-QRadar UI → Log Activity → Advanced Search → paste rule → Search
-```
-
-For persistent monitoring, save as **Custom Rule** via the CRE:
-```
-Offenses → Rules → Add Rule → Event → use rule condition
-```
-
-**Requirements:** QRadar 7.4+, WinCollect Agent or Microsoft Windows DSM, Sysmon 13+.
-
----
-
-### Google SecOps (Chronicle SIEM)
-
-1. Open **Security Operations → Detection Engine → Rules → New Rule**
-2. Select **YARA-L 2.0**
-3. Paste the rule content from `secops/<tactic>/<file>.yaral`
-4. Click **Validate** → **Run Test** → **Create**
-
-Set alerting mode:
-- `LIVE` — real-time alerts (use for high-confidence rules)
-- `ALERTING DISABLED` — run silent first, measure FP rate
-- `RETROSPECTIVE` — historical analysis only
-
-**Requirements:** Google SecOps / Chronicle SIEM, Sysmon → Chronicle Forwarder or Bindplane, UDM normalization enabled.
-
----
-
-## Rule Format Examples
-
-### Wazuh (XML / PCRE2)
-```xml
-<rule id="100001" level="12">
-  <if_group>windows</if_group>
-  <field name="win.system.eventID" type="pcre2">^1$|^4688$</field>
-  <field name="win.eventdata.commandLine" type="pcre2">(?i)-enc(odedcommand)?</field>
-  <description>PowerShell: EncodedCommand — obfuscated execution (T1059.001)</description>
-  <mitre><id>T1059.001</id></mitre>
-  <group>execution,powershell,encoded,high_confidence,</group>
-</rule>
-```
-
-### QRadar (AQL)
-```sql
--- QR-100001 | T1059.001 | PowerShell EncodedCommand
--- Severity: High | Confidence: High
-SELECT DATEFORMAT(startTime,'yyyy-MM-dd HH:mm:ss') AS EventTime,
-       LOGSOURCENAME(logsourceid) AS Host, username, UTF8(payload) AS EventPayload
-FROM events
-WHERE (LOGSOURCETYPENAME(logsourceid) ILIKE '%Windows%'
-    OR LOGSOURCETYPENAME(logsourceid) ILIKE '%Sysmon%')
-  AND (UTF8(payload) ILIKE '%-EncodedCommand%' OR UTF8(payload) ILIKE '%-enc %')
-LAST 1440 MINUTES;
-```
-
-### Google SecOps (YARA-L 2.0)
-```yaral
-rule ht_gs_100001_powershell_encoded_command {
-  meta:
-    rule_id         = "GS-100001"
-    author          = "HuntingThreats"
-    description     = "PowerShell: -EncodedCommand flag — obfuscated script execution"
-    mitre_tactic    = "Execution"
-    mitre_technique = "T1059.001"
-    severity        = "HIGH"
-    confidence      = "HIGH"
-
-  events:
-    $e.metadata.event_type = "PROCESS_LAUNCH"
-    re.regex($e.target.process.command_line, `(?i)-enc(odedcommand)?\s`) nocase
-
-  condition:
-    $e
-}
+hunts/
+├── splunk/                     # Splunk SPL rules
+│   ├── execution/              │  Packs A–F: Windows Execution / Persistence / C2 / ...
+│   ├── persistence/            │
+│   ├── defense_evasion/        │
+│   ├── credential_access/      │
+│   ├── c2/                     │
+│   ├── lateral_movement/       │
+│   ├── discovery/              │
+│   ├── exfiltration/           │
+│   ├── impact/                 │
+│   ├── privilege_escalation/   │
+│   ├── initial_access/         │
+│   ├── cloud/                  │  Pack B–E: AWS, Azure, M365, GCP
+│   ├── linux/                  │  Pack F: Linux
+│   ├── network/                │
+│   ├── web/                    │
+│   ├── threat_intel/           │
+│   ├── identity/               │  Pack G: Identity/IAM (Entra ID, AWS IAM, Okta)
+│   ├── container/              │  Pack H: Container/Kubernetes
+│   ├── devops/                 │  Pack I: DevOps/CI-CD
+│   ├── backup/                 │  Pack J: Backup/Ransomware-Resilience
+│   ├── hypervisor/             │  Pack K: Hypervisor/VMware/ESXi
+│   ├── email/                  │  Pack L: Email Security
+│   ├── database/               │  Pack M: Database
+│   ├── vpn/                    │  Pack N: VPN/ZTNA/Remote Access
+│   ├── macos/                  │  Pack O: macOS
+│   ├── dlp/                    │  Pack P: Data Exfiltration/DLP
+│   ├── deception/              │  Pack Q: Deception/Canary
+│   └── correlation/            │  Pack R: Correlation/Multi-Stage Kill Chain
+├── qradar/                     # QRadar AQL rules (identity + core packs)
+├── secops/                     # Google SecOps UDM rules
+├── wazuh/                      # Wazuh KQL rules
+├── analyst_queries/            # Ad-hoc queries for live hunting (all 4 platforms)
+├── playbooks/                  # Analyst response playbooks
+├── schema/
+│   └── rule_metadata.yaml      # S1: Canonical rule metadata schema
+├── tools/
+│   ├── rule_linter.py          # S2: Python rule validator
+│   ├── coverage_matrix.py      # S4: Coverage matrix generator
+│   └── requirements.txt
+└── tests/
+    └── fixtures/               # S3: Synthetic test events (TP + FP per rule)
+        ├── splunk/
+        └── wazuh/
 ```
 
 ---
 
 ## Rule ID Namespaces
 
-| Tactic | ID Range | Wazuh | QRadar | Google SecOps |
-|---|---|---|---|---|
-| Initial Access | 110000–110999 | XML | QR-110xxx | GS-110xxx |
-| Execution | 100000–100999 | XML | QR-100xxx | GS-100xxx |
-| Persistence | 101000–101999 | XML | QR-101xxx | GS-101xxx |
-| Privilege Escalation | 109000–109999 | XML | QR-109xxx | GS-109xxx |
-| Defense Evasion | 102000–102999 | XML | QR-102xxx | GS-102xxx |
-| Credential Access | 103000–103999 | XML | QR-103xxx | GS-103xxx |
-| Discovery | 106000–106999 | XML | QR-106xxx | GS-106xxx |
-| Lateral Movement | 105000–105999 | XML | QR-105xxx | GS-105xxx |
-| C2 & Network | 104000–104999 | XML | QR-104xxx | GS-104xxx |
-| Exfiltration | 107000–107999 | XML | QR-107xxx | GS-107xxx |
-| Impact | 108000–108999 | XML | QR-108xxx | GS-108xxx |
+| Prefix | Platform | Range | Pack |
+|---|---|---|---|
+| `SP-1xxxxx` | Splunk | 100000–199999 | Windows (Execution, Persistence, Evasion, ...) |
+| `SP-2xxxxx` | Splunk | 200000–299999 | Cloud (AWS=200, Azure=201, M365=202, GCP=203) |
+| `SP-3xxxxx` | Splunk | 300000–399999 | Linux |
+| `SP-4xxxxx` | Splunk | 400000–499999 | Network Infrastructure |
+| `SP-5xxxxx` | Splunk | 500000–599999 | Web Application |
+| `SP-6xxxxx` | Splunk | 600000–699999 | Threat Intelligence |
+| `SP-7xxxxx` | Splunk | 700000–709999 | Identity/IAM (Entra=700, AWS IAM=701, Okta=702) |
+| `SP-71xxxx` | Splunk | 710000–719999 | Container / Kubernetes |
+| `SP-72xxxx` | Splunk | 720000–729999 | DevOps / CI-CD |
+| `SP-73xxxx` | Splunk | 730000–739999 | Backup / Resilience |
+| `SP-74xxxx` | Splunk | 740000–749999 | Hypervisor / VMware |
+| `SP-75xxxx` | Splunk | 750000–759999 | Email Security |
+| `SP-76xxxx` | Splunk | 760000–769999 | Database |
+| `SP-77xxxx` | Splunk | 770000–779999 | VPN / Remote Access |
+| `SP-78xxxx` | Splunk | 780000–789999 | macOS |
+| `SP-79xxxx` | Splunk | 790000–799999 | DLP / Exfiltration |
+| `SP-80xxxx` | Splunk | 800000–809999 | Deception / Canary |
+| `SP-81xxxx` | Splunk | 810000–819999 | Correlation / Multi-Stage |
+| `QR-xxxxxx` | QRadar | same sub-ranges | QRadar AQL equivalents |
+| `GS-xxxxxx` | Google SecOps | same sub-ranges | UDM Search equivalents |
+| `WZ-xxxxxx` | Wazuh | same sub-ranges | KQL equivalents |
+| `PB-xxx` | All | playbooks/ | Analyst Response Playbooks |
+| `AQ-xxx-xxx` | All | analyst_queries/ | Live Hunt Queries |
 
 ---
 
-## Design Principles
+## Platform Integration Guides
 
-- **No panic wording** — rules detect patterns, not "malware" or "infections"
-- **False-positive aware** — parent process, path and flags combined; legitimate tools explicitly excluded
-- **MITRE-complete** — every rule references at least one sub-technique (T1xxx.yyy)
-- **Threshold before single-event** — beaconing, scanning and brute-force always use frequency thresholds
-- **Portable** — no deployment-specific custom properties or DSM mappings required
+### Splunk
+
+1. Copy `.spl` files from `splunk/<pack>/` to your Splunk environment
+2. Create a saved search or alert for each `comment()` block
+3. Each rule uses `eval rule_id=`, `tactic=`, `technique=`, `severity=`, `confidence=` fields
+4. Replace `<COMPANY_DOMAIN>`, `<HONEYPOT_*>` placeholders with your actual values
+
+```spl
+`comment("SP-700001 | Identity | Entra ID Global Admin direkt zugewiesen")`
+index=azure:aad:audit operationName="Add member to role"
+| ...
+| eval rule_id="SP-700001", tactic="Privilege Escalation", severity="CRITICAL", confidence=90
+```
+
+### QRadar AQL
+
+1. Import `.aql` files from `qradar/<pack>/` as Custom Rules
+2. AQL queries use `logsourcetypename(logsourceid) ILIKE` for log source filtering
+3. Rule metadata is embedded as `/* SP-XXXXXX | ... */` comment blocks
+
+### Google SecOps (Chronicle)
+
+1. UDM Search queries from `secops/<pack>/` work in the Chronicle Search UI
+2. Use `metadata.product_name`, `metadata.product_event_type`, `target.user.*` fields
+3. Rule IDs use `GS-` prefix
+
+### Wazuh
+
+1. KQL queries from `wazuh/<pack>/` work in Wazuh Dashboard (OpenSearch KQL)
+2. Uses `rule.groups: "azure"/"amazon"/"okta"`, `data.aws.*`, `data.okta.*` fields
+3. Wazuh `rule.level` >= 10 for HIGH, >= 12 for CRITICAL
 
 ---
 
-## Data Sources Required
+## Rule Quality & Linting
 
-| Source | Channel | Key Event IDs |
+### Run the Linter
+
+```bash
+# Lint all rules
+python tools/rule_linter.py
+
+# JSON output for CI
+python tools/rule_linter.py --json
+
+# Strict mode (fail on warnings too)
+python tools/rule_linter.py --strict
+
+# Filter by platform or pack
+python tools/rule_linter.py --platform splunk --pack identity
+```
+
+### Linter Checks
+
+| Check | Level | Description |
 |---|---|---|
-| Sysmon | `Microsoft-Windows-Sysmon/Operational` | 1, 3, 6, 7, 8, 10, 11, 13, 22, 25 |
-| Windows Security | `Security` | 4624/25, 4648, 4672, 4688, 4698, 4720, 4728 |
-| Windows System | `System` | 7036, 7040, 7045 |
-| PowerShell | `Microsoft-Windows-PowerShell/Operational` | 4103, 4104 |
+| Missing `rule_id` | ERROR | Every rule block must have a rule_id |
+| Missing `tactic` | ERROR | MITRE tactic required |
+| Missing `severity` | ERROR | Severity must be CRITICAL/HIGH/MEDIUM/LOW/INFO |
+| Missing `confidence` | ERROR | 0–100 confidence score required |
+| Invalid severity value | ERROR | Must match enum |
+| Confidence out of range | ERROR | Must be 0–100 |
+| CRITICAL + low confidence | WARNING | CRITICAL should have confidence >= 85 |
+| Duplicate rule ID | ERROR | IDs must be globally unique |
+| Bug placeholder (TODO/FIXME) | WARNING | Unresolved development marker |
+| Invalid ID format | WARNING | Must match SP/QR/GS/WZ-[0-9]{6,} |
+
+### Generate Coverage Matrix
+
+```bash
+# Write COVERAGE.md + coverage.json
+python tools/coverage_matrix.py
+
+# Markdown only, print to stdout
+python tools/coverage_matrix.py --md-only --stdout
+```
 
 ---
 
-## Versioning
+## Authoring New Rules
 
-| Version | Date | Content |
+### 1. Pick the right rule ID
+
+See the namespace table above. Next available IDs are tracked in `schema/rule_metadata.yaml`.
+
+### 2. Required metadata (Splunk)
+
+```spl
+`comment("SP-XXXXXX | <Pack> | <Short Title>")`
+<your search>
+| eval rule_id="SP-XXXXXX"
+| eval tactic="<MITRE Tactic>"
+| eval technique="<T-Number>"
+| eval severity="<CRITICAL|HIGH|MEDIUM|LOW|INFO>"
+| eval confidence=<0-100>
+```
+
+### 3. Confidence Calibration
+
+| Confidence | When to use | Analyst action |
 |---|---|---|
-| 0.1.0 | 2026-06-06 | Wazuh Batch 1 — 500 rules |
-| 0.2.0 | 2026-06-06 | QRadar AQL Batch 1 — 500 rules |
-| 0.3.0 | 2026-06-07 | Google SecOps YARA-L 2.0 Batch 1 — 500 rules |
-| 0.4.0 | planned | Splunk SPL Batch 1 — 500 rules |
-| 1.0.0 | planned | All 4 platforms — 2,000 rules + Tuning Guide |
+| 90–100 | Known bad pattern, zero/near-zero FP | Immediate escalation |
+| 75–89 | Very likely malicious, rare FP | Review within 1 hour |
+| 55–74 | Suspicious, some FP expected | Ticket, shift review |
+| 30–54 | Weak signal, high FP rate | Log only |
+| < 30 | Too noisy for production | Do not use |
+
+### 4. Add a test fixture
+
+Add at least one TP fixture in `tests/fixtures/splunk/<pack>/tp_<description>.json`.
+For rules with known FP patterns: add `fp_<description>.json` with tuning recommendation.
+
+### 5. Run the linter
+
+```bash
+python tools/rule_linter.py --pack <your_pack>
+```
 
 ---
 
-## Documentation
+## MITRE ATT&CK Coverage
 
-| Document | Description |
+The hunt pack covers **all 12 MITRE ATT&CK tactics**:
+
+| Tactic | Key Techniques |
 |---|---|
-| [ARCHITECTURE.md](ARCHITECTURE.md) | Rule architecture, language reference, design decisions |
-| [DEVELOPER_GUIDE.md](DEVELOPER_GUIDE.md) | How to write, test and deploy rules (all 3 platforms) |
+| Initial Access | T1566 (Phishing), T1195 (Supply Chain), T1190 (Exploit Public App) |
+| Execution | T1059 (PowerShell/Cmd), T1047 (WMI), T1204 (User Execution) |
+| Persistence | T1547 (Registry Run), T1053 (Scheduled Tasks), T1543 (Services) |
+| Privilege Escalation | T1134 (Token), T1548 (UAC), T1611 (Container Escape) |
+| Defense Evasion | T1055 (Process Injection), T1562 (Impair Defenses), T1218 (LOLBins) |
+| Credential Access | T1003 (LSASS), T1558 (Kerberoasting), T1621 (MFA Fatigue) |
+| Discovery | T1087 (Account Discovery), T1069 (Permission Groups), T1046 (Netscan) |
+| Lateral Movement | T1021 (Remote Services), T1550 (Pass-the-Hash) |
+| Collection | T1114 (Email Collection), T1213 (Data from Repos) |
+| Command & Control | T1071 (App Layer), T1095 (Non-App Layer), T1571 (Non-Standard Port) |
+| Exfiltration | T1041 (Exfil over C2), T1048 (Exfil Alt Protocol), T1567 (Cloud Storage) |
+| Impact | T1486 (Ransomware), T1490 (Inhibit Recovery), T1531 (Account Access Removal) |
+
+Extended coverage (beyond Windows):
+- **Identity/IAM:** T1078.004, T1556.006, T1528 (Token Theft), T1098 (Account Manipulation)
+- **Cloud:** T1537, T1530, T1619 (Cloud Enumeration)
+- **Container:** T1611, T1552.007 (K8s Secrets), T1543 (Container as Service)
+- **Deception (Detection):** All Q-pack rules confidence 97–98 (zero FP when properly deployed)
+
+---
+
+## Repository Statistics
+
+| Metric | Count |
+|---|---|
+| Total rule files | 81 |
+| Splunk SPL rules | ~987 |
+| QRadar AQL rules | ~200 |
+| Google SecOps rules | ~100 |
+| Wazuh KQL rules | ~200 |
+| Test fixtures (TP+FP) | 11 |
+| MITRE techniques covered | 80+ |
+| MITRE tactics covered | 12 / 12 |
 
 ---
 
 ## License
 
-MIT License — free to use, modify and distribute. Attribution appreciated.
+MIT — see [LICENSE](../LICENSE).
+Rules are provided as-is. Test in your environment before production deployment.
 
 ---
 
-*By [HuntingThreats](https://huntingthreats.de) — Cybersecurity News & Tools*
+*Built by [HuntingThreats](https://huntingthreats.de) — Threat Hunting for the Modern SOC.*

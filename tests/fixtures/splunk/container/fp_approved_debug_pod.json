@@ -1,0 +1,27 @@
+{
+  "_comment": "FALSE POSITIVE — SP-710001: Genehmigter Debug-Pod in Dev/Test Namespace",
+  "rule_id": "SP-710001",
+  "expected_result": "NO_ALERT",
+  "scenario": "Platform engineer creates privileged debug pod in 'dev' namespace for legitimate troubleshooting, approved via change ticket",
+  "event": {
+    "sourcetype": "kubernetes:audit",
+    "verb": "create",
+    "objectRef.resource": "pods",
+    "objectRef.namespace": "dev",
+    "user.username": "platform-engineer@contoso.com",
+    "requestObject.spec.containers[0].securityContext.privileged": true,
+    "requestObject.spec.volumes[0].hostPath.path": "/var/log",
+    "time": "2024-01-15T14:00:00Z"
+  },
+  "why_fp": [
+    "Namespace is 'dev', not 'production' or 'staging'",
+    "User is a known platform engineer (not a service account)",
+    "hostPath is '/var/log', not '/' (not full node access)",
+    "Approved change ticket on file"
+  ],
+  "tuning_recommendation": [
+    "Limit SP-710001 to namespaces: production, staging, kube-system",
+    "Allowlist platform engineering service accounts in dev/test namespaces",
+    "Add namespace exclusion: NOT (objectRef.namespace IN ('dev','test','sandbox'))"
+  ]
+}

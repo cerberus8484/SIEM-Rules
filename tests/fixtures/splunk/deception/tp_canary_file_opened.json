@@ -1,0 +1,53 @@
+{
+  "_comment": "TRUE POSITIVE — SP-800001: Canary Honeypot-Dokument geöffnet",
+  "rule_id": "SP-800001",
+  "expected_result": "ALERT",
+  "severity": "CRITICAL",
+  "confidence": 97,
+  "scenario": "Attacker with internal access opens a honeypot document placed in a network share. Zero false positives when canary is properly placed.",
+  "mitre": "T1078",
+  "deployment_note": "Canary document 'Q3 Financial CONFIDENTIAL.xlsx' placed in \\\\FILESERVER01\\Finance\\Confidential. No legitimate business need to open this file — any access is malicious.",
+  "event": {
+    "sourcetype": "WinEventLog:Security",
+    "EventCode": 4663,
+    "host": "FILESERVER01",
+    "SubjectUserName": "jsmith",
+    "SubjectDomainName": "CONTOSO",
+    "ObjectName": "\\\\FILESERVER01\\Finance\\Confidential\\Q3 Financial CONFIDENTIAL.xlsx",
+    "ObjectType": "File",
+    "AccessMask": "0x1",
+    "ProcessName": "C:\\Program Files\\Microsoft Office\\root\\Office16\\EXCEL.EXE",
+    "time": "2024-01-15T16:42:11Z"
+  },
+  "enrichment": {
+    "jsmith_last_login": "2024-01-15T08:30:00Z",
+    "jsmith_department": "IT Operations",
+    "jsmith_role": "IT Support Technician",
+    "file_access_justified": false,
+    "note": "IT Support Technician has no business reason to access Finance Confidential documents"
+  },
+  "why_tp": [
+    "Canary file name matches pattern: 'Q[0-9].*Financial.*CONFIDENTIAL'",
+    "File was deliberately placed as a deception asset — no legitimate use case",
+    "User's department (IT Operations) has no need for Finance Confidential documents",
+    "Access via Excel (not a copy operation) — suggests targeted review of content"
+  ],
+  "analyst_action": [
+    "Interview jsmith immediately — determine if account is compromised or insider threat",
+    "Review jsmith's recent file access history (last 24–48h) for lateral movement signs",
+    "Check if other canary assets were accessed by the same account",
+    "If compromise confirmed: isolate workstation and escalate to L3"
+  ],
+  "deception_deployment_guide": {
+    "placement": "High-value shares: Finance, HR, Executive, IT-Admin, Backup",
+    "naming_convention": [
+      "Q[N] Financial CONFIDENTIAL.[xlsx|pdf]",
+      "passwords DO_NOT_OPEN.txt",
+      "IT Admin Credentials.kdbx",
+      "HR Salary 2024.xlsx",
+      "M&A targets CONFIDENTIAL.pptx"
+    ],
+    "acl": "Everyone: Read (intentionally open — should never be touched)",
+    "monitoring": "Audit policy must log Object Access (Success) for the share path"
+  }
+}

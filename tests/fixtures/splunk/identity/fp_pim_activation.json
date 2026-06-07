@@ -1,0 +1,32 @@
+{
+  "_comment": "FALSE POSITIVE — SP-700001: Legitimate PIM-Activation durch autorisierten Admin",
+  "rule_id": "SP-700001",
+  "expected_result": "NO_ALERT",
+  "scenario": "Authorized Identity Admin activates Global Administrator via PIM for maintenance window",
+  "mitre": "T1098.003",
+  "event": {
+    "sourcetype": "azure:aad:audit",
+    "operationName": "Add member to role",
+    "properties.targetResources[0].displayName": "Jane Admin",
+    "properties.targetResources[0].userPrincipalName": "jane.admin@contoso.com",
+    "properties.targetResources[1].displayName": "Global Administrator",
+    "properties.initiatedBy.user.userPrincipalName": "jane.admin@contoso.com",
+    "time": "2024-01-15T09:10:00Z",
+    "result": "success",
+    "category": "RoleManagement",
+    "_raw": "{\"operationName\":\"Add member to role\",\"properties\":{\"targetResources\":[{\"displayName\":\"Jane Admin\"},{\"displayName\":\"Global Administrator\"}],\"initiatedBy\":{\"user\":{\"userPrincipalName\":\"jane.admin@contoso.com\"}}}}"
+  },
+  "preceding_pim_event": {
+    "operationName": "Activate eligible assignment",
+    "properties.targetResources[0].displayName": "Global Administrator",
+    "properties.initiatedBy.user.userPrincipalName": "jane.admin@contoso.com",
+    "time": "2024-01-15T09:09:45Z"
+  },
+  "why_fp": [
+    "PIM activation event present within 60 seconds before the role assignment",
+    "Same user activated and was assigned (self-activation pattern)",
+    "During business hours (09:10)",
+    "User is a known Identity Administrator (tracked in CMDB)"
+  ],
+  "tuning_recommendation": "Exclude assignments within 60s of a preceding PIM activation for the same user+role combination"
+}

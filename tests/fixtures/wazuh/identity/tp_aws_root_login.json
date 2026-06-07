@@ -1,0 +1,39 @@
+{
+  "_comment": "TRUE POSITIVE — WZ-701001: AWS Root Account Login (Wazuh KQL)",
+  "rule_id": "WZ-701001",
+  "expected_result": "ALERT",
+  "severity": "CRITICAL",
+  "confidence": 95,
+  "scenario": "AWS root account used for console login — root should never be used for routine operations",
+  "mitre": "T1078.004",
+  "wazuh_event": {
+    "rule.id": 80300,
+    "rule.level": 12,
+    "rule.description": "AWS CloudTrail: Root account login",
+    "rule.groups": ["amazon", "aws", "cloudtrail"],
+    "data.aws.eventSource": "signin.amazonaws.com",
+    "data.aws.eventName": "ConsoleLogin",
+    "data.aws.userIdentity.type": "Root",
+    "data.aws.userIdentity.arn": "arn:aws:iam::123456789012:root",
+    "data.aws.sourceIPAddress": "185.220.101.45",
+    "data.aws.additionalEventData.MFAUsed": "No",
+    "data.aws.responseElements.ConsoleLogin": "Success",
+    "data.eventTime": "2024-01-15T03:00:00Z",
+    "agent.name": "aws-cloudtrail-collector"
+  },
+  "why_tp": [
+    "Root account used — AWS best practice: never use root for routine operations",
+    "MFA not used for root login — critical security gap",
+    "Source IP is a Tor exit node (185.220.101.45)",
+    "Login at 03:00 UTC — off-hours for most regions",
+    "Confidence: 95 — root account logins are extremely rare and always warrant investigation"
+  ],
+  "analyst_action": [
+    "IMMEDIATE: Check if root account was used for any IAM/resource changes after login",
+    "Enable MFA on root account if not already enabled",
+    "Rotate root credentials and review root API keys (there should be none)",
+    "Verify if this was an authorized administrative action via out-of-band communication with account owner",
+    "Check AWS CloudTrail for all events from this session (typically short window of root use)"
+  ],
+  "kql_query": "rule.groups: \"amazon\" AND data.aws.userIdentity.type: \"Root\" AND data.aws.eventSource: \"signin.amazonaws.com\""
+}

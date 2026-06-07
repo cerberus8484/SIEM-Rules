@@ -1,0 +1,31 @@
+{
+  "_comment": "TRUE POSITIVE — SP-700001: Entra ID Global Admin direkt zugewiesen (ohne PIM)",
+  "rule_id": "SP-700001",
+  "expected_result": "ALERT",
+  "severity": "CRITICAL",
+  "confidence": 90,
+  "scenario": "Attacker with compromised privileged account assigns Global Administrator role directly, bypassing PIM",
+  "mitre": "T1098.003",
+  "event": {
+    "sourcetype": "azure:aad:audit",
+    "operationName": "Add member to role",
+    "properties.targetResources[0].displayName": "John Doe",
+    "properties.targetResources[0].userPrincipalName": "john.doe@contoso.com",
+    "properties.targetResources[1].displayName": "Global Administrator",
+    "properties.initiatedBy.user.userPrincipalName": "attacker@contoso.com",
+    "time": "2024-01-15T02:33:17Z",
+    "result": "success",
+    "category": "RoleManagement",
+    "_raw": "{\"operationName\":\"Add member to role\",\"properties\":{\"targetResources\":[{\"displayName\":\"John Doe\"},{\"displayName\":\"Global Administrator\"}],\"initiatedBy\":{\"user\":{\"userPrincipalName\":\"attacker@contoso.com\"}}}}"
+  },
+  "why_tp": [
+    "Global Administrator role assigned directly (no PIM activation event preceding it)",
+    "Role assignment at 02:33 (outside business hours)",
+    "Initiating user is not an approved Identity Administrator"
+  ],
+  "analyst_action": [
+    "Immediately confirm if assignment was authorized via change ticket",
+    "Check attacker@contoso.com sign-in history for the last 24h",
+    "If unauthorized: remove the role assignment and initiate incident response"
+  ]
+}
