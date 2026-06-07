@@ -1,0 +1,286 @@
+<!--
+  HuntingThreats — Sysmon Config: Base Detection
+  =================================================
+  Scenario : Production baseline — balanced noise vs. coverage
+  Goal     : Catch the most impactful events without flooding the SIEM
+  MITRE    : T1059, T1547, T1053, T1543, T1546, T1055, T1078, T1490, T1003
+
+  Install  : sysmon64.exe -accepteula -i base-detection.xml
+  Update   : sysmon64.exe -c base-detection.xml
+  Test     : sysmon64.exe -s (dump current schema)
+
+  Event coverage:
+    Event 1  ProcessCreate         - suspicious process chains
+    Event 3  NetworkConnect        - outbound to dangerous ports
+    Event 7  ImageLoad             - critical process DLL loads (LSASS, winlogon)
+    Event 8  CreateRemoteThread    - all (high signal, low volume)
+    Event 10 ProcessAccess         - LSASS access
+    Event 11 FileCreate            - suspicious extensions + temp locations
+    Event 12 RegistryEvent         - autorun key creation/deletion
+    Event 13 RegistryEvent         - autorun key value set
+    Event 19 WmiEvent filter       - all WMI subscriptions
+    Event 20 WmiEvent consumer     - all WMI subscriptions
+    Event 21 WmiEvent binding      - all WMI subscriptions
+    Event 22 DNSEvent              - DNS queries (exclude common CDN)
+
+  NOT included in this config (add threat-hunting-full.xml for these):
+    Event 2  File time change      - high volume
+    Event 5  Process terminate     - low signal
+    Event 6  Driver load           - use specific config
+    Event 9  RawAccessRead         - very noisy
+    Event 15 FileCreateStreamHash  - ADS-focused config needed
+    Event 17 PipeEvent created     - targeted config
+    Event 18 PipeEvent connected   - targeted config
+    Event 25 ProcessTampering      - targeted config
+-->
+<Sysmon schemaversion="4.90">
+
+  <HashAlgorithms>SHA256,IMPHASH</HashAlgorithms>
+  <CheckRevocation/>
+
+  <EventFiltering>
+
+    <!-- ================================================================
+         EVENT 1 — Process Create
+         Strategy: Exclude known-good system noise; catch suspicious chains
+         ================================================================ -->
+    <RuleGroup name="ProcessCreate" groupRelation="or">
+      <ProcessCreate onmatch="exclude">
+
+        <!-- Sysmon itself -->
+        <Image condition="is">C:\Windows\Sysmon.exe</Image>
+        <Image condition="is">C:\Windows\Sysmon64.exe</Image>
+
+        <!-- Windows Update / trusted Microsoft background services -->
+        <Image condition="begin with">C:\Windows\SoftwareDistribution\</Image>
+        <CommandLine condition="contains">MoUsoCoreWorker</CommandLine>
+        <CommandLine condition="contains">TiWorker.exe</CommandLine>
+
+        <!-- Windows Defender (legitimate scanning) -->
+        <Image condition="begin with">C:\ProgramData\Microsoft\Windows Defender\</Image>
+        <Image condition="is">C:\Program Files\Windows Defender\MsMpEng.exe</Image>
+
+        <!-- Common noisy signed Microsoft binaries -->
+        <Image condition="is">C:\Windows\System32\conhost.exe</Image>
+        <Image condition="is">C:\Windows\System32\wermgr.exe</Image>
+        <Image condition="is">C:\Windows\System32\WerFault.exe</Image>
+        <Image condition="is">C:\Windows\System32\SearchProtocolHost.exe</Image>
+        <Image condition="is">C:\Windows\System32\SearchFilterHost.exe</Image>
+        <Image condition="is">C:\Windows\System32\spoolsv.exe</Image>
+        <Image condition="is">C:\Windows\System32\audiodg.exe</Image>
+        <Image condition="is">C:\Windows\System32\SgrmBroker.exe</Image>
+
+        <!-- Legitimate admin tools from expected locations -->
+        <CommandLine condition="is">C:\Windows\system32\DllHost.exe /Processid</CommandLine>
+
+      </ProcessCreate>
+    </RuleGroup>
+
+    <!-- ================================================================
+         EVENT 3 — Network Connection
+         Strategy: Log outbound to suspicious/unusual ports
+         Exclude common benign traffic (browser ports, HTTPS, DNS, etc.)
+         ================================================================ -->
+    <RuleGroup name="NetworkConnect-Suspicious" groupRelation="or">
+      <NetworkConnect onmatch="include">
+
+        <!-- Non-standard outbound from scripting engines -->
+        <Image condition="end with">powershell.exe</Image>
+        <Image condition="end with">pwsh.exe</Image>
+        <Image condition="end with">wscript.exe</Image>
+        <Image condition="end with">cscript.exe</Image>
+        <Image condition="end with">mshta.exe</Image>
+        <Image condition="end with">regsvr32.exe</Image>
+        <Image condition="end with">rundll32.exe</Image>
+        <Image condition="end with">certutil.exe</Image>
+        <Image condition="end with">bitsadmin.exe</Image>
+        <Image condition="end with">msiexec.exe</Image>
+
+        <!-- Suspicious outbound ports (non-HTTP/HTTPS/DNS) -->
+        <DestinationPort condition="is">4444</DestinationPort>
+        <DestinationPort condition="is">1234</DestinationPort>
+        <DestinationPort condition="is">8888</DestinationPort>
+        <DestinationPort condition="is">9999</DestinationPort>
+        <DestinationPort condition="is">31337</DestinationPort>
+        <DestinationPort condition="is">1337</DestinationPort>
+        <!-- Cobalt Strike default ports -->
+        <DestinationPort condition="is">50050</DestinationPort>
+        <DestinationPort condition="is">8443</DestinationPort>
+        <!-- C2 over uncommon ports -->
+        <DestinationPort condition="is">6667</DestinationPort>
+        <DestinationPort condition="is">6697</DestinationPort>
+
+      </NetworkConnect>
+    </RuleGroup>
+
+    <!-- ================================================================
+         EVENT 7 — Image Load (DLL)
+         Strategy: Monitor critical process DLL loads for injection detection
+         Only monitor LSASS and security tool processes
+         ================================================================ -->
+    <RuleGroup name="ImageLoad-Critical" groupRelation="or">
+      <ImageLoad onmatch="include">
+        <!-- DLLs loaded into LSASS — injection / credential theft indicator -->
+        <Image condition="is">C:\Windows\system32\lsass.exe</Image>
+        <!-- winlogon — credential provider injection -->
+        <Image condition="is">C:\Windows\system32\winlogon.exe</Image>
+        <!-- Suspicious DLL characteristics -->
+        <Signed condition="is">false</Signed>
+      </ImageLoad>
+    </RuleGroup>
+
+    <!-- ================================================================
+         EVENT 8 — CreateRemoteThread
+         Strategy: Log ALL (inherently suspicious — very low legitimate volume)
+         Exclude known-good inter-process communication
+         ================================================================ -->
+    <RuleGroup name="CreateRemoteThread" groupRelation="or">
+      <CreateRemoteThread onmatch="exclude">
+        <!-- Browser processes creating threads in renderer (normal) -->
+        <SourceImage condition="end with">chrome.exe</SourceImage>
+        <SourceImage condition="end with">msedge.exe</SourceImage>
+        <!-- Windows AV -->
+        <SourceImage condition="begin with">C:\Program Files\Windows Defender\</SourceImage>
+      </CreateRemoteThread>
+    </RuleGroup>
+
+    <!-- ================================================================
+         EVENT 10 — Process Access
+         Strategy: Focus on LSASS access — primary credential theft indicator
+         ================================================================ -->
+    <RuleGroup name="ProcessAccess-LSASS" groupRelation="or">
+      <ProcessAccess onmatch="include">
+        <!-- LSASS target — any access is suspicious unless from known tools -->
+        <TargetImage condition="end with">lsass.exe</TargetImage>
+        <!-- Winlogon — credential provider injection -->
+        <TargetImage condition="end with">winlogon.exe</TargetImage>
+      </ProcessAccess>
+    </RuleGroup>
+
+    <RuleGroup name="ProcessAccess-LSASS-Exclude" groupRelation="or">
+      <ProcessAccess onmatch="exclude">
+        <!-- Windows security stack — legitimate LSASS access -->
+        <SourceImage condition="is">C:\Windows\system32\svchost.exe</SourceImage>
+        <SourceImage condition="is">C:\Windows\system32\wininit.exe</SourceImage>
+        <SourceImage condition="begin with">C:\Windows\system32\csrss.exe</SourceImage>
+        <SourceImage condition="begin with">C:\Program Files\Windows Defender\</SourceImage>
+        <!-- AV/EDR processes — customize per environment -->
+        <!-- <SourceImage condition="begin with">C:\Program Files\YOUR_AV\</SourceImage> -->
+        <!-- Exclude low-value access masks (query info only) -->
+        <GrantedAccess condition="is">0x1000</GrantedAccess>
+        <GrantedAccess condition="is">0x100000</GrantedAccess>
+      </ProcessAccess>
+    </RuleGroup>
+
+    <!-- ================================================================
+         EVENT 11 — File Create
+         Strategy: Flag files created in suspicious locations or with
+         dangerous extensions
+         ================================================================ -->
+    <RuleGroup name="FileCreate-Suspicious" groupRelation="or">
+      <FileCreate onmatch="include">
+
+        <!-- Executables written to temp / user locations -->
+        <TargetFilename condition="begin with">C:\Users\</TargetFilename>
+        <TargetFilename condition="begin with">C:\ProgramData\</TargetFilename>
+        <TargetFilename condition="begin with">C:\Windows\Temp\</TargetFilename>
+
+        <!-- Web shell extensions dropped anywhere -->
+        <TargetFilename condition="end with">.aspx</TargetFilename>
+        <TargetFilename condition="end with">.php</TargetFilename>
+        <TargetFilename condition="end with">.jsp</TargetFilename>
+
+        <!-- Ransomware extension patterns (common families) -->
+        <TargetFilename condition="end with">.locked</TargetFilename>
+        <TargetFilename condition="end with">.crypt</TargetFilename>
+        <TargetFilename condition="end with">.encrypt</TargetFilename>
+        <TargetFilename condition="end with">.enc</TargetFilename>
+        <TargetFilename condition="end with">.locky</TargetFilename>
+        <TargetFilename condition="end with">.ryuk</TargetFilename>
+        <TargetFilename condition="end with">.black</TargetFilename>
+        <TargetFilename condition="end with">.blackcat</TargetFilename>
+        <TargetFilename condition="end with">.lockbit</TargetFilename>
+        <TargetFilename condition="end with">.deadbolt</TargetFilename>
+        <TargetFilename condition="end with">.hive</TargetFilename>
+
+      </FileCreate>
+    </RuleGroup>
+
+    <RuleGroup name="FileCreate-Exclude" groupRelation="or">
+      <FileCreate onmatch="exclude">
+        <!-- Windows Update temp files -->
+        <TargetFilename condition="begin with">C:\Windows\SoftwareDistribution\</TargetFilename>
+        <!-- Browser cache — very noisy -->
+        <TargetFilename condition="contains">\AppData\Local\Google\Chrome\User Data\</TargetFilename>
+        <TargetFilename condition="contains">\AppData\Local\Microsoft\Edge\User Data\</TargetFilename>
+        <!-- Known temp extensions -->
+        <TargetFilename condition="end with">.tmp</TargetFilename>
+        <TargetFilename condition="end with">.log</TargetFilename>
+      </FileCreate>
+    </RuleGroup>
+
+    <!-- ================================================================
+         EVENT 12/13 — Registry Events (Create/Delete, Set Value)
+         Strategy: Focus on autostart and persistence keys
+         ================================================================ -->
+    <RuleGroup name="RegistryEvent-Persistence" groupRelation="or">
+      <RegistryEvent onmatch="include">
+
+        <!-- Run / RunOnce autostart -->
+        <TargetObject condition="contains">SOFTWARE\Microsoft\Windows\CurrentVersion\Run</TargetObject>
+        <TargetObject condition="contains">SOFTWARE\Microsoft\Windows\CurrentVersion\RunOnce</TargetObject>
+        <!-- Startup folder shortcuts -->
+        <TargetObject condition="contains">SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Shell Folders</TargetObject>
+        <!-- Service creation -->
+        <TargetObject condition="begin with">HKLM\SYSTEM\CurrentControlSet\Services\</TargetObject>
+        <!-- AMSI bypass indicator -->
+        <TargetObject condition="contains">HKLM\SOFTWARE\Microsoft\AMSI</TargetObject>
+        <!-- AppInit DLLs — classic injection -->
+        <TargetObject condition="contains">AppInit_DLLs</TargetObject>
+        <!-- LSA security packages — credential theft persistence -->
+        <TargetObject condition="contains">SYSTEM\CurrentControlSet\Control\Lsa</TargetObject>
+        <!-- Security provider DLLs -->
+        <TargetObject condition="contains">SYSTEM\CurrentControlSet\Control\SecurityProviders</TargetObject>
+        <!-- WinLogon notify — hijacking -->
+        <TargetObject condition="contains">Microsoft\Windows NT\CurrentVersion\Winlogon</TargetObject>
+        <!-- Scheduled tasks registry storage -->
+        <TargetObject condition="begin with">HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Schedule\TaskCache\Tasks\</TargetObject>
+
+      </RegistryEvent>
+    </RuleGroup>
+
+    <!-- ================================================================
+         EVENTS 19/20/21 — WMI Event Subscriptions
+         Strategy: Log ALL — WMI persistence has no benign use in most envs
+         ================================================================ -->
+    <RuleGroup name="WmiEvent" groupRelation="or">
+      <WmiEvent onmatch="exclude">
+        <!-- No standard exclusions — WMI subscriptions should always be reviewed -->
+      </WmiEvent>
+    </RuleGroup>
+
+    <!-- ================================================================
+         EVENT 22 — DNS Query
+         Strategy: Log queries to non-standard TLDs and known bad patterns
+         ================================================================ -->
+    <RuleGroup name="DNSQuery-Suspicious" groupRelation="or">
+      <DnsQuery onmatch="exclude">
+        <!-- Exclude common Windows telemetry and update domains -->
+        <QueryName condition="end with">.microsoft.com</QueryName>
+        <QueryName condition="end with">.windows.com</QueryName>
+        <QueryName condition="end with">.windowsupdate.com</QueryName>
+        <QueryName condition="end with">.msftconnecttest.com</QueryName>
+        <QueryName condition="end with">.msedge.net</QueryName>
+        <QueryName condition="end with">.akadns.net</QueryName>
+        <QueryName condition="end with">.akamai.net</QueryName>
+        <QueryName condition="end with">.akamaiedge.net</QueryName>
+        <!-- Common CDN / cloud -->
+        <QueryName condition="end with">.cloudfront.net</QueryName>
+        <QueryName condition="end with">.awsstatic.com</QueryName>
+        <QueryName condition="end with">.googleapis.com</QueryName>
+        <QueryName condition="end with">.gstatic.com</QueryName>
+      </DnsQuery>
+    </RuleGroup>
+
+  </EventFiltering>
+</Sysmon>

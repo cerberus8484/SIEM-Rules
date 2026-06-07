@@ -1,0 +1,301 @@
+<!--
+  HuntingThreats — Sysmon Config: Full Threat Hunting
+  =====================================================
+  Scenario : Active threat hunt — comprehensive event collection
+  Goal     : Log everything needed for post-compromise investigation,
+             detect evasion techniques, ADS, pipe abuse, driver loads,
+             process tampering, and DLL side-loading
+  Warning  : HIGH VOLUME — not for production SIEM ingestion without
+             filtering. Use in:
+               - Dedicated threat hunting nodes / honeypots
+               - IR investigations (temporary deployment)
+               - Lab environments / detection research
+               - SOC Tier 3 hunt operations
+  MITRE    : All tactics (comprehensive coverage)
+
+  Install  : sysmon64.exe -accepteula -i threat-hunting-full.xml
+  Update   : sysmon64.exe -c threat-hunting-full.xml
+
+  Event coverage (ALL 29 event types):
+    Event 1  ProcessCreate          - all (with noise exclusions)
+    Event 2  FileCreateTime         - timestamp manipulation detection
+    Event 3  NetworkConnect         - all outbound (with noise exclusions)
+    Event 4  ServiceState           - Sysmon service state
+    Event 5  ProcessTerminate       - short-lived process detection
+    Event 6  DriverLoad             - all unsigned + suspicious drivers
+    Event 7  ImageLoad              - all unsigned DLL loads
+    Event 8  CreateRemoteThread     - all
+    Event 9  RawAccessRead          - disk access (ADS/hidden data)
+    Event 10 ProcessAccess          - all process access (incl. injection)
+    Event 11 FileCreate             - all suspicious locations
+    Event 12 RegistryEvent          - full key create/delete
+    Event 13 RegistryEvent          - full value set
+    Event 14 RegistryEvent          - key rename
+    Event 15 FileCreateStreamHash   - Alternate Data Streams
+    Event 16 ConfigChange           - Sysmon config changes
+    Event 17 PipeEvent              - all named pipe creation
+    Event 18 PipeEvent              - all named pipe connections
+    Event 19 WmiEvent filter        - all
+    Event 20 WmiEvent consumer      - all
+    Event 21 WmiEvent binding       - all
+    Event 22 DNSQuery               - all (with noise exclusions)
+    Event 23 FileDelete             - all (detect staging/cleanup)
+    Event 25 ProcessTampering       - all
+    Event 26 FileDeleteDetected     - all
+-->
+<Sysmon schemaversion="4.90">
+
+  <HashAlgorithms>SHA256,MD5,IMPHASH</HashAlgorithms>
+  <CheckRevocation/>
+  <DnsLookup/>
+
+  <EventFiltering>
+
+    <!-- ================================================================
+         EVENT 1 — Process Create
+         Strategy: Log all, exclude high-volume benign noise
+         ================================================================ -->
+    <RuleGroup name="ProcessCreate-Full" groupRelation="or">
+      <ProcessCreate onmatch="exclude">
+        <Image condition="is">C:\Windows\Sysmon.exe</Image>
+        <Image condition="is">C:\Windows\Sysmon64.exe</Image>
+        <Image condition="begin with">C:\Windows\SoftwareDistribution\</Image>
+        <Image condition="begin with">C:\ProgramData\Microsoft\Windows Defender\</Image>
+        <Image condition="is">C:\Windows\System32\wermgr.exe</Image>
+        <Image condition="is">C:\Windows\System32\WerFault.exe</Image>
+        <Image condition="is">C:\Windows\System32\SearchProtocolHost.exe</Image>
+        <Image condition="is">C:\Windows\System32\SearchFilterHost.exe</Image>
+        <Image condition="is">C:\Windows\System32\audiodg.exe</Image>
+      </ProcessCreate>
+    </RuleGroup>
+
+    <!-- ================================================================
+         EVENT 2 — File Creation Time Change (Timestomping)
+         Strategy: Log ALL — timestomping has almost no legitimate use
+         T1070.006 — Indicator Removal: Timestomp
+         ================================================================ -->
+    <RuleGroup name="FileCreateTime-All" groupRelation="or">
+      <FileCreateTime onmatch="exclude">
+        <!-- Installers legitimately touch timestamps — exclude only during known install -->
+        <!-- Add specific installer paths here if needed -->
+      </FileCreateTime>
+    </RuleGroup>
+
+    <!-- ================================================================
+         EVENT 3 — Network Connection
+         Strategy: Log all with noise exclusions
+         ================================================================ -->
+    <RuleGroup name="NetworkConnect-Full" groupRelation="or">
+      <NetworkConnect onmatch="exclude">
+        <!-- Exclude Sysmon itself -->
+        <Image condition="is">C:\Windows\Sysmon64.exe</Image>
+        <!-- System and network services — high legitimate volume -->
+        <Image condition="is">C:\Windows\system32\svchost.exe</Image>
+        <Image condition="is">C:\Windows\system32\services.exe</Image>
+        <Image condition="is">C:\Windows\system32\lsass.exe</Image>
+        <!-- DNS resolvers (handled by Event 22) -->
+        <DestinationPort condition="is">53</DestinationPort>
+        <!-- Loopback -->
+        <DestinationIp condition="is">127.0.0.1</DestinationIp>
+        <DestinationIp condition="is">::1</DestinationIp>
+      </NetworkConnect>
+    </RuleGroup>
+
+    <!-- ================================================================
+         EVENT 5 — Process Terminate
+         Strategy: Flag short-lived processes (< 1s) — inject and exit pattern
+         T1055 — Process Injection: inject into target, then exit
+         ================================================================ -->
+    <RuleGroup name="ProcessTerminate-ShortLived" groupRelation="or">
+      <ProcessTerminate onmatch="exclude">
+        <!-- Exclude legitimate short-lived system processes -->
+        <Image condition="is">C:\Windows\system32\conhost.exe</Image>
+        <Image condition="is">C:\Windows\system32\wermgr.exe</Image>
+      </ProcessTerminate>
+    </RuleGroup>
+
+    <!-- ================================================================
+         EVENT 6 — Driver Load
+         Strategy: Log all unsigned drivers
+         T1543.003, T1547.006 — Kernel-mode persistence/rootkits
+         ================================================================ -->
+    <RuleGroup name="DriverLoad-Unsigned" groupRelation="or">
+      <DriverLoad onmatch="include">
+        <!-- Log all unsigned driver loads -->
+        <Signed condition="is">false</Signed>
+      </DriverLoad>
+    </RuleGroup>
+
+    <!-- ================================================================
+         EVENT 7 — Image Load (DLL)
+         Strategy: Log unsigned DLLs loaded into any process
+         T1055 — DLL injection, T1574 — DLL side-loading
+         ================================================================ -->
+    <RuleGroup name="ImageLoad-Unsigned" groupRelation="or">
+      <ImageLoad onmatch="include">
+        <Signed condition="is">false</Signed>
+      </ImageLoad>
+    </RuleGroup>
+
+    <RuleGroup name="ImageLoad-Unsigned-Exclude" groupRelation="or">
+      <ImageLoad onmatch="exclude">
+        <!-- Common legitimate unsigned DLLs -->
+        <ImageLoaded condition="begin with">C:\Windows\assembly\</ImageLoaded>
+        <ImageLoaded condition="contains">Temp\</ImageLoaded>
+      </ImageLoad>
+    </RuleGroup>
+
+    <!-- ================================================================
+         EVENT 8 — CreateRemoteThread
+         Log all remote thread creation
+         ================================================================ -->
+    <RuleGroup name="CreateRemoteThread-All" groupRelation="or">
+      <CreateRemoteThread onmatch="exclude">
+        <SourceImage condition="begin with">C:\Program Files\Windows Defender\</SourceImage>
+      </CreateRemoteThread>
+    </RuleGroup>
+
+    <!-- ================================================================
+         EVENT 9 — RawAccessRead
+         T1006 — Direct Volume Access (bypass file system)
+         Used by: some rootkits, ntfs parsers, certain backup tools
+         ================================================================ -->
+    <RuleGroup name="RawAccessRead-Suspicious" groupRelation="or">
+      <RawAccessRead onmatch="exclude">
+        <!-- Known legitimate raw disk access -->
+        <Image condition="is">C:\Windows\system32\svchost.exe</Image>
+        <Image condition="begin with">C:\Program Files\Windows Defender\</Image>
+        <!-- Defrag -->
+        <Image condition="is">C:\Windows\system32\defrag.exe</Image>
+        <!-- Your backup agent — customize per environment -->
+        <!-- <Image condition="begin with">C:\Program Files\Veeam\</Image> -->
+      </RawAccessRead>
+    </RuleGroup>
+
+    <!-- ================================================================
+         EVENT 10 — Process Access
+         Log all process access operations
+         ================================================================ -->
+    <RuleGroup name="ProcessAccess-All" groupRelation="or">
+      <ProcessAccess onmatch="exclude">
+        <SourceImage condition="is">C:\Windows\system32\svchost.exe</SourceImage>
+        <SourceImage condition="is">C:\Windows\system32\wininit.exe</SourceImage>
+        <GrantedAccess condition="is">0x1000</GrantedAccess>
+        <GrantedAccess condition="is">0x100000</GrantedAccess>
+      </ProcessAccess>
+    </RuleGroup>
+
+    <!-- ================================================================
+         EVENT 11 — File Create
+         Log all in suspicious locations
+         ================================================================ -->
+    <RuleGroup name="FileCreate-Hunt" groupRelation="or">
+      <FileCreate onmatch="exclude">
+        <TargetFilename condition="begin with">C:\Windows\SoftwareDistribution\</TargetFilename>
+        <TargetFilename condition="contains">Google\Chrome\User Data</TargetFilename>
+        <TargetFilename condition="contains">Microsoft\Edge\User Data</TargetFilename>
+        <TargetFilename condition="end with">.tmp</TargetFilename>
+      </FileCreate>
+    </RuleGroup>
+
+    <!-- ================================================================
+         EVENTS 12/13/14 — Registry Events
+         Log all registry operations on security-relevant keys
+         ================================================================ -->
+    <RuleGroup name="RegistryEvent-Full" groupRelation="or">
+      <RegistryEvent onmatch="include">
+        <TargetObject condition="contains">SOFTWARE\Microsoft\Windows\CurrentVersion\Run</TargetObject>
+        <TargetObject condition="contains">SOFTWARE\Microsoft\Windows NT\CurrentVersion</TargetObject>
+        <TargetObject condition="begin with">HKLM\SYSTEM\CurrentControlSet\Services\</TargetObject>
+        <TargetObject condition="contains">AppInit_DLLs</TargetObject>
+        <TargetObject condition="contains">Control\Lsa</TargetObject>
+        <TargetObject condition="contains">SecurityProviders</TargetObject>
+        <TargetObject condition="contains">Winlogon</TargetObject>
+        <TargetObject condition="contains">AMSI</TargetObject>
+        <TargetObject condition="contains">BCD00000000</TargetObject>
+        <TargetObject condition="contains">Schedule\TaskCache</TargetObject>
+        <TargetObject condition="contains">SOFTWARE\Classes</TargetObject>
+        <TargetObject condition="contains">Shell\Open\Command</TargetObject>
+      </RegistryEvent>
+    </RuleGroup>
+
+    <!-- ================================================================
+         EVENT 15 — FileCreateStreamHash (Alternate Data Streams)
+         T1564.004 — Hide Artifacts: NTFS File Attributes
+         ================================================================ -->
+    <RuleGroup name="FileCreateStream-ADS" groupRelation="or">
+      <FileCreateStreamHash onmatch="exclude">
+        <!-- Zone.Identifier is legitimate (Mark of the Web) -->
+        <TargetFilename condition="contains">Zone.Identifier</TargetFilename>
+      </FileCreateStreamHash>
+    </RuleGroup>
+
+    <!-- ================================================================
+         EVENTS 17/18 — Named Pipe Events
+         ================================================================ -->
+    <RuleGroup name="PipeEvent-Full" groupRelation="or">
+      <PipeEvent onmatch="exclude">
+        <!-- Common legitimate Windows pipes -->
+        <PipeName condition="begin with">\PIPE\</PipeName>
+        <PipeName condition="is">\lsarpc</PipeName>
+        <PipeName condition="is">\samr</PipeName>
+        <PipeName condition="is">\browser</PipeName>
+        <PipeName condition="is">\netlogon</PipeName>
+        <PipeName condition="is">\ntsvcs</PipeName>
+        <PipeName condition="is">\scerpc</PipeName>
+        <PipeName condition="is">\srvsvc</PipeName>
+        <PipeName condition="is">\wkssvc</PipeName>
+        <PipeName condition="begin with">\TSVCPIPE-</PipeName>
+      </PipeEvent>
+    </RuleGroup>
+
+    <!-- ================================================================
+         EVENTS 19/20/21 — WMI Event Subscriptions (log all)
+         ================================================================ -->
+    <RuleGroup name="WmiEvent-All" groupRelation="or">
+      <WmiEvent onmatch="exclude">
+      </WmiEvent>
+    </RuleGroup>
+
+    <!-- ================================================================
+         EVENT 22 — DNS Queries
+         ================================================================ -->
+    <RuleGroup name="DNSQuery-Full" groupRelation="or">
+      <DnsQuery onmatch="exclude">
+        <QueryName condition="end with">.microsoft.com</QueryName>
+        <QueryName condition="end with">.windows.com</QueryName>
+        <QueryName condition="end with">.windowsupdate.com</QueryName>
+        <QueryName condition="end with">.msftconnecttest.com</QueryName>
+        <QueryName condition="end with">.akadns.net</QueryName>
+        <QueryName condition="end with">.akamaiedge.net</QueryName>
+      </DnsQuery>
+    </RuleGroup>
+
+    <!-- ================================================================
+         EVENT 23 — File Delete
+         T1107/T1070.004 — File Deletion (cleanup after compromise)
+         Log deletion of executables and scripts
+         ================================================================ -->
+    <RuleGroup name="FileDelete-Hunt" groupRelation="or">
+      <FileDelete onmatch="include">
+        <TargetFilename condition="end with">.exe</TargetFilename>
+        <TargetFilename condition="end with">.dll</TargetFilename>
+        <TargetFilename condition="end with">.ps1</TargetFilename>
+        <TargetFilename condition="end with">.bat</TargetFilename>
+        <TargetFilename condition="end with">.vbs</TargetFilename>
+        <TargetFilename condition="end with">.hta</TargetFilename>
+      </FileDelete>
+    </RuleGroup>
+
+    <!-- ================================================================
+         EVENT 25 — Process Tampering
+         T1055 — Herpaderping, Ghosting, Hollowing detection
+         Log all process tampering attempts
+         ================================================================ -->
+    <RuleGroup name="ProcessTamper-All" groupRelation="or">
+      <ProcessTampering onmatch="exclude">
+      </ProcessTampering>
+    </RuleGroup>
+
+  </EventFiltering>
+</Sysmon>

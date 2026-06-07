@@ -1,0 +1,219 @@
+<!--
+  HuntingThreats — Sysmon Config: Initial Access + Execution
+  ============================================================
+  Scenario : Entry point detection — phishing, Office macros, LOLBins,
+             script interpreters, and download cradles
+  Goal     : Catch the first execution in the kill chain before the
+             attacker establishes persistence or moves laterally
+  MITRE    : T1566 (Phishing), T1204 (User Execution), T1059 (Scripting),
+             T1218 (LOLBins), T1105 (Ingress Tool Transfer),
+             T1047 (WMI), T1134 (Token Manipulation)
+  Pack     : execution.spl, initial_access.spl (SP-100xxx, SP-initial_access-xxx)
+
+  Install  : sysmon64.exe -accepteula -i initial-access-execution.xml
+  Update   : sysmon64.exe -c initial-access-execution.xml
+
+  Key detection logic:
+    - Office applications spawning scripting engines / shells
+    - Script engines (PowerShell/WScript/CScript) running from user directories
+    - LOLBins used for download/execution (certutil, bitsadmin, mshta, regsvr32)
+    - Encoded PowerShell commands
+    - HTML Application execution (mshta.exe)
+    - LOLBAS (Living Off the Land Binaries, Scripts and Libraries)
+-->
+<Sysmon schemaversion="4.90">
+
+  <HashAlgorithms>SHA256,IMPHASH</HashAlgorithms>
+  <CheckRevocation/>
+
+  <EventFiltering>
+
+    <!-- ================================================================
+         EVENT 1 — Process Create: Office / Script / LOLBin Chains
+         ================================================================ -->
+    <RuleGroup name="ProcessCreate-OfficeSpawn" groupRelation="or">
+      <ProcessCreate onmatch="include">
+
+        <!-- ---- Office applications spawning dangerous children ---- -->
+        <!-- Word, Excel, PowerPoint, Outlook, OneNote spawning shells -->
+        <ParentImage condition="end with">WINWORD.EXE</ParentImage>
+        <ParentImage condition="end with">EXCEL.EXE</ParentImage>
+        <ParentImage condition="end with">POWERPNT.EXE</ParentImage>
+        <ParentImage condition="end with">OUTLOOK.EXE</ParentImage>
+        <ParentImage condition="end with">ONENOTE.EXE</ParentImage>
+        <ParentImage condition="end with">MSPUB.EXE</ParentImage>
+        <ParentImage condition="end with">VISIO.EXE</ParentImage>
+        <!-- Teams and OneDrive (common phishing vector) -->
+        <ParentImage condition="end with">Teams.exe</ParentImage>
+        <!-- PDF readers spawning processes -->
+        <ParentImage condition="end with">AcroRd32.exe</ParentImage>
+        <ParentImage condition="end with">Acrobat.exe</ParentImage>
+        <ParentImage condition="end with">FoxitPhantomPDF.exe</ParentImage>
+
+        <!-- ---- Encoded / obfuscated PowerShell — T1059.001 ---- -->
+        <CommandLine condition="contains">-EncodedCommand</CommandLine>
+        <CommandLine condition="contains">-enc </CommandLine>
+        <CommandLine condition="contains">-EC </CommandLine>
+        <CommandLine condition="contains">-ExecutionPolicy Bypass</CommandLine>
+        <CommandLine condition="contains">-ExecutionPolicy bypass</CommandLine>
+        <CommandLine condition="contains">-Exec Bypass</CommandLine>
+        <CommandLine condition="contains">-ep bypass</CommandLine>
+        <CommandLine condition="contains">-WindowStyle Hidden</CommandLine>
+        <CommandLine condition="contains">-W Hidden</CommandLine>
+        <CommandLine condition="contains">-NonInteractive</CommandLine>
+        <CommandLine condition="contains">-noni</CommandLine>
+        <CommandLine condition="contains">Invoke-Expression</CommandLine>
+        <CommandLine condition="contains">IEX(</CommandLine>
+        <CommandLine condition="contains">IEX (</CommandLine>
+        <CommandLine condition="contains">iex(New-Object</CommandLine>
+        <CommandLine condition="contains">DownloadString</CommandLine>
+        <CommandLine condition="contains">DownloadFile(</CommandLine>
+        <CommandLine condition="contains">Net.WebClient</CommandLine>
+
+        <!-- ---- Download cradles — T1105 ---- -->
+        <!-- Certutil download -->
+        <CommandLine condition="contains all">certutil;-urlcache</CommandLine>
+        <CommandLine condition="contains all">certutil;-split</CommandLine>
+        <CommandLine condition="contains all">certutil;-decode</CommandLine>
+        <!-- BitsAdmin download -->
+        <CommandLine condition="contains all">bitsadmin;/transfer</CommandLine>
+        <CommandLine condition="contains all">bitsadmin;/download</CommandLine>
+
+        <!-- ---- mshta — HTML Application — T1218.005 ---- -->
+        <Image condition="end with">mshta.exe</Image>
+
+        <!-- ---- regsvr32 script execution — T1218.010 ---- -->
+        <CommandLine condition="contains all">regsvr32;/s</CommandLine>
+        <CommandLine condition="contains all">regsvr32;scrobj</CommandLine>
+        <CommandLine condition="contains all">regsvr32;/n</CommandLine>
+
+        <!-- ---- WScript / CScript from user directories — T1059.005 ---- -->
+        <CommandLine condition="contains all">wscript;\AppData\</CommandLine>
+        <CommandLine condition="contains all">wscript;\Temp\</CommandLine>
+        <CommandLine condition="contains all">wscript;\Downloads\</CommandLine>
+        <CommandLine condition="contains all">cscript;\AppData\</CommandLine>
+        <CommandLine condition="contains all">cscript;\Temp\</CommandLine>
+
+        <!-- ---- Rundll32 with network/suspicious paths — T1218.011 ---- -->
+        <CommandLine condition="contains all">rundll32;http</CommandLine>
+        <CommandLine condition="contains all">rundll32;\AppData\</CommandLine>
+        <CommandLine condition="contains all">rundll32;\Temp\</CommandLine>
+        <CommandLine condition="contains all">rundll32;javascript:</CommandLine>
+        <CommandLine condition="contains all">rundll32;vbscript:</CommandLine>
+
+        <!-- ---- InstallUtil — T1218.004 ---- -->
+        <Image condition="end with">InstallUtil.exe</Image>
+
+        <!-- ---- MSIExec / MSCONFIG LOLBin ---- -->
+        <CommandLine condition="contains all">msiexec;/q</CommandLine>
+        <CommandLine condition="contains all">msiexec;http</CommandLine>
+
+        <!-- ---- Scripting from suspicious locations ---- -->
+        <CommandLine condition="contains all">powershell;\AppData\</CommandLine>
+        <CommandLine condition="contains all">powershell;\Temp\</CommandLine>
+        <CommandLine condition="contains all">powershell;\Downloads\</CommandLine>
+        <CommandLine condition="contains all">cmd;\AppData\</CommandLine>
+        <CommandLine condition="contains all">cmd;\Temp\</CommandLine>
+
+        <!-- ---- DLL execution tricks ---- -->
+        <CommandLine condition="contains">pcwrun.exe</CommandLine>
+        <CommandLine condition="contains">syncappvpublishingserver</CommandLine>
+        <CommandLine condition="contains">appsyncpublishingserver</CommandLine>
+
+        <!-- ---- Macro indicators ---- -->
+        <CommandLine condition="contains">Shell(</CommandLine>
+        <CommandLine condition="contains">CreateObject("WScript</CommandLine>
+        <CommandLine condition="contains">CreateObject("Shell</CommandLine>
+
+        <!-- ---- .NET inline code execution ---- -->
+        <CommandLine condition="contains">Add-Type</CommandLine>
+        <CommandLine condition="contains">[System.Reflection.Assembly]::Load</CommandLine>
+        <CommandLine condition="contains">Assembly.Load(</CommandLine>
+
+        <!-- ---- WMIC process execution — T1047 ---- -->
+        <CommandLine condition="contains all">wmic;process;call;create</CommandLine>
+        <CommandLine condition="contains all">wmic;/format:hta</CommandLine>
+
+      </ProcessCreate>
+    </RuleGroup>
+
+    <!-- Exclude known-good processes that may match above broadly -->
+    <RuleGroup name="ProcessCreate-IA-Exclude" groupRelation="or">
+      <ProcessCreate onmatch="exclude">
+        <!-- Windows Defender legitimately uses PowerShell -->
+        <ParentImage condition="begin with">C:\ProgramData\Microsoft\Windows Defender\</ParentImage>
+        <!-- Known admin tools invoked via Office Add-ins -->
+        <Image condition="is">C:\Program Files\Microsoft Office\root\Client\AppVLP.exe</Image>
+      </ProcessCreate>
+    </RuleGroup>
+
+    <!-- ================================================================
+         EVENT 3 — Network Connection: Download Cradle Outbound
+         ================================================================ -->
+    <RuleGroup name="NetworkConnect-DownloadCradle" groupRelation="or">
+      <NetworkConnect onmatch="include">
+        <!-- Office apps making outbound HTTP/HTTPS (macro dropper) -->
+        <Image condition="end with">WINWORD.EXE</Image>
+        <Image condition="end with">EXCEL.EXE</Image>
+        <Image condition="end with">POWERPNT.EXE</Image>
+        <Image condition="end with">OUTLOOK.EXE</Image>
+        <Image condition="end with">ONENOTE.EXE</Image>
+        <!-- Scripting engines making outbound connections -->
+        <Image condition="end with">wscript.exe</Image>
+        <Image condition="end with">cscript.exe</Image>
+        <Image condition="end with">mshta.exe</Image>
+        <Image condition="end with">regsvr32.exe</Image>
+        <Image condition="end with">certutil.exe</Image>
+        <Image condition="end with">bitsadmin.exe</Image>
+        <Image condition="end with">InstallUtil.exe</Image>
+      </NetworkConnect>
+    </RuleGroup>
+
+    <!-- ================================================================
+         EVENT 11 — File Create: Dropped Payloads
+         ================================================================ -->
+    <RuleGroup name="FileCreate-DroppedPayload" groupRelation="or">
+      <FileCreate onmatch="include">
+        <!-- Executables dropped in user-writable locations -->
+        <TargetFilename condition="end with">.exe</TargetFilename>
+        <TargetFilename condition="end with">.dll</TargetFilename>
+        <TargetFilename condition="end with">.ps1</TargetFilename>
+        <TargetFilename condition="end with">.vbs</TargetFilename>
+        <TargetFilename condition="end with">.js</TargetFilename>
+        <TargetFilename condition="end with">.hta</TargetFilename>
+        <TargetFilename condition="end with">.bat</TargetFilename>
+        <TargetFilename condition="end with">.cmd</TargetFilename>
+        <TargetFilename condition="end with">.scr</TargetFilename>
+        <TargetFilename condition="end with">.lnk</TargetFilename>
+      </FileCreate>
+    </RuleGroup>
+
+    <!-- Only flag dropped executables in suspicious paths -->
+    <RuleGroup name="FileCreate-DroppedPayload-Exclude" groupRelation="or">
+      <FileCreate onmatch="exclude">
+        <!-- Installations go to Program Files — expected -->
+        <TargetFilename condition="begin with">C:\Program Files\</TargetFilename>
+        <TargetFilename condition="begin with">C:\Program Files (x86)\</TargetFilename>
+        <!-- Windows itself -->
+        <TargetFilename condition="begin with">C:\Windows\</TargetFilename>
+        <!-- Browser cache — .js files -->
+        <TargetFilename condition="contains">Google\Chrome\User Data</TargetFilename>
+        <TargetFilename condition="contains">Microsoft\Edge\User Data</TargetFilename>
+      </FileCreate>
+    </RuleGroup>
+
+    <!-- ================================================================
+         EVENT 22 — DNS: C2 callback after initial execution
+         ================================================================ -->
+    <RuleGroup name="DNSQuery-C2Callback" groupRelation="or">
+      <DnsQuery onmatch="include">
+        <!-- Very long subdomain (DNS tunneling / DGA) -->
+        <QueryName condition="more than">50</QueryName>
+        <!-- Tor resolvers -->
+        <QueryName condition="end with">.onion</QueryName>
+        <QueryName condition="contains">tor2web</QueryName>
+      </DnsQuery>
+    </RuleGroup>
+
+  </EventFiltering>
+</Sysmon>

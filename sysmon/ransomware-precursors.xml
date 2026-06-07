@@ -1,0 +1,193 @@
+<!--
+  HuntingThreats — Sysmon Config: Ransomware Precursors
+  =======================================================
+  Scenario : Pre-encryption kill chain detection
+  Goal     : Catch every step of the backup-wipe + encryption sequence
+             before file encryption begins
+  MITRE    : T1490 (Inhibit System Recovery), T1489 (Service Stop),
+             T1486 (Data Encrypted for Impact), T1070.001 (Clear Logs)
+  Pack     : backup-resilience.spl (SP-730001 through SP-730020)
+
+  Correlate with: SP-810019 (Backup Wiper Chain)
+
+  Install  : sysmon64.exe -accepteula -i ransomware-precursors.xml
+  Update   : sysmon64.exe -c ransomware-precursors.xml
+
+  Design principle:
+    This config is NARROW — it generates almost no noise in normal operations.
+    Every event this config captures should be investigated.
+    Do NOT suppress alerts from this config without a documented exception.
+
+  Event coverage:
+    Event 1  ProcessCreate  - VSS/backup kill commands, cipher, bcdedit
+    Event 11 FileCreate     - ransom notes, encrypted file extensions
+    Event 13 RegistryEvent  - recovery disabled, boot config changes
+    Event 22 DNSQuery       - C2 check-in pattern (DGA-like queries pre-encryption)
+-->
+<Sysmon schemaversion="4.90">
+
+  <HashAlgorithms>SHA256,IMPHASH</HashAlgorithms>
+  <CheckRevocation/>
+
+  <EventFiltering>
+
+    <!-- ================================================================
+         EVENT 1 — Process Create
+         Capture: All commands targeting backup/shadow/recovery infrastructure
+         ================================================================ -->
+    <RuleGroup name="ProcessCreate-RansomwarePrecursors" groupRelation="or">
+      <ProcessCreate onmatch="include">
+
+        <!-- VSS Shadow Copy deletion — T1490 -->
+        <CommandLine condition="contains">vssadmin</CommandLine>
+        <CommandLine condition="contains">delete shadows</CommandLine>
+        <CommandLine condition="contains">Delete Shadows</CommandLine>
+        <CommandLine condition="contains">resize shadowstorage</CommandLine>
+
+        <!-- WMI-based shadow deletion -->
+        <CommandLine condition="contains">shadowcopy delete</CommandLine>
+        <CommandLine condition="contains">Win32_ShadowCopy</CommandLine>
+
+        <!-- BCDEdit — disable boot recovery — T1490 -->
+        <CommandLine condition="contains">recoveryenabled no</CommandLine>
+        <CommandLine condition="contains">bootstatuspolicy ignoreallfailures</CommandLine>
+        <CommandLine condition="contains">safeboot</CommandLine>
+
+        <!-- Wbadmin — Windows Backup deletion — T1490 -->
+        <CommandLine condition="contains">wbadmin delete catalog</CommandLine>
+        <CommandLine condition="contains">wbadmin delete backup</CommandLine>
+        <CommandLine condition="contains">wbadmin delete systemstatebackup</CommandLine>
+
+        <!-- Service control targeting backup services — T1489 -->
+        <CommandLine condition="contains all">sc;stop;vss</CommandLine>
+        <CommandLine condition="contains all">sc;stop;backup</CommandLine>
+        <CommandLine condition="contains all">sc;stop;veeam</CommandLine>
+        <CommandLine condition="contains all">sc;stop;Acronis</CommandLine>
+        <CommandLine condition="contains all">sc;stop;SQLAgent</CommandLine>
+        <CommandLine condition="contains all">sc;stop;MSSQL</CommandLine>
+        <CommandLine condition="contains all">sc;delete;backup</CommandLine>
+
+        <!-- Taskkill targeting backup / AV processes -->
+        <CommandLine condition="contains all">taskkill;veeam</CommandLine>
+        <CommandLine condition="contains all">taskkill;backup</CommandLine>
+        <CommandLine condition="contains all">taskkill;sqlmangr</CommandLine>
+        <CommandLine condition="contains all">taskkill;steam</CommandLine>
+
+        <!-- Net stop targeting backup / database services -->
+        <CommandLine condition="contains all">net stop;backup</CommandLine>
+        <CommandLine condition="contains all">net stop;vss</CommandLine>
+        <CommandLine condition="contains all">net stop;veeam</CommandLine>
+        <CommandLine condition="contains all">net stop;SQLAgent</CommandLine>
+        <CommandLine condition="contains all">net stop;MSSQL</CommandLine>
+
+        <!-- Cipher /w — secure wipe free space (precedes encryption) -->
+        <Image condition="end with">cipher.exe</Image>
+
+        <!-- Fsutil — sparse file tricks / free space operations -->
+        <CommandLine condition="contains">fsutil usn deletejournal</CommandLine>
+
+        <!-- PowerShell removing backup-related keys/data -->
+        <CommandLine condition="contains">Remove-WmiObject Win32_ShadowCopy</CommandLine>
+        <CommandLine condition="contains">Get-WmiObject Win32_ShadowCopy</CommandLine>
+
+        <!-- Ransom note dropping via common methods -->
+        <CommandLine condition="contains">HOW_TO_DECRYPT</CommandLine>
+        <CommandLine condition="contains">RECOVER_FILES</CommandLine>
+        <CommandLine condition="contains">README_FOR_DECRYPT</CommandLine>
+        <CommandLine condition="contains">RESTORE_FILES</CommandLine>
+
+        <!-- Recovery partition targeting -->
+        <CommandLine condition="contains">reagentc /disable</CommandLine>
+        <CommandLine condition="contains">reagentc.exe</CommandLine>
+
+      </ProcessCreate>
+    </RuleGroup>
+
+    <!-- ================================================================
+         EVENT 11 — File Create
+         Capture: Ransom notes + encrypted file extensions (post-encryption begins)
+         ================================================================ -->
+    <RuleGroup name="FileCreate-RansomIndicators" groupRelation="or">
+      <FileCreate onmatch="include">
+
+        <!-- Ransom note filenames (common families) -->
+        <TargetFilename condition="contains">HOW_TO_DECRYPT</TargetFilename>
+        <TargetFilename condition="contains">RECOVER_FILES</TargetFilename>
+        <TargetFilename condition="contains">README_DECRYPT</TargetFilename>
+        <TargetFilename condition="contains">RESTORE_FILES</TargetFilename>
+        <TargetFilename condition="contains">YOUR_FILES_ARE_ENCRYPTED</TargetFilename>
+        <TargetFilename condition="contains">DECRYPT_INSTRUCTIONS</TargetFilename>
+        <TargetFilename condition="contains">!INSTRUCTIONS</TargetFilename>
+        <TargetFilename condition="contains">_readme.txt</TargetFilename>
+        <TargetFilename condition="end with">READ_ME.txt</TargetFilename>
+        <TargetFilename condition="end with">README.txt</TargetFilename>
+
+        <!-- Known ransomware extensions -->
+        <TargetFilename condition="end with">.locked</TargetFilename>
+        <TargetFilename condition="end with">.crypt</TargetFilename>
+        <TargetFilename condition="end with">.crypz</TargetFilename>
+        <TargetFilename condition="end with">.encrypt</TargetFilename>
+        <TargetFilename condition="end with">.enc</TargetFilename>
+        <TargetFilename condition="end with">.locky</TargetFilename>
+        <TargetFilename condition="end with">.cerber</TargetFilename>
+        <TargetFilename condition="end with">.ryuk</TargetFilename>
+        <TargetFilename condition="end with">.black</TargetFilename>
+        <TargetFilename condition="end with">.blackcat</TargetFilename>
+        <TargetFilename condition="end with">.lockbit</TargetFilename>
+        <TargetFilename condition="end with">.deadbolt</TargetFilename>
+        <TargetFilename condition="end with">.hive</TargetFilename>
+        <TargetFilename condition="end with">.Cl0p</TargetFilename>
+        <TargetFilename condition="end with">.akira</TargetFilename>
+        <TargetFilename condition="end with">.rhysida</TargetFilename>
+        <TargetFilename condition="end with">.medusa</TargetFilename>
+        <TargetFilename condition="end with">.phantomnet</TargetFilename>
+        <TargetFilename condition="end with">.scattered</TargetFilename>
+
+        <!-- Volume shadow copy storage locations — any new file write is suspicious -->
+        <TargetFilename condition="begin with">\\?\GLOBALROOT\Device\HarddiskVolumeShadowCopy</TargetFilename>
+
+      </FileCreate>
+    </RuleGroup>
+
+    <!-- ================================================================
+         EVENT 13 — Registry Set Value
+         Capture: Boot configuration changes that disable recovery
+         ================================================================ -->
+    <RuleGroup name="RegistryEvent-BootRecovery" groupRelation="or">
+      <RegistryEvent onmatch="include">
+
+        <!-- BCDEdit stores boot config here -->
+        <TargetObject condition="contains">BCD00000000</TargetObject>
+        <!-- RecoveryEnabled flag -->
+        <TargetObject condition="contains">RecoveryEnabled</TargetObject>
+        <!-- BootStatusPolicy -->
+        <TargetObject condition="contains">BootStatusPolicy</TargetObject>
+        <!-- WER recovery disabled -->
+        <TargetObject condition="contains">SOFTWARE\Microsoft\Windows\Windows Error Reporting\Disabled</TargetObject>
+        <!-- VSS service disabled -->
+        <TargetObject condition="contains">SYSTEM\CurrentControlSet\Services\VSS\Start</TargetObject>
+
+      </RegistryEvent>
+    </RuleGroup>
+
+    <!-- ================================================================
+         EVENT 22 — DNS Query
+         Capture: Queries to Tor / .onion proxies + DGA-pattern domains
+         Ransomware C2 often uses Tor or DGA before triggering encryption
+         ================================================================ -->
+    <RuleGroup name="DNSQuery-RansomC2" groupRelation="or">
+      <DnsQuery onmatch="include">
+
+        <!-- Tor and onion resolvers -->
+        <QueryName condition="end with">.onion</QueryName>
+        <QueryName condition="end with">.onion.to</QueryName>
+        <QueryName condition="end with">.onion.ws</QueryName>
+        <QueryName condition="end with">.onion.pet</QueryName>
+        <!-- Tor2web proxies -->
+        <QueryName condition="contains">tor2web</QueryName>
+
+      </DnsQuery>
+    </RuleGroup>
+
+  </EventFiltering>
+</Sysmon>
