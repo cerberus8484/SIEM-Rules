@@ -1,0 +1,1351 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Analyst Query Library — HuntingThreats Hunt Pack</title>
+<style>
+  :root {
+    --bg-primary: #080c14;
+    --bg-secondary: #0d1117;
+    --bg-card: #141824;
+    --bg-card-hover: #1a2030;
+    --bg-code: #0d1117;
+    --accent-cyan: #00d4ff;
+    --accent-green: #00ff88;
+    --accent-orange: #ff9500;
+    --accent-red: #ff4444;
+    --accent-yellow: #ffcc00;
+    --accent-purple: #b88aff;
+    --text-primary: #e0e6f0;
+    --text-secondary: #8892a4;
+    --text-muted: #4a5568;
+    --border: #1e2a3a;
+    --border-bright: #2a3a52;
+    --sidebar-width: 280px;
+    --header-height: 60px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+    font-size: 15px;
+    line-height: 1.7;
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+  }
+
+  /* ─── Header ─── */
+  header {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    height: var(--header-height);
+    background: linear-gradient(90deg, #0d1421 0%, #101828 100%);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    padding: 0 24px;
+    z-index: 100;
+    gap: 16px;
+  }
+
+  .header-badge {
+    background: linear-gradient(135deg, var(--accent-cyan) 0%, #0088bb 100%);
+    color: #000;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 3px 10px;
+    border-radius: 20px;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+  }
+
+  header h1 {
+    font-size: 17px;
+    font-weight: 700;
+    color: var(--text-primary);
+    flex: 1;
+  }
+
+  .header-meta {
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+
+  /* ─── Layout ─── */
+  .layout {
+    display: flex;
+    margin-top: var(--header-height);
+    min-height: calc(100vh - var(--header-height));
+  }
+
+  /* ─── Sidebar ─── */
+  aside {
+    width: var(--sidebar-width);
+    background: var(--bg-secondary);
+    border-right: 1px solid var(--border);
+    padding: 28px 0;
+    position: fixed;
+    top: var(--header-height);
+    bottom: 0;
+    overflow-y: auto;
+  }
+
+  .sidebar-section {
+    margin-bottom: 8px;
+  }
+
+  .sidebar-label {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1.2px;
+    color: var(--text-muted);
+    padding: 10px 20px 4px;
+  }
+
+  aside a {
+    display: block;
+    padding: 7px 20px;
+    color: var(--text-secondary);
+    text-decoration: none;
+    font-size: 13px;
+    border-left: 3px solid transparent;
+    transition: all 0.15s ease;
+  }
+
+  aside a:hover,
+  aside a.active {
+    color: var(--accent-cyan);
+    background: rgba(0, 212, 255, 0.06);
+    border-left-color: var(--accent-cyan);
+  }
+
+  /* ─── Main Content ─── */
+  main {
+    margin-left: var(--sidebar-width);
+    padding: 40px 48px;
+    max-width: 960px;
+    width: 100%;
+  }
+
+  section {
+    margin-bottom: 64px;
+  }
+
+  h2 {
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 16px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  h2 .section-num {
+    color: var(--accent-cyan);
+    font-size: 14px;
+    font-weight: 600;
+    font-family: 'JetBrains Mono', 'Consolas', monospace;
+    opacity: 0.7;
+  }
+
+  h3 {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--accent-cyan);
+    margin: 28px 0 12px;
+  }
+
+  h4 {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    margin: 20px 0 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  p {
+    color: var(--text-secondary);
+    margin-bottom: 14px;
+  }
+
+  /* ─── Hero / Intro ─── */
+  .hero {
+    background: linear-gradient(135deg, #0d1627 0%, #0a1520 50%, #0d1221 100%);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 36px 40px;
+    margin-bottom: 48px;
+  }
+
+  .hero h2 {
+    font-size: 26px;
+    border: none;
+    padding: 0;
+    margin-bottom: 8px;
+    color: var(--accent-cyan);
+  }
+
+  .hero p {
+    font-size: 15px;
+    color: var(--text-secondary);
+    max-width: 640px;
+  }
+
+  .stats-row {
+    display: flex;
+    gap: 20px;
+    margin-top: 24px;
+    flex-wrap: wrap;
+  }
+
+  .stat {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px 24px;
+    text-align: center;
+    min-width: 100px;
+  }
+
+  .stat-value {
+    font-size: 28px;
+    font-weight: 800;
+    color: var(--accent-cyan);
+    font-family: 'JetBrains Mono', monospace;
+    display: block;
+  }
+
+  .stat-label {
+    font-size: 11px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+  }
+
+  /* ─── Cards ─── */
+  .card {
+    background: linear-gradient(135deg, var(--bg-card) 0%, #111a28 100%);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px 24px;
+    margin-bottom: 16px;
+  }
+
+  .card-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 8px;
+  }
+
+  /* ─── Tables ─── */
+  .table-wrap {
+    overflow-x: auto;
+    margin-bottom: 20px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+
+  thead {
+    background: #0f1a28;
+  }
+
+  th {
+    text-align: left;
+    padding: 11px 16px;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    font-size: 11px;
+    letter-spacing: 0.8px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  td {
+    padding: 10px 16px;
+    border-bottom: 1px solid #111928;
+    color: var(--text-secondary);
+    vertical-align: top;
+  }
+
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: rgba(255,255,255,0.02); }
+
+  td:first-child {
+    font-family: 'JetBrains Mono', 'Consolas', monospace;
+    color: var(--accent-cyan);
+    font-size: 12px;
+    white-space: nowrap;
+  }
+
+  /* ─── Code blocks ─── */
+  pre {
+    background: var(--bg-code);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 20px;
+    overflow-x: auto;
+    margin: 12px 0 20px;
+    font-size: 12.5px;
+    line-height: 1.65;
+    position: relative;
+  }
+
+  pre code {
+    font-family: 'JetBrains Mono', 'Consolas', 'Courier New', monospace;
+    color: #a8c0e8;
+    background: none;
+  }
+
+  code {
+    font-family: 'JetBrains Mono', 'Consolas', monospace;
+    font-size: 12px;
+    background: #0d1117;
+    border: 1px solid var(--border);
+    color: var(--accent-cyan);
+    padding: 2px 6px;
+    border-radius: 4px;
+  }
+
+  /* ─── Language colors ─── */
+  .lang-spl { color: #ff9500; }
+  .lang-aql { color: #00ff88; }
+  .lang-udm { color: #00d4ff; }
+  .lang-kql { color: #b88aff; }
+
+  .comment { color: #4a6080; }
+  .keyword { color: #ff9500; }
+  .string  { color: #00ff88; }
+  .field   { color: #00d4ff; }
+  .number  { color: #ffcc00; }
+  .param   { color: #ff6b6b; font-weight: 600; }
+
+  /* ─── Badges / Pills ─── */
+  .badge {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .badge-cyan   { background: rgba(0,212,255,0.15); color: var(--accent-cyan); border: 1px solid rgba(0,212,255,0.3); }
+  .badge-green  { background: rgba(0,255,136,0.12); color: var(--accent-green); border: 1px solid rgba(0,255,136,0.3); }
+  .badge-orange { background: rgba(255,149,0,0.15); color: var(--accent-orange); border: 1px solid rgba(255,149,0,0.3); }
+  .badge-purple { background: rgba(184,138,255,0.12); color: var(--accent-purple); border: 1px solid rgba(184,138,255,0.3); }
+  .badge-red    { background: rgba(255,68,68,0.12); color: var(--accent-red); border: 1px solid rgba(255,68,68,0.3); }
+
+  /* ─── Callouts ─── */
+  .callout {
+    border-radius: 8px;
+    padding: 16px 20px;
+    margin: 16px 0;
+    border-left: 4px solid;
+    font-size: 13.5px;
+  }
+
+  .callout-info    { background: rgba(0,212,255,0.07); border-color: var(--accent-cyan); }
+  .callout-tip     { background: rgba(0,255,136,0.07); border-color: var(--accent-green); }
+  .callout-warn    { background: rgba(255,149,0,0.07); border-color: var(--accent-orange); }
+  .callout-danger  { background: rgba(255,68,68,0.07); border-color: var(--accent-red); }
+
+  .callout-title {
+    font-weight: 700;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    margin-bottom: 6px;
+  }
+
+  .callout-info .callout-title    { color: var(--accent-cyan); }
+  .callout-tip .callout-title     { color: var(--accent-green); }
+  .callout-warn .callout-title    { color: var(--accent-orange); }
+  .callout-danger .callout-title  { color: var(--accent-red); }
+
+  /* ─── Steps ─── */
+  .steps {
+    counter-reset: step;
+    list-style: none;
+    margin: 16px 0 24px;
+  }
+
+  .steps li {
+    counter-increment: step;
+    padding: 12px 16px 12px 52px;
+    position: relative;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    margin-bottom: 8px;
+    color: var(--text-secondary);
+    font-size: 13.5px;
+  }
+
+  .steps li::before {
+    content: counter(step);
+    position: absolute;
+    left: 16px;
+    top: 12px;
+    width: 24px;
+    height: 24px;
+    background: linear-gradient(135deg, var(--accent-cyan) 0%, #0088bb 100%);
+    color: #000;
+    border-radius: 50%;
+    font-size: 11px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+  }
+
+  /* ─── Category Grid ─── */
+  .cat-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 14px;
+    margin-top: 16px;
+  }
+
+  .cat-card {
+    background: linear-gradient(135deg, var(--bg-card) 0%, #111a28 100%);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 18px;
+    transition: border-color 0.2s;
+  }
+
+  .cat-card:hover { border-color: var(--accent-cyan); }
+
+  .cat-range {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--accent-cyan);
+    background: rgba(0,212,255,0.1);
+    border-radius: 4px;
+    padding: 2px 8px;
+    display: inline-block;
+    margin-bottom: 10px;
+  }
+
+  .cat-name {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 6px;
+  }
+
+  .cat-desc {
+    font-size: 12px;
+    color: var(--text-muted);
+    line-height: 1.5;
+  }
+
+  /* ─── Platform Tabs ─── */
+  .platform-tabs {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+  }
+
+  .platform-tab {
+    padding: 8px 18px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: default;
+    border: 1px solid var(--border);
+  }
+
+  .tab-splunk  { background: rgba(255,149,0,0.12); color: #ff9500; border-color: rgba(255,149,0,0.3); }
+  .tab-qradar  { background: rgba(0,255,136,0.10); color: #00ff88; border-color: rgba(0,255,136,0.3); }
+  .tab-secops  { background: rgba(0,212,255,0.10); color: #00d4ff; border-color: rgba(0,212,255,0.3); }
+  .tab-wazuh   { background: rgba(184,138,255,0.10); color: #b88aff; border-color: rgba(184,138,255,0.3); }
+
+  /* ─── Workflow ─── */
+  .workflow {
+    border-left: 2px solid var(--border);
+    padding-left: 24px;
+    margin: 16px 0;
+  }
+
+  .workflow-step {
+    position: relative;
+    margin-bottom: 20px;
+  }
+
+  .workflow-step::before {
+    content: '';
+    position: absolute;
+    left: -29px;
+    top: 6px;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--accent-cyan);
+    border: 2px solid var(--bg-primary);
+  }
+
+  .workflow-step-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 4px;
+  }
+
+  .workflow-step-queries {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 6px;
+  }
+
+  .query-pill {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    padding: 3px 10px;
+    background: rgba(0,212,255,0.08);
+    border: 1px solid rgba(0,212,255,0.2);
+    border-radius: 4px;
+    color: var(--accent-cyan);
+  }
+
+  /* ─── Cheat Sheet ─── */
+  .cheat-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+
+  .cheat-block {
+    background: var(--bg-code);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px;
+  }
+
+  .cheat-block h4 {
+    margin: 0 0 10px;
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+
+  .cheat-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 5px 0;
+    border-bottom: 1px solid #111928;
+    font-size: 12px;
+  }
+
+  .cheat-row:last-child { border-bottom: none; }
+  .cheat-situation { color: var(--text-secondary); }
+  .cheat-qid {
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--accent-cyan);
+    font-size: 11px;
+  }
+
+  /* ─── Scrollspy active ─── */
+  aside a.active {
+    color: var(--accent-cyan);
+    background: rgba(0, 212, 255, 0.06);
+    border-left-color: var(--accent-cyan);
+  }
+</style>
+</head>
+<body>
+
+<!-- ── Header ─────────────────────────────────────────────── -->
+<header>
+  <span class="header-badge">Analyst Guide</span>
+  <h1>HuntingThreats — Analyst Query Library</h1>
+  <span class="header-meta">v1.0.0 · 200 Queries · 4 Plattformen</span>
+</header>
+
+<!-- ── Layout ─────────────────────────────────────────────── -->
+<div class="layout">
+
+<!-- ── Sidebar ────────────────────────────────────────────── -->
+<aside id="sidebar">
+  <div class="sidebar-section">
+    <div class="sidebar-label">Einführung</div>
+    <a href="#intro">Was sind Analyst Queries?</a>
+    <a href="#vergleich">Hunt Rules vs. Queries</a>
+    <a href="#struktur">Query-Struktur</a>
+    <a href="#parameter">Parameter-Referenz</a>
+    <a href="#kategorien">Kategorien-Übersicht</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-label">Plattformen</div>
+    <a href="#splunk">Splunk SPL</a>
+    <a href="#qradar">QRadar AQL</a>
+    <a href="#secops">Google SecOps UDM</a>
+    <a href="#wazuh">Wazuh KQL</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-label">Anwendung</div>
+    <a href="#workflows">Investigationsworkflows</a>
+    <a href="#tipps">Analyst-Tipps</a>
+    <a href="#cheatsheet">Cheat Sheet</a>
+  </div>
+</aside>
+
+<!-- ── Main ───────────────────────────────────────────────── -->
+<main>
+
+  <!-- Hero -->
+  <div class="hero">
+    <h2>Analyst Query Library</h2>
+    <p>Fertige, sofort einsetzbare SIEM-Suchabfragen für Security-Analysten. Parameterisiert, kategorisiert, für alle 4 Plattformen.</p>
+    <div class="stats-row">
+      <div class="stat">
+        <span class="stat-value">200</span>
+        <span class="stat-label">Queries gesamt</span>
+      </div>
+      <div class="stat">
+        <span class="stat-value">50</span>
+        <span class="stat-label">pro Plattform</span>
+      </div>
+      <div class="stat">
+        <span class="stat-value">4</span>
+        <span class="stat-label">Plattformen</span>
+      </div>
+      <div class="stat">
+        <span class="stat-value">9</span>
+        <span class="stat-label">Kategorien</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 1. Einführung -->
+  <section id="intro">
+    <h2><span class="section-num">01</span> Was sind Analyst Queries?</h2>
+    <p>Analyst Queries sind <strong style="color:var(--text-primary)">fertige, sofort nutzbare Suchabfragen</strong> für Security-Analysten im Triage- und Investigation-Alltag. Sie sind interaktiv — du führst sie manuell, gezielt und anlassbezogen aus.</p>
+
+    <div class="callout callout-info">
+      <div class="callout-title">Wann nutze ich eine Analyst Query?</div>
+      <p>Ein Alert wurde getriggert und du willst mehr Kontext. Ein Ticket läuft: "User X hat seltsames Verhalten gezeigt." Ein Incident ist aktiv und du brauchst schnell eine Timeline. Neue Threat Intelligence: IOC direkt im Environment suchen.</p>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Typische Anwendungsfälle</div>
+      <ul style="color:var(--text-secondary); font-size:13.5px; padding-left:20px; line-height:1.9;">
+        <li>Alert auf Endpunkt → vollständige Host-Timeline aufbauen</li>
+        <li>Verdächtiger Account → alle Aktivitäten in letzten 24h analysieren</li>
+        <li>IOC (IP, Domain, Hash) aus Threat Intel → sofort Environment sweepen</li>
+        <li>Lateral-Movement-Verdacht → SMB/RDP/WMI-Aktivitäten korrelieren</li>
+        <li>Ransomware-Alarm → VSS-Deletion + Service-Stopps prüfen</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- 2. Vergleich -->
+  <section id="vergleich">
+    <h2><span class="section-num">02</span> Hunt Rules vs. Analyst Queries</h2>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Eigenschaft</th>
+            <th>Hunt Rules</th>
+            <th>Analyst Queries</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>Ausführung</td><td>Automatisch / Scheduled</td><td>Manuell, on-demand</td></tr>
+          <tr><td>Zweck</td><td>Alerting, kontinuierliche Überwachung</td><td>Triage, Investigation</td></tr>
+          <tr><td>Parameter</td><td>Statisch, eingebaut</td><td>Dynamisch — <code>&lt;PLATZHALTER&gt;</code></td></tr>
+          <tr><td>Ergebnis</td><td>Alert / Finding</td><td>Suchergebnisse, Tabellen</td></tr>
+          <tr><td>Zeitfenster</td><td>Festes Lookback-Window</td><td>Frei wählbar über UI</td></tr>
+          <tr><td>Dateipfad</td><td><code>hunts/&lt;plattform&gt;/</code></td><td><code>analyst_queries/&lt;plattform&gt;/</code></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- 3. Struktur -->
+  <section id="struktur">
+    <h2><span class="section-num">03</span> Query-Struktur und Aufbau</h2>
+    <p>Jede Query folgt einem konsistenten Schema — damit du schnell die richtige Query findest und weißt, was du ersetzen musst.</p>
+
+    <h3>Query-ID Schema</h3>
+    <pre><code><span class="comment">AQ  = Analyst Query (immer gleich)</span>
+<span class="comment">SPL = Plattform: SPL | QR | GS | WZ</span>
+<span class="comment">001 = Laufende Nummer (001–050)</span>
+
+AQ-SPL-001  →  Splunk, Query #1
+AQ-QR-009   →  QRadar, Query #9
+AQ-GS-025   →  Google SecOps, Query #25
+AQ-WZ-041   →  Wazuh, Query #41</code></pre>
+
+    <h3>Annotiertes Beispiel — Splunk</h3>
+    <pre><code><span class="comment">/* AQ-SPL-001 | Triage | Alle Events eines Hosts — letzten 24h
+   ↑               ↑       ↑
+   Query-ID     Kategorie  Titel
+
+   USE CASE: Erster Überblick nach Alert auf Endpunkt
+   ↑ Was beantwortet diese Query?
+
+   PARAMETER: &lt;HOST&gt;
+   ↑ Was muss ich ersetzen? */</span>
+
+<span class="keyword">index</span>=windows <span class="field">host</span>=<span class="param">"&lt;HOST&gt;"</span>
+| <span class="keyword">eval</span> EventCodeStr=tostring(EventCode)
+| <span class="keyword">stats</span> count by EventCodeStr, Source
+| <span class="keyword">sort</span> -count
+| <span class="keyword">rename</span> EventCodeStr as <span class="string">"Event Code"</span>, count as Anzahl</code></pre>
+
+    <h3>Annotiertes Beispiel — QRadar</h3>
+    <pre><code><span class="comment">-- AQ-QR-001 | Triage | Alle Events eines Hosts — letzten 24h
+   USE CASE: Erster Überblick nach Alert auf Endpunkt
+   PARAMETER: &lt;HOST&gt;</span>
+
+<span class="keyword">SELECT</span>
+  DATEFORMAT(devicetime, <span class="string">'yyyy-MM-dd HH:mm:ss'</span>) AS <span class="string">"Zeit"</span>,
+  category AS <span class="string">"Kategorie"</span>,
+  eventcount AS <span class="string">"Anzahl"</span>
+<span class="keyword">FROM</span> events
+<span class="keyword">WHERE</span> hostname = <span class="param">'&lt;HOST&gt;'</span>
+<span class="keyword">GROUP BY</span> devicetime, category
+<span class="keyword">ORDER BY</span> devicetime <span class="keyword">DESC</span>
+<span class="keyword">LAST</span> <span class="number">1440</span> MINUTES</code></pre>
+
+    <h3>Annotiertes Beispiel — Google SecOps UDM</h3>
+    <pre><code><span class="comment">// AQ-GS-001 | Triage | Alle Events eines Hosts — letzten 24h
+// USE CASE: Erster Überblick nach Alert auf Endpunkt
+// PARAMETER: &lt;HOST&gt;</span>
+
+<span class="field">principal.hostname</span> = <span class="param">"&lt;HOST&gt;"</span></code></pre>
+
+    <h3>Annotiertes Beispiel — Wazuh KQL</h3>
+    <pre><code><span class="comment">/* AQ-WZ-001 | Triage | Alle Alerts eines Hosts — letzten 24h
+   USE CASE: Erster Überblick nach Alert auf Endpunkt
+   PARAMETER: &lt;HOST&gt; */</span>
+
+<span class="field">agent.name</span>: <span class="param">"&lt;HOST&gt;"</span></code></pre>
+  </section>
+
+  <!-- 4. Parameter -->
+  <section id="parameter">
+    <h2><span class="section-num">04</span> Parameter-Referenz</h2>
+
+    <div class="callout callout-warn">
+      <div class="callout-title">Wichtig</div>
+      <p>Vor der Ausführung <strong>alle</strong> Platzhalter mit <code>&lt;WINKELKLAMMERN&gt;</code> ersetzen. Vergessene Parameter führen zu Syntax-Fehlern oder Suchen über alle Daten.</p>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Parameter</th><th>Beschreibung</th><th>Beispiel</th></tr></thead>
+        <tbody>
+          <tr><td>&lt;HOST&gt;</td><td>Hostname des Systems</td><td>WIN10-CLIENT01, srv-dc01</td></tr>
+          <tr><td>&lt;USER&gt;</td><td>Benutzername</td><td>jsmith, DOMAIN\jsmith</td></tr>
+          <tr><td>&lt;IP&gt;</td><td>IP-Adresse</td><td>192.168.1.55, 185.220.101.1</td></tr>
+          <tr><td>&lt;DOMAIN&gt;</td><td>Domain-Name</td><td>evil-c2.example.com</td></tr>
+          <tr><td>&lt;PROCESS&gt;</td><td>Prozessname</td><td>powershell.exe, cmd.exe</td></tr>
+          <tr><td>&lt;STRING&gt;</td><td>Suchstring / Keyword</td><td>-EncodedCommand, mimikatz</td></tr>
+          <tr><td>&lt;HASH&gt;</td><td>SHA256 oder MD5</td><td>d41d8cd98f00b204e980...</td></tr>
+          <tr><td>&lt;PATH&gt;</td><td>Dateipfad oder Muster</td><td>\\Temp\\, C:\Windows\</td></tr>
+          <tr><td>&lt;START&gt;</td><td>Startzeitpunkt</td><td>2026-06-07T08:00:00</td></tr>
+          <tr><td>&lt;END&gt;</td><td>Endzeitpunkt</td><td>2026-06-07T18:00:00</td></tr>
+          <tr><td>&lt;PORT&gt;</td><td>TCP/UDP-Port</td><td>4444, 443, 9001</td></tr>
+          <tr><td>&lt;N&gt;</td><td>Numerischer Schwellenwert</td><td>10, 50, 100</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>Wildcard-Syntax je Plattform</h3>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Plattform</th><th>Wildcard</th><th>Beispiel</th></tr></thead>
+        <tbody>
+          <tr><td><span class="lang-spl">Splunk</span></td><td><code>*</code></td><td><code>CommandLine="*-enc*"</code></td></tr>
+          <tr><td><span class="lang-aql">QRadar</span></td><td><code>%</code> in ILIKE</td><td><code>ILIKE '%powershell%'</code></td></tr>
+          <tr><td><span class="lang-udm">Google SecOps</span></td><td>Regex mit <code>~</code></td><td><code>~ "powershell"</code></td></tr>
+          <tr><td><span class="lang-kql">Wazuh/KQL</span></td><td><code>*</code></td><td><code>commandLine: *-enc*</code></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- 5. Kategorien -->
+  <section id="kategorien">
+    <h2><span class="section-num">05</span> Kategorien-Übersicht</h2>
+    <div class="cat-grid">
+      <div class="cat-card">
+        <span class="cat-range">001–008</span>
+        <div class="cat-name">Triage &amp; Timeline</div>
+        <div class="cat-desc">Erster Überblick, Host-Übersicht, Zeitlinien, Vergleich</div>
+      </div>
+      <div class="cat-card">
+        <span class="cat-range">009–016</span>
+        <div class="cat-name">Authentication &amp; Accounts</div>
+        <div class="cat-desc">Logins, Fehlschläge, neue Accounts, Gruppenänderungen</div>
+      </div>
+      <div class="cat-card">
+        <span class="cat-range">017–024</span>
+        <div class="cat-name">Prozess &amp; Ausführung</div>
+        <div class="cat-desc">Prozessbäume, Commandlines, LOLBins, Hashes</div>
+      </div>
+      <div class="cat-card">
+        <span class="cat-range">025–031</span>
+        <div class="cat-name">Netzwerk &amp; C2</div>
+        <div class="cat-desc">Verbindungen, DNS, Beaconing, Tor-Ports, DGA</div>
+      </div>
+      <div class="cat-card">
+        <span class="cat-range">032–036</span>
+        <div class="cat-name">Dateisystem</div>
+        <div class="cat-desc">Dateierstellungen, EXE-Drops, Staging-Pfade, FIM</div>
+      </div>
+      <div class="cat-card">
+        <span class="cat-range">037–040</span>
+        <div class="cat-name">Persistenz</div>
+        <div class="cat-desc">Registry Run, Tasks, Dienste, Startup-Folder</div>
+      </div>
+      <div class="cat-card">
+        <span class="cat-range">041–045</span>
+        <div class="cat-name">Credential Access</div>
+        <div class="cat-desc">LSASS-Zugriff, Credential-Dumps, Kerberos, Brute-Force</div>
+      </div>
+      <div class="cat-card">
+        <span class="cat-range">046–049</span>
+        <div class="cat-name">Lateral Movement</div>
+        <div class="cat-desc">RDP, SMB Admin-Shares, WMI, PsExec-Pattern</div>
+      </div>
+      <div class="cat-card">
+        <span class="cat-range">050</span>
+        <div class="cat-name">Discovery &amp; Recon</div>
+        <div class="cat-desc">Recon-Tool-Burst, AD-Enumeration, Port-Scans</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 6. Splunk -->
+  <section id="splunk">
+    <h2><span class="section-num">06</span> Verwendung — Splunk</h2>
+    <div class="platform-tabs">
+      <span class="platform-tab tab-splunk">Splunk SPL</span>
+      <span style="color:var(--text-muted); font-size:13px; padding: 8px 0;">analyst_queries/splunk/analyst_queries.spl</span>
+    </div>
+
+    <h3>Wo eingeben?</h3>
+    <p>Splunk Web UI → <strong>Search &amp; Reporting</strong> → Suchleiste oben</p>
+
+    <h3>Schritt-für-Schritt</h3>
+    <ol class="steps">
+      <li><code>analyst_queries.spl</code> in einem Editor öffnen</li>
+      <li>Gewünschte Query anhand des Kommentars <code>/* AQ-SPL-XXX */</code> finden</li>
+      <li>Alle <code>&lt;PARAMETER&gt;</code> durch echte Werte ersetzen</li>
+      <li>Nur den Query-Block kopieren (ohne den Kommentar)</li>
+      <li>In die Splunk-Suchleiste einfügen</li>
+      <li>Zeitfenster über den Time-Picker oben rechts setzen</li>
+      <li>Suche starten</li>
+    </ol>
+
+    <h3>Zeitfenster-Optionen</h3>
+    <pre><code><span class="comment">-- Über UI:</span>
+Time Picker → "Last 24 hours" / "Last 30 days" / "Custom time"
+
+<span class="comment">-- Inline im Query (relativ):</span>
+<span class="keyword">earliest</span>=<span class="string">"-24h"</span> <span class="keyword">latest</span>=now
+
+<span class="comment">-- Inline im Query (absolut):</span>
+<span class="keyword">earliest</span>=<span class="string">"2026-06-07T08:00:00"</span> <span class="keyword">latest</span>=<span class="string">"2026-06-07T18:00:00"</span></code></pre>
+
+    <h3>Nützliche Ergänzungen</h3>
+    <pre><code><span class="comment">-- Mehr Felder sehen:</span>
+| <span class="keyword">table</span> _time, host, user, Image, CommandLine
+
+<span class="comment">-- Ergebnisse limitieren:</span>
+| <span class="keyword">head</span> <span class="number">100</span>
+
+<span class="comment">-- Mehrere Werte (OR):</span>
+EventCode <span class="keyword">IN</span> (<span class="number">4624</span>, <span class="number">4625</span>, <span class="number">4648</span>)
+
+<span class="comment">-- Negation:</span>
+NOT Image=<span class="string">"*\\svchost.exe"</span>
+
+<span class="comment">-- Zeitstempel leserlich:</span>
+| <span class="keyword">eval</span> ts=strftime(_time, <span class="string">"%Y-%m-%d %H:%M:%S"</span>)</code></pre>
+  </section>
+
+  <!-- 7. QRadar -->
+  <section id="qradar">
+    <h2><span class="section-num">07</span> Verwendung — QRadar</h2>
+    <div class="platform-tabs">
+      <span class="platform-tab tab-qradar">QRadar AQL</span>
+      <span style="color:var(--text-muted); font-size:13px; padding: 8px 0;">analyst_queries/qradar/analyst_queries.aql</span>
+    </div>
+
+    <h3>Wo eingeben?</h3>
+    <p>QRadar Console → <strong>Log Activity</strong> → <strong>Add Filter</strong> → <strong>Advanced Search</strong></p>
+
+    <h3>Schritt-für-Schritt</h3>
+    <ol class="steps">
+      <li><code>analyst_queries.aql</code> in einem Editor öffnen</li>
+      <li>Query anhand des Kommentars <code>-- AQ-QR-XXX</code> finden</li>
+      <li><code>&lt;PARAMETER&gt;</code> durch echte Werte ersetzen</li>
+      <li>Nur den SELECT-Block kopieren (ohne Kommentare)</li>
+      <li>In das AQL-Suchfeld einfügen</li>
+      <li>"Search" oder "Execute Query" klicken</li>
+    </ol>
+
+    <h3>AQL Zeitfenster</h3>
+    <pre><code><span class="comment">-- Relativ (ans Ende der Query):</span>
+<span class="keyword">LAST</span> <span class="number">60</span> MINUTES       <span class="comment">-- letzte Stunde</span>
+<span class="keyword">LAST</span> <span class="number">1440</span> MINUTES     <span class="comment">-- letzte 24h</span>
+<span class="keyword">LAST</span> <span class="number">10080</span> MINUTES    <span class="comment">-- letzte 7 Tage</span>
+
+<span class="comment">-- Absolut:</span>
+<span class="keyword">START</span> <span class="string">'2026-06-07 08:00'</span> <span class="keyword">STOP</span> <span class="string">'2026-06-07 18:00'</span></code></pre>
+
+    <h3>Wichtige AQL-Syntax</h3>
+    <pre><code><span class="comment">-- Payload-Suche (case-insensitive):</span>
+UTF8(payload) ILIKE <span class="string">'%powershell%'</span>
+
+<span class="comment">-- Werte-Liste:</span>
+category <span class="keyword">IN</span> (<span class="number">5001</span>, <span class="number">5002</span>)
+
+<span class="comment">-- Aggregation mit Schwellenwert:</span>
+<span class="keyword">GROUP BY</span> hostname
+<span class="keyword">HAVING</span> <span class="keyword">COUNT</span>(*) > <span class="number">10</span></code></pre>
+
+    <div class="callout callout-tip">
+      <div class="callout-title">Tipp</div>
+      <p>Wenn strukturierte Felder wie <code>hostname</code> leer sind, immer auf <code>UTF8(payload) ILIKE '%...'</code> zurückgreifen — das sucht direkt im Roh-Log.</p>
+    </div>
+  </section>
+
+  <!-- 8. SecOps -->
+  <section id="secops">
+    <h2><span class="section-num">08</span> Verwendung — Google SecOps</h2>
+    <div class="platform-tabs">
+      <span class="platform-tab tab-secops">Google SecOps UDM</span>
+      <span style="color:var(--text-muted); font-size:13px; padding: 8px 0;">analyst_queries/secops/analyst_queries.udm</span>
+    </div>
+
+    <h3>Wo eingeben?</h3>
+    <p>Google SecOps (Chronicle) → <strong>Search</strong> → <strong>UDM Search</strong></p>
+
+    <div class="callout callout-info">
+      <div class="callout-title">UDM Search vs. YARA-L</div>
+      <p>Diese Queries nutzen die interaktive <strong>UDM Search</strong>-Oberfläche — nicht YARA-L. YARA-L ist für Detection Rules. UDM Search ist das Analyst-Interface.</p>
+    </div>
+
+    <h3>Schritt-für-Schritt</h3>
+    <ol class="steps">
+      <li><code>analyst_queries.udm</code> in einem Editor öffnen</li>
+      <li>Query anhand des Kommentars <code>// AQ-GS-XXX</code> finden</li>
+      <li><code>&lt;PARAMETER&gt;</code> durch echte Werte ersetzen</li>
+      <li>Nur den Query-Ausdruck kopieren (ohne Kommentare)</li>
+      <li>In die UDM Search Bar einfügen</li>
+      <li>Zeitfenster über Time-Picker setzen</li>
+      <li>"Search" klicken</li>
+    </ol>
+
+    <h3>UDM Event Types</h3>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Event Type</th><th>Bedeutung</th><th>Sysmon EventCode</th></tr></thead>
+        <tbody>
+          <tr><td>PROCESS_LAUNCH</td><td>Prozessstart</td><td>1</td></tr>
+          <tr><td>NETWORK_CONNECTION</td><td>Netzwerkverbindung</td><td>3</td></tr>
+          <tr><td>DNS_RESOLUTION</td><td>DNS-Anfrage</td><td>22</td></tr>
+          <tr><td>FILE_CREATION</td><td>Datei erstellt</td><td>11</td></tr>
+          <tr><td>REGISTRY_MODIFICATION</td><td>Registry-Änderung</td><td>13</td></tr>
+          <tr><td>USER_LOGIN</td><td>Erfolgreicher Login</td><td>4624</td></tr>
+          <tr><td>USER_LOGIN_FAIL</td><td>Fehlgeschlagener Login</td><td>4625</td></tr>
+          <tr><td>USER_CREATION</td><td>Neuer Account</td><td>4720</td></tr>
+          <tr><td>SERVICE_INSTALLATION</td><td>Dienst installiert</td><td>7045</td></tr>
+          <tr><td>SCHEDULED_TASK_CREATION</td><td>Task erstellt</td><td>4698</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>Wichtige UDM-Felder</h3>
+    <pre><code><span class="comment">-- Quell-Seite (Angreifer / auslösender Prozess):</span>
+<span class="field">principal.hostname</span>                  → Quell-Host
+<span class="field">principal.ip</span>                        → Quell-IP
+<span class="field">principal.user.userid</span>               → Quell-Nutzer
+<span class="field">principal.process.file.full_path</span>    → Elternprozess-Pfad
+<span class="field">principal.process.command_line</span>      → Elternprozess-Commandline
+
+<span class="comment">-- Ziel-Seite:</span>
+<span class="field">target.hostname</span>                     → Ziel-Host
+<span class="field">target.ip</span>                           → Ziel-IP
+<span class="field">target.port</span>                         → Ziel-Port
+<span class="field">target.process.file.full_path</span>       → Prozess-Pfad
+<span class="field">target.process.command_line</span>         → Commandline
+<span class="field">target.process.file.sha256</span>          → SHA256-Hash
+<span class="field">target.file.full_path</span>               → Dateipfad
+<span class="field">target.registry.registry_key</span>        → Registry-Schlüssel
+
+<span class="comment">-- Netzwerk / DNS:</span>
+<span class="field">network.dns.questions.name</span>          → DNS-Query-Domain
+<span class="field">metadata.event_type</span>                 → PROCESS_LAUNCH etc.</code></pre>
+  </section>
+
+  <!-- 9. Wazuh -->
+  <section id="wazuh">
+    <h2><span class="section-num">09</span> Verwendung — Wazuh</h2>
+    <div class="platform-tabs">
+      <span class="platform-tab tab-wazuh">Wazuh KQL</span>
+      <span style="color:var(--text-muted); font-size:13px; padding: 8px 0;">analyst_queries/wazuh/analyst_queries.kql</span>
+    </div>
+
+    <h3>Wo eingeben?</h3>
+    <p>Wazuh Dashboard → <strong>Security Events</strong> → KQL-Suchleiste</p>
+    <p style="font-size:13px; color: var(--text-muted);">oder: Discover → Index <code>wazuh-alerts-*</code> → KQL-Suchleiste</p>
+
+    <h3>Schritt-für-Schritt</h3>
+    <ol class="steps">
+      <li><code>analyst_queries.kql</code> in einem Editor öffnen</li>
+      <li>Query anhand des Kommentars <code>/* AQ-WZ-XXX */</code> finden</li>
+      <li><code>&lt;PARAMETER&gt;</code> durch echte Werte ersetzen</li>
+      <li>Nur den KQL-Ausdruck kopieren (ohne Kommentar)</li>
+      <li>In die KQL-Suchleiste einfügen und Enter drücken</li>
+      <li>Zeitfenster über den Kalender oben rechts setzen</li>
+    </ol>
+
+    <h3>KQL-Syntax-Referenz</h3>
+    <pre><code><span class="comment">-- Gleichheit:</span>
+<span class="field">agent.name</span>: <span class="string">"WIN10-CLIENT01"</span>
+
+<span class="comment">-- Wildcard-Suche:</span>
+<span class="field">data.win.eventdata.commandLine</span>: *powershell*
+
+<span class="comment">-- Mehrere Werte (OR):</span>
+<span class="field">data.win.system.eventID</span>: (<span class="string">"4624"</span> OR <span class="string">"4625"</span>)
+
+<span class="comment">-- Numerischer Vergleich:</span>
+<span class="field">rule.level</span> >= <span class="number">10</span>
+
+<span class="comment">-- UND-Verknüpfung:</span>
+<span class="field">agent.name</span>: <span class="string">"HOST"</span> AND <span class="field">rule.level</span> >= <span class="number">10</span>
+
+<span class="comment">-- Negation:</span>
+NOT <span class="field">data.srcip</span>: 10.*</code></pre>
+
+    <h3>Wichtige Wazuh-Felder</h3>
+    <pre><code><span class="field">agent.name</span>                         → Hostname
+<span class="field">rule.id</span>                            → Wazuh-Rule-ID
+<span class="field">rule.level</span>                         → Schweregrad (1–15)
+<span class="field">rule.mitre.id</span>                      → ATT&amp;CK Technik-ID
+<span class="field">rule.mitre.tactic</span>                  → ATT&amp;CK Taktik
+
+<span class="field">data.win.system.eventID</span>            → Windows Event ID
+<span class="field">data.win.eventdata.commandLine</span>     → Commandline
+<span class="field">data.win.eventdata.image</span>           → Prozess-Pfad
+<span class="field">data.win.eventdata.parentImage</span>     → Elternprozess-Pfad
+<span class="field">data.win.eventdata.destinationIp</span>   → Ziel-IP
+<span class="field">data.win.eventdata.queryName</span>       → DNS-Query
+
+<span class="field">syscheck.path</span>                      → FIM: überwachter Pfad
+<span class="field">syscheck.event</span>                     → added / modified / deleted</code></pre>
+
+    <div class="callout callout-tip">
+      <div class="callout-title">Tipp: Immer Agent-Filter zuerst</div>
+      <p>Setze immer <code>agent.name: "&lt;HOST&gt;"</code> als ersten Filter — sonst sucht Wazuh über alle Agents und erzeugt unnötiges Rauschen.</p>
+    </div>
+  </section>
+
+  <!-- 10. Workflows -->
+  <section id="workflows">
+    <h2><span class="section-num">10</span> Typische Investigationsworkflows</h2>
+
+    <h3>A — Alert-Triage (15 Minuten)</h3>
+    <div class="workflow">
+      <div class="workflow-step">
+        <div class="workflow-step-title">1. Host identifizieren &amp; Überblick schaffen</div>
+        <div class="workflow-step-queries">
+          <span class="query-pill">AQ-XXX-001</span><span class="query-pill">AQ-XXX-003</span>
+        </div>
+      </div>
+      <div class="workflow-step">
+        <div class="workflow-step-title">2. Prozesse und Commandlines analysieren</div>
+        <div class="workflow-step-queries">
+          <span class="query-pill">AQ-XXX-018</span><span class="query-pill">AQ-XXX-020</span>
+        </div>
+      </div>
+      <div class="workflow-step">
+        <div class="workflow-step-title">3. Netzwerkverbindungen prüfen</div>
+        <div class="workflow-step-queries">
+          <span class="query-pill">AQ-XXX-025</span><span class="query-pill">AQ-XXX-027</span>
+        </div>
+      </div>
+      <div class="workflow-step">
+        <div class="workflow-step-title">4. Persistenz prüfen</div>
+        <div class="workflow-step-queries">
+          <span class="query-pill">AQ-XXX-040</span>
+        </div>
+      </div>
+      <div class="workflow-step">
+        <div class="workflow-step-title">5. Ergebnis: Eskalieren oder Schließen</div>
+      </div>
+    </div>
+
+    <h3>B — Kompromittierter Account (30 Minuten)</h3>
+    <div class="workflow">
+      <div class="workflow-step">
+        <div class="workflow-step-title">1. Login-Aktivität des Users analysieren</div>
+        <div class="workflow-step-queries">
+          <span class="query-pill">AQ-XXX-009</span><span class="query-pill">AQ-XXX-015</span>
+        </div>
+      </div>
+      <div class="workflow-step">
+        <div class="workflow-step-title">2. Gelingende Logins nach Fehlschlägen?</div>
+        <div class="workflow-step-queries">
+          <span class="query-pill">AQ-XXX-011</span>
+        </div>
+      </div>
+      <div class="workflow-step">
+        <div class="workflow-step-title">3. Post-Login-Aktivitäten, Gruppen, Passwortänderungen</div>
+        <div class="workflow-step-queries">
+          <span class="query-pill">AQ-XXX-002</span><span class="query-pill">AQ-XXX-013</span><span class="query-pill">AQ-XXX-014</span>
+        </div>
+      </div>
+      <div class="workflow-step">
+        <div class="workflow-step-title">4. Lateral Movement vom kompromittierten Account?</div>
+        <div class="workflow-step-queries">
+          <span class="query-pill">AQ-XXX-046</span><span class="query-pill">AQ-XXX-047</span>
+        </div>
+      </div>
+      <div class="workflow-step">
+        <div class="workflow-step-title">5. Backdoor-Account angelegt?</div>
+        <div class="workflow-step-queries">
+          <span class="query-pill">AQ-XXX-012</span>
+        </div>
+      </div>
+    </div>
+
+    <h3>C — IOC-Sweep (10 Minuten)</h3>
+    <div class="workflow">
+      <div class="workflow-step">
+        <div class="workflow-step-title">1. IOC (IP/Domain/Hash) im Environment suchen</div>
+        <div class="workflow-step-queries">
+          <span class="query-pill">AQ-XXX-006</span><span class="query-pill">AQ-XXX-026</span>
+        </div>
+      </div>
+      <div class="workflow-step">
+        <div class="workflow-step-title">2. Betroffene Hosts identifizieren</div>
+        <div class="workflow-step-queries">
+          <span class="query-pill">AQ-XXX-025</span>
+        </div>
+      </div>
+      <div class="workflow-step">
+        <div class="workflow-step-title">3. Erstes und letztes Auftreten bestimmen</div>
+        <div class="workflow-step-queries">
+          <span class="query-pill">AQ-XXX-007</span>
+        </div>
+      </div>
+      <div class="workflow-step">
+        <div class="workflow-step-title">4. Prozesse hinter der Verbindung</div>
+        <div class="workflow-step-queries">
+          <span class="query-pill">AQ-XXX-024</span>
+        </div>
+      </div>
+      <div class="workflow-step">
+        <div class="workflow-step-title">5. Persistenz auf betroffenen Hosts</div>
+        <div class="workflow-step-queries">
+          <span class="query-pill">AQ-XXX-040</span>
+        </div>
+      </div>
+    </div>
+
+    <h3>D — Ransomware-Verdacht (20 Minuten)</h3>
+    <div class="workflow">
+      <div class="workflow-step">
+        <div class="workflow-step-title">1. Schatten-Kopien-Manipulation prüfen</div>
+        <div class="workflow-step-queries">
+          <span class="query-pill">AQ-XXX-020 → "vssadmin delete"</span>
+        </div>
+      </div>
+      <div class="workflow-step">
+        <div class="workflow-step-title">2. Massendatei-Aktivität — hohe Schreibrate?</div>
+        <div class="workflow-step-queries">
+          <span class="query-pill">AQ-XXX-032</span><span class="query-pill">AQ-XXX-033</span>
+        </div>
+      </div>
+      <div class="workflow-step">
+        <div class="workflow-step-title">3. Backup-/AV-Dienste gestoppt?</div>
+        <div class="workflow-step-queries">
+          <span class="query-pill">AQ-XXX-039</span>
+        </div>
+      </div>
+      <div class="workflow-step">
+        <div class="workflow-step-title">4. Ransom-Note-Dateien?</div>
+        <div class="workflow-step-queries">
+          <span class="query-pill">AQ-XXX-034 → README/DECRYPT</span>
+        </div>
+      </div>
+      <div class="workflow-step">
+        <div class="workflow-step-title">5. Initial Access identifizieren</div>
+        <div class="workflow-step-queries">
+          <span class="query-pill">AQ-XXX-022</span><span class="query-pill">AQ-XXX-016</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 11. Tipps -->
+  <section id="tipps">
+    <h2><span class="section-num">11</span> Analyst-Tipps</h2>
+
+    <h3>Zeitfenster richtig wählen</h3>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Situation</th><th>Empfohlenes Fenster</th></tr></thead>
+        <tbody>
+          <tr><td>Aktiver Incident (gerade laufend)</td><td>Letzte 30–60 Minuten</td></tr>
+          <tr><td>Alert-Triage</td><td>Alert-Timestamp ± 2h</td></tr>
+          <tr><td>Forensische Analyse</td><td>Bekannter Incident-Zeitraum</td></tr>
+          <tr><td>IOC-Sweep</td><td>Letzte 30 Tage</td></tr>
+          <tr><td>Baseline-Analyse</td><td>Letzte 7 Tage</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>Die 5 häufigsten Analyst-Fehler</h3>
+    <div class="callout callout-danger">
+      <div class="callout-title">Fehler 1: Zu breites Zeitfenster</div>
+      <p>Performance-Probleme und zu viele Ergebnisse. Immer mit engem Fenster starten, dann ausweiten.</p>
+    </div>
+    <div class="callout callout-danger">
+      <div class="callout-title">Fehler 2: Vergessener Host-Filter</div>
+      <p>Ohne <code>host=</code> / <code>agent.name:</code> sucht man über alle Systeme → Rauschen und langsame Queries.</p>
+    </div>
+    <div class="callout callout-warn">
+      <div class="callout-title">Fehler 3: Wildcard zu früh</div>
+      <p><code>*powershell*</code> matcht auch <code>C:\tools\anti-powershell\uninstall.exe</code> — spezifischer suchen.</p>
+    </div>
+    <div class="callout callout-warn">
+      <div class="callout-title">Fehler 4: Nur auf Alerts schauen</div>
+      <p>Manchmal steckt das Interessante in Events ohne Alert-Level. Raw-Logs nicht ignorieren.</p>
+    </div>
+    <div class="callout callout-warn">
+      <div class="callout-title">Fehler 5: Zeitzone ignorieren</div>
+      <p>Alert-Timestamp UTC, SIEM in lokaler Zeit → Vorsicht bei der Zeitkorrelation.</p>
+    </div>
+
+    <h3>Performance-Tipps</h3>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Plattform</th><th>Performance-Tipp</th></tr></thead>
+        <tbody>
+          <tr><td><span class="lang-spl">Splunk</span></td><td>Immer mit <code>index=...</code> beginnen, dann <code>host=</code>, dann Keywords</td></tr>
+          <tr><td><span class="lang-aql">QRadar</span></td><td><code>LAST N MINUTES</code> statt absolutem Datum — deutlich schneller</td></tr>
+          <tr><td><span class="lang-udm">Google SecOps</span></td><td>Spezifischen <code>metadata.event_type</code> zuerst setzen</td></tr>
+          <tr><td><span class="lang-kql">Wazuh/KQL</span></td><td><code>agent.name:</code> immer als erstes Filter-Kriterium</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- 12. Cheat Sheet -->
+  <section id="cheatsheet">
+    <h2><span class="section-num">12</span> Cheat Sheet</h2>
+
+    <h3>Schnell-Navigation: "Ich sehe X — welche Query nehme ich?"</h3>
+    <div class="cheat-grid">
+      <div class="cheat-block">
+        <h4>Triage &amp; Kontext</h4>
+        <div class="cheat-row"><span class="cheat-situation">Alert auf Host → Überblick</span><span class="cheat-qid">AQ-XXX-001</span></div>
+        <div class="cheat-row"><span class="cheat-situation">Account verdächtig</span><span class="cheat-qid">AQ-XXX-002 · 009</span></div>
+        <div class="cheat-row"><span class="cheat-situation">IP als IOC bekannt</span><span class="cheat-qid">AQ-XXX-006 · 026</span></div>
+        <div class="cheat-row"><span class="cheat-situation">PowerShell-Alert</span><span class="cheat-qid">AQ-XXX-018 · 019</span></div>
+        <div class="cheat-row"><span class="cheat-situation">Viele Fehllogins</span><span class="cheat-qid">AQ-XXX-010 · 042</span></div>
+      </div>
+      <div class="cheat-block">
+        <h4>Account &amp; Persistenz</h4>
+        <div class="cheat-row"><span class="cheat-situation">Neuer Account</span><span class="cheat-qid">AQ-XXX-012</span></div>
+        <div class="cheat-row"><span class="cheat-situation">Dienst installiert</span><span class="cheat-qid">AQ-XXX-039</span></div>
+        <div class="cheat-row"><span class="cheat-situation">Geplanter Task</span><span class="cheat-qid">AQ-XXX-038</span></div>
+        <div class="cheat-row"><span class="cheat-situation">Registry Run-Key</span><span class="cheat-qid">AQ-XXX-037</span></div>
+        <div class="cheat-row"><span class="cheat-situation">FIM-Änderung</span><span class="cheat-qid">AQ-XXX-035 · 036</span></div>
+      </div>
+      <div class="cheat-block">
+        <h4>Lateral &amp; Credentials</h4>
+        <div class="cheat-row"><span class="cheat-situation">RDP-Bewegung</span><span class="cheat-qid">AQ-XXX-046</span></div>
+        <div class="cheat-row"><span class="cheat-situation">SMB Admin-Shares</span><span class="cheat-qid">AQ-XXX-047</span></div>
+        <div class="cheat-row"><span class="cheat-situation">WMI / PsExec</span><span class="cheat-qid">AQ-XXX-048 · 049</span></div>
+        <div class="cheat-row"><span class="cheat-situation">LSASS-Zugriff</span><span class="cheat-qid">AQ-XXX-041</span></div>
+        <div class="cheat-row"><span class="cheat-situation">Kerberoasting</span><span class="cheat-qid">AQ-XXX-043</span></div>
+      </div>
+      <div class="cheat-block">
+        <h4>C2 &amp; Impact</h4>
+        <div class="cheat-row"><span class="cheat-situation">Beaconing</span><span class="cheat-qid">AQ-XXX-029</span></div>
+        <div class="cheat-row"><span class="cheat-situation">DNS-Tunnel-Verdacht</span><span class="cheat-qid">AQ-XXX-028 · 031</span></div>
+        <div class="cheat-row"><span class="cheat-situation">Recon-Aktivität</span><span class="cheat-qid">AQ-XXX-050</span></div>
+        <div class="cheat-row"><span class="cheat-situation">Ransomware-Verdacht</span><span class="cheat-qid">AQ-XXX-001 · 032 · 039</span></div>
+        <div class="cheat-row"><span class="cheat-situation">VSS-Deletion</span><span class="cheat-qid">AQ-XXX-020</span></div>
+      </div>
+    </div>
+
+    <h3 style="margin-top:28px;">Query-IDs nach Kategorie</h3>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>IDs</th><th>Kategorie</th></tr></thead>
+        <tbody>
+          <tr><td>001–008</td><td>Triage &amp; Timeline</td></tr>
+          <tr><td>009–016</td><td>Authentication &amp; Accounts</td></tr>
+          <tr><td>017–024</td><td>Prozess &amp; Ausführung</td></tr>
+          <tr><td>025–031</td><td>Netzwerk &amp; C2</td></tr>
+          <tr><td>032–036</td><td>Dateisystem</td></tr>
+          <tr><td>037–040</td><td>Persistenz</td></tr>
+          <tr><td>041–045</td><td>Credential Access</td></tr>
+          <tr><td>046–049</td><td>Lateral Movement</td></tr>
+          <tr><td>050</td><td>Discovery &amp; Recon</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <div style="border-top: 1px solid var(--border); padding-top: 24px; margin-top: 40px; color: var(--text-muted); font-size: 12px; display: flex; justify-content: space-between; align-items: center;">
+    <span>HuntingThreats Enterprise Hunt Pack · Analyst Query Library</span>
+    <span>v1.0.0 · 200 Queries · 4 Plattformen · 9 Kategorien</span>
+  </div>
+
+</main>
+</div>
+
+<!-- ScrollSpy -->
+<script>
+  const sections = document.querySelectorAll('section[id]');
+  const links = document.querySelectorAll('aside a');
+
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        links.forEach(l => l.classList.remove('active'));
+        const active = document.querySelector(`aside a[href="#${entry.target.id}"]`);
+        if (active) active.classList.add('active');
+      }
+    });
+  }, { rootMargin: '-80px 0px -70% 0px' });
+
+  sections.forEach(s => observer.observe(s));
+</script>
+</body>
+</html>

@@ -1,0 +1,713 @@
+/*
+============================================================
+HuntingThreats — Analyst Query Library
+Platform  : IBM QRadar SIEM 7.4+
+Queries   : AQ-QR-001 – AQ-QR-050
+Zweck     : Triage, Investigation, Incident Response
+Verwendung: Parameter in <WINKELKLAMMERN> ersetzen
+            Zeitfenster: "LAST N MINUTES" oder "START/STOP"
+============================================================
+
+PARAMETER-REFERENZ
+  <HOST>       → Hostname (z.B. WIN10-CLIENT01)
+  <USER>       → Benutzername (z.B. jsmith)
+  <IP>         → IP-Adresse (z.B. 192.168.1.55)
+  <DOMAIN>     → Domain (z.B. evil.example.com)
+  <PROCESS>    → Prozessname (z.B. powershell.exe)
+  <STRING>     → Suchstring / Keyword
+  <HASH>       → MD5/SHA256-Hash
+  <N>          → Zeitfenster in Minuten
+
+AQL-ZEITFENSTER-REFERENZ
+  LAST 60 MINUTES   → letzte Stunde
+  LAST 1440 MINUTES → letzte 24h
+  LAST 10080 MINUTES→ letzte 7 Tage
+  START '2026-06-07 08:00' STOP '2026-06-07 18:00'
+============================================================
+*/
+
+
+-- ──────────────────────────────────────────────
+-- KATEGORIE 1 — TIMELINE & TRIAGE (AQ-QR-001 – AQ-QR-008)
+-- ──────────────────────────────────────────────
+
+-- AQ-QR-001 | Triage | Alle Events eines Hosts — letzte 24h
+-- USE CASE: Erster Überblick nach Alert auf Endpunkt
+-- PARAMETER: <HOST>
+SELECT DATEFORMAT(devicetime,'yyyy-MM-dd HH:mm:ss') AS "Zeit",
+       qid AS "QID", qidname(qid) AS "Event Name",
+       sourceip AS "Source IP", destinationip AS "Dest IP",
+       username AS "Nutzer",
+       UTF8(payload) AS "Details"
+FROM events
+WHERE hostname = '<HOST>'
+ORDER BY devicetime ASC
+LAST 1440 MINUTES
+
+-- AQ-QR-002 | Triage | Alle Events eines Nutzers — letzte 24h
+-- USE CASE: User-Kompromittierung untersuchen
+-- PARAMETER: <USER>
+SELECT DATEFORMAT(devicetime,'yyyy-MM-dd HH:mm:ss') AS "Zeit",
+       qidname(qid) AS "Event",
+       sourceip AS "Source IP", hostname AS "Host",
+       UTF8(payload) AS "Details"
+FROM events
+WHERE username ILIKE '%<USER>%'
+ORDER BY devicetime ASC
+LAST 1440 MINUTES
+
+-- AQ-QR-003 | Triage | Event-Timeline für definierten Incident-Zeitraum
+-- USE CASE: Incident-Zeitlinie präzise rekonstruieren
+-- PARAMETER: Zeitstempel in START/STOP
+SELECT DATEFORMAT(devicetime,'yyyy-MM-dd HH:mm:ss') AS "Zeit",
+       qidname(qid) AS "Event",
+       sourceip AS "Quelle", destinationip AS "Ziel",
+       username AS "Nutzer", hostname AS "Host",
+       UTF8(payload) AS "Payload"
+FROM events
+ORDER BY devicetime ASC
+START '<START>' STOP '<END>'
+
+-- AQ-QR-004 | Triage | Top 10 Hosts nach Event-Volumen — 24h
+-- USE CASE: Lauteste Systeme identifizieren
+SELECT hostname AS "Host",
+       COUNT(*) AS "Anzahl Events"
+FROM events
+GROUP BY hostname
+ORDER BY "Anzahl Events" DESC
+LAST 1440 MINUTES
+
+-- AQ-QR-005 | Triage | High/Critical Severity Events — letzte Stunde
+-- USE CASE: Sofort-Triage bei Incident-Beginn
+SELECT DATEFORMAT(devicetime,'yyyy-MM-dd HH:mm:ss') AS "Zeit",
+       severity AS "Severity",
+       qidname(qid) AS "Event",
+       hostname AS "Host", sourceip AS "IP",
+       username AS "Nutzer"
+FROM events
+WHERE severity >= 7
+ORDER BY severity DESC, devicetime ASC
+LAST 60 MINUTES
+
+-- AQ-QR-006 | Triage | Events-Timeline für eine IP-Adresse
+-- USE CASE: Angreifer-IP zurückverfolgen
+-- PARAMETER: <IP>
+SELECT DATEFORMAT(devicetime,'yyyy-MM-dd HH:mm:ss') AS "Zeit",
+       qidname(qid) AS "Event",
+       hostname AS "Host", username AS "Nutzer",
+       destinationport AS "Ziel-Port",
+       UTF8(payload) AS "Details"
+FROM events
+WHERE sourceip = '<IP>' OR destinationip = '<IP>'
+ORDER BY devicetime ASC
+LAST 1440 MINUTES
+
+-- AQ-QR-007 | Triage | Erstes und letztes Auftreten eines Event-Typs
+-- USE CASE: Wann begann die Aktivität?
+-- PARAMETER: <STRING>
+SELECT qidname(qid) AS "Event",
+       hostname AS "Host",
+       MIN(devicetime) AS "Erstes Auftreten",
+       MAX(devicetime) AS "Letztes Auftreten",
+       COUNT(*) AS "Anzahl"
+FROM events
+WHERE UTF8(payload) ILIKE '%<STRING>%'
+GROUP BY qidname(qid), hostname
+ORDER BY MIN(devicetime) ASC
+LAST 10080 MINUTES
+
+-- AQ-QR-008 | Triage | Event-Volumen pro Stunde — Anomalie-Check
+-- USE CASE: Ungewöhnliche Aktivitätsspitzen erkennen
+-- PARAMETER: <HOST>
+SELECT DATEFORMAT(devicetime,'yyyy-MM-dd HH:00') AS "Stunde",
+       COUNT(*) AS "Events"
+FROM events
+WHERE hostname = '<HOST>'
+GROUP BY DATEFORMAT(devicetime,'yyyy-MM-dd HH:00')
+ORDER BY "Stunde" ASC
+LAST 10080 MINUTES
+
+
+-- ──────────────────────────────────────────────
+-- KATEGORIE 2 — AUTHENTICATION & ACCOUNTS (AQ-QR-009 – AQ-QR-016)
+-- ──────────────────────────────────────────────
+
+-- AQ-QR-009 | Auth | Alle fehlgeschlagenen Logins eines Nutzers
+-- USE CASE: Brute-Force / Passwort-Spray gegen spezifischen Account
+-- PARAMETER: <USER>
+SELECT DATEFORMAT(devicetime,'yyyy-MM-dd HH:mm:ss') AS "Zeit",
+       hostname AS "Host",
+       sourceip AS "Quelle",
+       CATEGORYNAME(category) AS "Kategorie",
+       UTF8(payload) AS "Details"
+FROM events
+WHERE username ILIKE '%<USER>%'
+  AND category = 5002 -- Authentication Failure
+ORDER BY devicetime ASC
+LAST 1440 MINUTES
+
+-- AQ-QR-010 | Auth | Failed Logins von einer IP gegen mehrere Accounts
+-- USE CASE: Password-Spray-Angriff identifizieren
+-- PARAMETER: <IP>
+SELECT username AS "Nutzer",
+       hostname AS "Host",
+       COUNT(*) AS "Fehlschläge"
+FROM events
+WHERE sourceip = '<IP>'
+  AND category = 5002
+GROUP BY username, hostname
+ORDER BY "Fehlschläge" DESC
+LAST 60 MINUTES
+
+-- AQ-QR-011 | Auth | Erfolgreicher Login nach Fehlschlägen
+-- USE CASE: Kompromittierter Account nach Brute-Force
+-- PARAMETER: <USER>
+SELECT DATEFORMAT(devicetime,'yyyy-MM-dd HH:mm:ss') AS "Zeit",
+       qidname(qid) AS "Event",
+       hostname AS "Host",
+       sourceip AS "Quelle"
+FROM events
+WHERE username ILIKE '%<USER>%'
+  AND category IN (5002, 5001)
+ORDER BY devicetime ASC
+LAST 240 MINUTES
+
+-- AQ-QR-012 | Auth | Neue Benutzerkonten angelegt — letzte 48h
+-- USE CASE: Backdoor-Account nach Kompromittierung
+SELECT DATEFORMAT(devicetime,'yyyy-MM-dd HH:mm:ss') AS "Zeit",
+       hostname AS "Host",
+       username AS "Erstellt durch",
+       UTF8(payload) AS "Details"
+FROM events
+WHERE qid IN (SELECT id FROM dim_qid WHERE name ILIKE '%user created%' OR name ILIKE '%account created%')
+ORDER BY devicetime ASC
+LAST 2880 MINUTES
+
+-- AQ-QR-013 | Auth | Nutzer zu Admin-Gruppe hinzugefügt
+-- USE CASE: Privilege Escalation via Gruppenmitgliedschaft
+SELECT DATEFORMAT(devicetime,'yyyy-MM-dd HH:mm:ss') AS "Zeit",
+       hostname AS "Host",
+       username AS "Nutzer",
+       UTF8(payload) AS "Details"
+FROM events
+WHERE UTF8(payload) ILIKE '%added%group%' AND
+      (UTF8(payload) ILIKE '%Admin%' OR UTF8(payload) ILIKE '%Domain Admins%')
+ORDER BY devicetime DESC
+LAST 10080 MINUTES
+
+-- AQ-QR-014 | Auth | Passwortänderungen
+-- USE CASE: Unbefugte Passwortänderungen erkennen
+SELECT DATEFORMAT(devicetime,'yyyy-MM-dd HH:mm:ss') AS "Zeit",
+       hostname AS "Host",
+       username AS "Geändert von",
+       UTF8(payload) AS "Details"
+FROM events
+WHERE UTF8(payload) ILIKE '%password changed%' OR UTF8(payload) ILIKE '%password reset%'
+ORDER BY devicetime ASC
+LAST 1440 MINUTES
+
+-- AQ-QR-015 | Auth | Interaktive Logins eines Nutzers — alle Quellen
+-- USE CASE: Von welchen IPs hat sich der Nutzer eingeloggt?
+-- PARAMETER: <USER>
+SELECT sourceip AS "Quell-IP",
+       hostname AS "Ziel-Host",
+       COUNT(*) AS "Logins"
+FROM events
+WHERE username ILIKE '%<USER>%'
+  AND category = 5001 -- Authentication Success
+GROUP BY sourceip, hostname
+ORDER BY "Logins" DESC
+LAST 10080 MINUTES
+
+-- AQ-QR-016 | Auth | Logins außerhalb Geschäftszeiten (< 06:00 / >= 22:00)
+-- USE CASE: After-Hours-Zugriff erkennen
+SELECT DATEFORMAT(devicetime,'yyyy-MM-dd HH:mm:ss') AS "Zeit",
+       username AS "Nutzer",
+       hostname AS "Host",
+       sourceip AS "IP",
+       EXTRACT(HOUR FROM devicetime) AS "Stunde"
+FROM events
+WHERE category = 5001
+  AND (EXTRACT(HOUR FROM devicetime) < 6 OR EXTRACT(HOUR FROM devicetime) >= 22)
+ORDER BY devicetime DESC
+LAST 10080 MINUTES
+
+
+-- ──────────────────────────────────────────────
+-- KATEGORIE 3 — PROZESS & AUSFÜHRUNG (AQ-QR-017 – AQ-QR-024)
+-- ──────────────────────────────────────────────
+
+-- AQ-QR-017 | Process | Alle Prozesse gestartet von einem bestimmten Elternprozess
+-- USE CASE: Prozessbaum-Analyse für Pivot
+-- PARAMETER: <PROCESS>
+SELECT DATEFORMAT(devicetime,'yyyy-MM-dd HH:mm:ss') AS "Zeit",
+       hostname AS "Host",
+       username AS "Nutzer",
+       UTF8(payload) AS "Payload"
+FROM events
+WHERE UTF8(payload) ILIKE '%<PROCESS>%'
+  AND (qid IN (SELECT id FROM dim_qid WHERE name ILIKE '%process%create%'))
+ORDER BY devicetime ASC
+LAST 1440 MINUTES
+
+-- AQ-QR-018 | Process | PowerShell-Ausführungen auf einem Host
+-- USE CASE: Alle PS-Aktivitäten auf verdächtigem Endpunkt
+-- PARAMETER: <HOST>
+SELECT DATEFORMAT(devicetime,'yyyy-MM-dd HH:mm:ss') AS "Zeit",
+       username AS "Nutzer",
+       UTF8(payload) AS "Commandline"
+FROM events
+WHERE hostname = '<HOST>'
+  AND (UTF8(payload) ILIKE '%powershell%' OR UTF8(payload) ILIKE '%pwsh%')
+ORDER BY devicetime ASC
+LAST 1440 MINUTES
+
+-- AQ-QR-019 | Process | Prozesse aus Temp/AppData-Pfaden
+-- USE CASE: Malware-Staging erkennen
+-- PARAMETER: <HOST>
+SELECT DATEFORMAT(devicetime,'yyyy-MM-dd HH:mm:ss') AS "Zeit",
+       username AS "Nutzer",
+       UTF8(payload) AS "Details"
+FROM events
+WHERE hostname = '<HOST>'
+  AND (UTF8(payload) ILIKE '%\\Temp\\%'
+    OR UTF8(payload) ILIKE '%\\AppData\\%'
+    OR UTF8(payload) ILIKE '%\\Users\\Public\\%')
+ORDER BY devicetime ASC
+LAST 1440 MINUTES
+
+-- AQ-QR-020 | Process | Keyword-Suche in Commandlines
+-- USE CASE: Indicator of Compromise suchen
+-- PARAMETER: <STRING>
+SELECT DATEFORMAT(devicetime,'yyyy-MM-dd HH:mm:ss') AS "Zeit",
+       hostname AS "Host",
+       username AS "Nutzer",
+       UTF8(payload) AS "Details"
+FROM events
+WHERE UTF8(payload) ILIKE '%<STRING>%'
+ORDER BY devicetime ASC
+LAST 1440 MINUTES
+
+-- AQ-QR-021 | Process | Prozessausführungen auf einem Host — letzte 30 Minuten
+-- USE CASE: Akuter Angriff: Was passiert gerade?
+-- PARAMETER: <HOST>
+SELECT DATEFORMAT(devicetime,'yyyy-MM-dd HH:mm:ss') AS "Zeit",
+       username AS "Nutzer",
+       UTF8(payload) AS "Prozess"
+FROM events
+WHERE hostname = '<HOST>'
+  AND qid IN (SELECT id FROM dim_qid WHERE name ILIKE '%process%')
+ORDER BY devicetime ASC
+LAST 30 MINUTES
+
+-- AQ-QR-022 | Process | WMI-Ausführungsereignisse
+-- USE CASE: WMI-Missbrauch (Persistenz, Lateral Movement) erkennen
+SELECT DATEFORMAT(devicetime,'yyyy-MM-dd HH:mm:ss') AS "Zeit",
+       hostname AS "Host",
+       username AS "Nutzer",
+       UTF8(payload) AS "Details"
+FROM events
+WHERE UTF8(payload) ILIKE '%wmi%' OR UTF8(payload) ILIKE '%wmiprvse%'
+ORDER BY devicetime ASC
+LAST 1440 MINUTES
+
+-- AQ-QR-023 | Process | Hash-basierte Suche
+-- USE CASE: Bekannte Malware-Hash im Environment
+-- PARAMETER: <HASH>
+SELECT DATEFORMAT(devicetime,'yyyy-MM-dd HH:mm:ss') AS "Zeit",
+       hostname AS "Host",
+       username AS "Nutzer",
+       UTF8(payload) AS "Details"
+FROM events
+WHERE UTF8(payload) ILIKE '%<HASH>%'
+ORDER BY devicetime ASC
+LAST 10080 MINUTES
+
+-- AQ-QR-024 | Process | Office-Prozesse die Shell-Kinder spawnen
+-- USE CASE: Office-Makro-Angriff erkennen
+SELECT DATEFORMAT(devicetime,'yyyy-MM-dd HH:mm:ss') AS "Zeit",
+       hostname AS "Host",
+       username AS "Nutzer",
+       UTF8(payload) AS "Details"
+FROM events
+WHERE (UTF8(payload) ILIKE '%winword%' OR UTF8(payload) ILIKE '%excel%'
+    OR UTF8(payload) ILIKE '%powerpnt%' OR UTF8(payload) ILIKE '%outlook%')
+  AND (UTF8(payload) ILIKE '%cmd.exe%' OR UTF8(payload) ILIKE '%powershell%'
+    OR UTF8(payload) ILIKE '%wscript%' OR UTF8(payload) ILIKE '%mshta%')
+ORDER BY devicetime ASC
+LAST 1440 MINUTES
+
+
+-- ──────────────────────────────────────────────
+-- KATEGORIE 4 — NETZWERK & C2 (AQ-QR-025 – AQ-QR-031)
+-- ──────────────────────────────────────────────
+
+-- AQ-QR-025 | Network | Alle ausgehenden Verbindungen eines Hosts
+-- USE CASE: Externe Kontakte eines kompromittierten Systems
+-- PARAMETER: <HOST>
+SELECT destinationip AS "Ziel-IP",
+       destinationport AS "Ziel-Port",
+       COUNT(*) AS "Verbindungen"
+FROM events
+WHERE sourceip = (SELECT sourceip FROM events WHERE hostname = '<HOST>' LIMIT 1)
+  AND NOT (destinationip ILIKE '10.%'
+        OR destinationip ILIKE '192.168.%'
+        OR destinationip ILIKE '172.16.%')
+GROUP BY destinationip, destinationport
+ORDER BY "Verbindungen" DESC
+LAST 1440 MINUTES
+
+-- AQ-QR-026 | Network | Alle Verbindungen zu einer Ziel-IP
+-- USE CASE: Welche Hosts kommunizieren mit verdächtiger IP?
+-- PARAMETER: <IP>
+SELECT hostname AS "Host",
+       sourceip AS "Quell-IP",
+       destinationport AS "Port",
+       COUNT(*) AS "Verbindungen"
+FROM events
+WHERE destinationip = '<IP>'
+GROUP BY hostname, sourceip, destinationport
+ORDER BY "Verbindungen" DESC
+LAST 1440 MINUTES
+
+-- AQ-QR-027 | Network | DNS-Anfragen von einem Host
+-- USE CASE: DNS-Exfiltration, DGA, Beaconing
+-- PARAMETER: <HOST>
+SELECT DATEFORMAT(devicetime,'yyyy-MM-dd HH:mm:ss') AS "Zeit",
+       UTF8(payload) AS "DNS Query"
+FROM events
+WHERE hostname = '<HOST>'
+  AND (UTF8(payload) ILIKE '%dns%' OR destinationport = 53)
+ORDER BY devicetime ASC
+LAST 1440 MINUTES
+
+-- AQ-QR-028 | Network | DNS-Anfragen für eine bestimmte Domain
+-- USE CASE: Welche Hosts haben eine verdächtige Domain aufgelöst?
+-- PARAMETER: <DOMAIN>
+SELECT hostname AS "Host",
+       sourceip AS "IP",
+       COUNT(*) AS "Anfragen"
+FROM events
+WHERE UTF8(payload) ILIKE '%<DOMAIN>%'
+  AND destinationport = 53
+GROUP BY hostname, sourceip
+ORDER BY "Anfragen" DESC
+LAST 10080 MINUTES
+
+-- AQ-QR-029 | Network | Verbindungsfrequenz — Beaconing-Analyse
+-- USE CASE: Regelmäßige C2-Verbindungen erkennen
+-- PARAMETER: <HOST>, <IP>
+SELECT DATEFORMAT(devicetime,'yyyy-MM-dd HH:mm') AS "Minute",
+       COUNT(*) AS "Verbindungen"
+FROM events
+WHERE sourceip = '<HOST_IP>'
+  AND destinationip = '<IP>'
+GROUP BY DATEFORMAT(devicetime,'yyyy-MM-dd HH:mm')
+ORDER BY "Minute" ASC
+LAST 480 MINUTES
+
+-- AQ-QR-030 | Network | Verbindungen auf ungewöhnlichen Ports
+-- USE CASE: Non-Standard-Port-Kommunikation erkennen
+-- PARAMETER: <HOST>
+SELECT destinationip AS "Ziel-IP",
+       destinationport AS "Port",
+       COUNT(*) AS "Verbindungen"
+FROM events
+WHERE hostname = '<HOST>'
+  AND destinationport NOT IN (80, 443, 53, 123, 135, 389, 445, 636, 3389)
+  AND NOT (destinationip ILIKE '10.%' OR destinationip ILIKE '192.168.%')
+GROUP BY destinationip, destinationport
+ORDER BY "Verbindungen" DESC
+LAST 1440 MINUTES
+
+-- AQ-QR-031 | Network | Ausgehende Verbindungen nach Volumen — Top Ziele
+-- USE CASE: Exfiltration-Ziele nach Verbindungsvolumen priorisieren
+SELECT destinationip AS "Ziel",
+       destinationport AS "Port",
+       hostname AS "Quelle",
+       COUNT(*) AS "Verbindungen",
+       SUM(eventcount) AS "Bytes"
+FROM events
+WHERE NOT (destinationip ILIKE '10.%' OR destinationip ILIKE '192.168.%' OR destinationip ILIKE '172.16.%')
+GROUP BY destinationip, destinationport, hostname
+ORDER BY "Verbindungen" DESC
+LAST 1440 MINUTES
+
+
+-- ──────────────────────────────────────────────
+-- KATEGORIE 5 — DATEISYSTEM (AQ-QR-032 – AQ-QR-036)
+-- ──────────────────────────────────────────────
+
+-- AQ-QR-032 | File | Dateierstellungen auf einem Host
+-- USE CASE: Was wurde auf diesem System abgelegt?
+-- PARAMETER: <HOST>
+SELECT DATEFORMAT(devicetime,'yyyy-MM-dd HH:mm:ss') AS "Zeit",
+       username AS "Nutzer",
+       UTF8(payload) AS "Datei"
+FROM events
+WHERE hostname = '<HOST>'
+  AND UTF8(payload) ILIKE '%file created%'
+ORDER BY devicetime ASC
+LAST 1440 MINUTES
+
+-- AQ-QR-033 | File | Executables in Temp/AppData erstellt — letzte 24h
+-- USE CASE: Malware-Drops in Staging-Pfaden
+SELECT DATEFORMAT(devicetime,'yyyy-MM-dd HH:mm:ss') AS "Zeit",
+       hostname AS "Host",
+       username AS "Nutzer",
+       UTF8(payload) AS "Details"
+FROM events
+WHERE (UTF8(payload) ILIKE '%\\Temp\\%.exe%'
+    OR UTF8(payload) ILIKE '%\\AppData\\%.exe%'
+    OR UTF8(payload) ILIKE '%\\Public\\%.exe%')
+ORDER BY devicetime DESC
+LAST 1440 MINUTES
+
+-- AQ-QR-034 | File | Dateisuche nach Pfad/Name
+-- USE CASE: Spezifisches Artefakt suchen
+-- PARAMETER: <PATH>
+SELECT DATEFORMAT(devicetime,'yyyy-MM-dd HH:mm:ss') AS "Zeit",
+       hostname AS "Host",
+       username AS "Nutzer",
+       UTF8(payload) AS "Details"
+FROM events
+WHERE UTF8(payload) ILIKE '%<PATH>%'
+ORDER BY devicetime ASC
+LAST 10080 MINUTES
+
+-- AQ-QR-035 | File | Startup- / Persistenz-Pfad-Schreibvorgänge
+-- USE CASE: Dateibasierte Persistenz erkennen
+SELECT DATEFORMAT(devicetime,'yyyy-MM-dd HH:mm:ss') AS "Zeit",
+       hostname AS "Host",
+       username AS "Nutzer",
+       UTF8(payload) AS "Details"
+FROM events
+WHERE (UTF8(payload) ILIKE '%\\Startup\\%'
+    OR UTF8(payload) ILIKE '%\\System32\\Tasks\\%'
+    OR UTF8(payload) ILIKE '%\\System32\\%.dll%')
+  AND UTF8(payload) ILIKE '%create%'
+ORDER BY devicetime DESC
+LAST 1440 MINUTES
+
+-- AQ-QR-036 | File | Massendatei-Zugriffe — Ransomware-Indikator
+-- USE CASE: >500 Dateizugriffe pro Minute = Ransomware
+SELECT hostname AS "Host",
+       username AS "Nutzer",
+       COUNT(*) AS "Dateioperationen"
+FROM events
+WHERE UTF8(payload) ILIKE '%file%'
+  AND DATEFORMAT(devicetime,'yyyy-MM-dd HH:mm') = DATEFORMAT(NOW(),'yyyy-MM-dd HH:mm')
+GROUP BY hostname, username
+HAVING COUNT(*) > 200
+ORDER BY "Dateioperationen" DESC
+LAST 60 MINUTES
+
+
+-- ──────────────────────────────────────────────
+-- KATEGORIE 6 — PERSISTENZ (AQ-QR-037 – AQ-QR-040)
+-- ──────────────────────────────────────────────
+
+-- AQ-QR-037 | Persistence | Registry Run-Key-Änderungen
+-- USE CASE: Registry-basierte Persistenz erkennen
+SELECT DATEFORMAT(devicetime,'yyyy-MM-dd HH:mm:ss') AS "Zeit",
+       hostname AS "Host",
+       username AS "Nutzer",
+       UTF8(payload) AS "Details"
+FROM events
+WHERE UTF8(payload) ILIKE '%CurrentVersion\\Run%'
+  AND UTF8(payload) ILIKE '%registry%'
+ORDER BY devicetime DESC
+LAST 2880 MINUTES
+
+-- AQ-QR-038 | Persistence | Geplante Tasks erstellt oder geändert
+-- USE CASE: Schtasks-Persistenz erkennen
+SELECT DATEFORMAT(devicetime,'yyyy-MM-dd HH:mm:ss') AS "Zeit",
+       hostname AS "Host",
+       username AS "Nutzer",
+       UTF8(payload) AS "Task-Details"
+FROM events
+WHERE UTF8(payload) ILIKE '%schtasks%'
+  AND (UTF8(payload) ILIKE '%/create%' OR UTF8(payload) ILIKE '%task created%')
+ORDER BY devicetime DESC
+LAST 2880 MINUTES
+
+-- AQ-QR-039 | Persistence | Neue Dienste installiert
+-- USE CASE: Service-basierte Persistenz erkennen
+SELECT DATEFORMAT(devicetime,'yyyy-MM-dd HH:mm:ss') AS "Zeit",
+       hostname AS "Host",
+       username AS "Nutzer",
+       UTF8(payload) AS "Service-Details"
+FROM events
+WHERE UTF8(payload) ILIKE '%service installed%'
+    OR UTF8(payload) ILIKE '%new service%'
+    OR (UTF8(payload) ILIKE '%sc.exe%' AND UTF8(payload) ILIKE '%create%')
+ORDER BY devicetime DESC
+LAST 2880 MINUTES
+
+-- AQ-QR-040 | Persistence | Alle Persistenz-Events eines Hosts — Überblick
+-- USE CASE: Vollständiges Persistenz-Bild nach Kompromittierung
+-- PARAMETER: <HOST>
+SELECT DATEFORMAT(devicetime,'yyyy-MM-dd HH:mm:ss') AS "Zeit",
+       qidname(qid) AS "Event",
+       username AS "Nutzer",
+       UTF8(payload) AS "Details"
+FROM events
+WHERE hostname = '<HOST>'
+  AND (UTF8(payload) ILIKE '%\\Run\\%'
+    OR UTF8(payload) ILIKE '%schtasks%'
+    OR UTF8(payload) ILIKE '%service install%'
+    OR UTF8(payload) ILIKE '%\\Startup\\%'
+    OR UTF8(payload) ILIKE '%WMI%subscription%')
+ORDER BY devicetime ASC
+LAST 10080 MINUTES
+
+
+-- ──────────────────────────────────────────────
+-- KATEGORIE 7 — CREDENTIAL ACCESS (AQ-QR-041 – AQ-QR-045)
+-- ──────────────────────────────────────────────
+
+-- AQ-QR-041 | Cred | LSASS-Zugriffsereignisse
+-- USE CASE: Credential Dumping erkennen
+SELECT DATEFORMAT(devicetime,'yyyy-MM-dd HH:mm:ss') AS "Zeit",
+       hostname AS "Host",
+       username AS "Nutzer",
+       UTF8(payload) AS "Details"
+FROM events
+WHERE UTF8(payload) ILIKE '%lsass%'
+  AND (UTF8(payload) ILIKE '%access%' OR UTF8(payload) ILIKE '%dump%')
+ORDER BY devicetime DESC
+LAST 1440 MINUTES
+
+-- AQ-QR-042 | Cred | Fehlgeschlagene Logins von einer IP — alle Hosts
+-- USE CASE: Password-Spray-Quelle analysieren
+-- PARAMETER: <IP>
+SELECT hostname AS "Ziel-Host",
+       username AS "Angegriffener Account",
+       COUNT(*) AS "Fehlschläge"
+FROM events
+WHERE sourceip = '<IP>'
+  AND category = 5002
+GROUP BY hostname, username
+ORDER BY "Fehlschläge" DESC
+LAST 1440 MINUTES
+
+-- AQ-QR-043 | Cred | Kerberos-Ticket-Anfragen — TGS RC4 (Kerberoasting)
+-- USE CASE: Kerberoasting-Angriff erkennen
+SELECT DATEFORMAT(devicetime,'yyyy-MM-dd HH:mm:ss') AS "Zeit",
+       hostname AS "Host",
+       username AS "Nutzer",
+       UTF8(payload) AS "Ticket-Details"
+FROM events
+WHERE UTF8(payload) ILIKE '%kerberos%'
+  AND UTF8(payload) ILIKE '%0x17%'
+ORDER BY devicetime ASC
+LAST 1440 MINUTES
+
+-- AQ-QR-044 | Cred | SAM/SECURITY-Hive-Dump-Versuch
+-- USE CASE: Registry-Hive-Dump zur Credential-Extraktion
+SELECT DATEFORMAT(devicetime,'yyyy-MM-dd HH:mm:ss') AS "Zeit",
+       hostname AS "Host",
+       username AS "Nutzer",
+       UTF8(payload) AS "Details"
+FROM events
+WHERE UTF8(payload) ILIKE '%reg save%'
+  AND (UTF8(payload) ILIKE '%SAM%' OR UTF8(payload) ILIKE '%SYSTEM%' OR UTF8(payload) ILIKE '%SECURITY%')
+ORDER BY devicetime DESC
+LAST 1440 MINUTES
+
+-- AQ-QR-045 | Cred | Mimikatz / Credential-Tool-Signaturen
+-- USE CASE: Bekannte Credential-Dumping-Tools erkennen
+SELECT DATEFORMAT(devicetime,'yyyy-MM-dd HH:mm:ss') AS "Zeit",
+       hostname AS "Host",
+       username AS "Nutzer",
+       UTF8(payload) AS "Details"
+FROM events
+WHERE UTF8(payload) ILIKE '%mimikatz%'
+    OR UTF8(payload) ILIKE '%sekurlsa%'
+    OR UTF8(payload) ILIKE '%lsadump%'
+    OR UTF8(payload) ILIKE '%procdump%lsass%'
+    OR UTF8(payload) ILIKE '%comsvcs%minidump%'
+ORDER BY devicetime DESC
+LAST 1440 MINUTES
+
+
+-- ──────────────────────────────────────────────
+-- KATEGORIE 8 — LATERAL MOVEMENT (AQ-QR-046 – AQ-QR-049)
+-- ──────────────────────────────────────────────
+
+-- AQ-QR-046 | Lateral | RDP-Verbindungen von einem Host
+-- USE CASE: RDP-basiertes Lateral Movement
+-- PARAMETER: <IP>
+SELECT DATEFORMAT(devicetime,'yyyy-MM-dd HH:mm:ss') AS "Zeit",
+       hostname AS "Ziel-Host",
+       username AS "Nutzer",
+       UTF8(payload) AS "Details"
+FROM events
+WHERE sourceip = '<IP>'
+  AND destinationport = 3389
+ORDER BY devicetime ASC
+LAST 1440 MINUTES
+
+-- AQ-QR-047 | Lateral | Admin-Share-Zugriffe
+-- USE CASE: SMB-Admin-Share-basiertes Lateral Movement
+SELECT DATEFORMAT(devicetime,'yyyy-MM-dd HH:mm:ss') AS "Zeit",
+       sourceip AS "Quell-IP",
+       hostname AS "Ziel-Host",
+       username AS "Nutzer",
+       UTF8(payload) AS "Details"
+FROM events
+WHERE UTF8(payload) ILIKE '%\\C$%' OR UTF8(payload) ILIKE '%\\ADMIN$%'
+ORDER BY devicetime ASC
+LAST 1440 MINUTES
+
+-- AQ-QR-048 | Lateral | WMI-Remote-Ausführung
+-- USE CASE: WMI-Lateral-Movement-Kette erkennen
+SELECT DATEFORMAT(devicetime,'yyyy-MM-dd HH:mm:ss') AS "Zeit",
+       sourceip AS "Quell-IP",
+       hostname AS "Ziel-Host",
+       username AS "Nutzer",
+       UTF8(payload) AS "Details"
+FROM events
+WHERE UTF8(payload) ILIKE '%wmic%/node%'
+    OR UTF8(payload) ILIKE '%invoke-wmimethod%'
+    OR UTF8(payload) ILIKE '%wmiprvse%'
+ORDER BY devicetime ASC
+LAST 1440 MINUTES
+
+-- AQ-QR-049 | Lateral | PsExec / Remote-Service-Aktivität
+-- USE CASE: PsExec-Movements im Netzwerk
+SELECT DATEFORMAT(devicetime,'yyyy-MM-dd HH:mm:ss') AS "Zeit",
+       hostname AS "Host",
+       sourceip AS "Quell-IP",
+       username AS "Nutzer",
+       UTF8(payload) AS "Details"
+FROM events
+WHERE UTF8(payload) ILIKE '%psexec%' OR UTF8(payload) ILIKE '%PSEXESVC%'
+ORDER BY devicetime ASC
+LAST 1440 MINUTES
+
+
+-- ──────────────────────────────────────────────
+-- KATEGORIE 9 — DISCOVERY (AQ-QR-050)
+-- ──────────────────────────────────────────────
+
+-- AQ-QR-050 | Discovery | Recon-Tool-Burst auf einem Host
+-- USE CASE: Aufklärungsphase eines Angreifers sichtbar machen
+-- PARAMETER: <HOST>
+SELECT DATEFORMAT(devicetime,'yyyy-MM-dd HH:mm:ss') AS "Zeit",
+       username AS "Nutzer",
+       UTF8(payload) AS "Befehl"
+FROM events
+WHERE hostname = '<HOST>'
+  AND (UTF8(payload) ILIKE '%whoami%'
+    OR UTF8(payload) ILIKE '%ipconfig%'
+    OR UTF8(payload) ILIKE '%systeminfo%'
+    OR UTF8(payload) ILIKE '%net user%'
+    OR UTF8(payload) ILIKE '%net group%'
+    OR UTF8(payload) ILIKE '%arp -a%'
+    OR UTF8(payload) ILIKE '%netstat%'
+    OR UTF8(payload) ILIKE '%tasklist%'
+    OR UTF8(payload) ILIKE '%nltest%'
+    OR UTF8(payload) ILIKE '%nslookup%')
+ORDER BY devicetime ASC
+LAST 60 MINUTES

@@ -1,0 +1,528 @@
+/*
+============================================================
+HuntingThreats — Analyst Query Library
+Platform  : Splunk Enterprise 8.0+ / Splunk Cloud
+Queries   : AQ-SPL-001 – AQ-SPL-050
+Zweck     : Triage, Investigation, Incident Response
+Verwendung: Parameter in <WINKELKLAMMERN> ersetzen
+            Zeitfenster über Splunk-UI oder earliest/latest setzen
+============================================================
+
+PARAMETER-REFERENZ
+  <HOST>       → Hostname des Systems (z.B. WIN10-CLIENT01)
+  <USER>       → Benutzername (z.B. jsmith, DOMAIN\jsmith)
+  <IP>         → IP-Adresse (z.B. 192.168.1.55 oder externe IP)
+  <DOMAIN>     → Domain-Name (z.B. evil.example.com)
+  <PROCESS>    → Prozessname (z.B. powershell.exe)
+  <HASH>       → SHA256/MD5-Hash
+  <PATH>       → Dateipfad oder Teilpfad
+  <START>      → Startzeitpunkt (z.B. 2026-06-07T08:00:00)
+  <END>        → Endzeitpunkt   (z.B. 2026-06-07T18:00:00)
+  <N>          → Schwellenwert (Zahl)
+============================================================
+*/
+
+
+/* ──────────────────────────────────────────────
+   KATEGORIE 1 — TIMELINE & TRIAGE (AQ-SPL-001 – AQ-SPL-008)
+   Schnellüberblick: Was ist passiert? Wann? Auf welchem System?
+   ────────────────────────────────────────────── */
+
+/* AQ-SPL-001 | Triage | Alle Events eines Hosts — letzten 24h
+   USE CASE: Erster Überblick nach Alert auf Endpunkt
+   PARAMETER: <HOST> */
+index=windows host="<HOST>"
+| eval EventCodeStr=tostring(EventCode)
+| stats count by EventCodeStr, Source
+| sort -count
+| rename EventCodeStr as "Event Code", Source as Quelle, count as Anzahl
+
+/* AQ-SPL-002 | Triage | Alle Events eines Nutzers — letzten 24h
+   USE CASE: User-Kompromittierung untersuchen
+   PARAMETER: <USER> */
+index=windows (user="<USER>" OR SubjectUserName="<USER>" OR TargetUserName="<USER>")
+| eval EventCodeStr=tostring(EventCode)
+| stats count by host, EventCodeStr, Source
+| sort -count
+
+/* AQ-SPL-003 | Triage | Vollständige Event-Timeline für Host — definiertes Fenster
+   USE CASE: Incident-Zeitlinie rekonstruieren
+   PARAMETER: <HOST>, <START>, <END> */
+index=windows host="<HOST>"
+  earliest="<START>" latest="<END>"
+| eval ts=strftime(_time, "%Y-%m-%d %H:%M:%S")
+| table ts, EventCode, Source, user, Image, CommandLine, TargetObject, Details
+| sort ts
+
+/* AQ-SPL-004 | Triage | Top 10 Hosts nach Alert-Volumen — heute
+   USE CASE: Welche Systeme sind am lautesten? Priorisierung
+   PARAMETER: keine */
+index=windows earliest=-24h
+| stats count by host
+| sort -count
+| head 10
+
+/* AQ-SPL-005 | Triage | Alle CRITICAL/HIGH Events — letzte 1h
+   USE CASE: Sofortüberblick bei Incident-Start
+   PARAMETER: keine */
+index=windows earliest=-1h
+(EventCode IN (4624, 4625, 4648, 4697, 4698, 4702, 4720, 4725, 4728, 4732, 4756, 1102, 104) OR
+ EventCode=1 (CommandLine="*-enc*" OR CommandLine="*mshta*" OR CommandLine="*regsvr32*"))
+| eval ts=strftime(_time, "%Y-%m-%d %H:%M:%S")
+| table ts, host, EventCode, user, Image, CommandLine
+| sort ts
+
+/* AQ-SPL-006 | Triage | Events-Timeline für eine IP-Adresse
+   USE CASE: Angreifer-IP zurückverfolgen
+   PARAMETER: <IP> */
+index=windows (IpAddress="<IP>" OR DestinationIp="<IP>" OR SourceIp="<IP>" OR src_ip="<IP>")
+| eval ts=strftime(_time, "%Y-%m-%d %H:%M:%S")
+| table ts, host, EventCode, user, Image, CommandLine, DestinationPort
+| sort ts
+
+/* AQ-SPL-007 | Triage | Erstes und letztes Auftreten eines Prozesses
+   USE CASE: Wann tauchte das Artefakt zum ersten Mal auf?
+   PARAMETER: <PROCESS> */
+index=windows EventCode=1 Image="*\\<PROCESS>"
+| stats min(_time) as first_seen max(_time) as last_seen count by host, Image, CommandLine
+| eval first_seen=strftime(first_seen, "%Y-%m-%d %H:%M:%S")
+| eval last_seen=strftime(last_seen, "%Y-%m-%d %H:%M:%S")
+| table host, Image, CommandLine, first_seen, last_seen, count
+| sort first_seen
+
+/* AQ-SPL-008 | Triage | Häufigste Prozess-Commandlines auf einem Host
+   USE CASE: Anomalie-Erkennung durch Baseline-Vergleich
+   PARAMETER: <HOST> */
+index=windows EventCode=1 host="<HOST>"
+| stats count by Image, CommandLine
+| sort -count
+| head 20
+
+
+/* ──────────────────────────────────────────────
+   KATEGORIE 2 — AUTHENTICATION & ACCOUNTS (AQ-SPL-009 – AQ-SPL-016)
+   ────────────────────────────────────────────── */
+
+/* AQ-SPL-009 | Auth | Alle fehlgeschlagenen Logins eines Nutzers
+   USE CASE: Passwort-Spray / Brute-Force-Analyse
+   PARAMETER: <USER> */
+index=windows EventCode=4625
+(TargetUserName="<USER>" OR Account_Name="<USER>")
+| eval ts=strftime(_time, "%Y-%m-%d %H:%M:%S")
+| table ts, host, IpAddress, LogonType, FailureReason
+| sort ts
+
+/* AQ-SPL-010 | Auth | Alle fehlgeschlagenen Logins von einer IP
+   USE CASE: Brute-Force-Quelle identifizieren
+   PARAMETER: <IP> */
+index=windows EventCode=4625 IpAddress="<IP>"
+| stats count by TargetUserName, host, LogonType
+| sort -count
+
+/* AQ-SPL-011 | Auth | Erfolgreicher Login nach Fehlschlägen (gleiches Konto)
+   USE CASE: Credential Stuffing / Brute-Force-Erfolg erkennen
+   PARAMETER: <USER> */
+index=windows (EventCode=4625 OR EventCode=4624)
+(TargetUserName="<USER>" OR Account_Name="<USER>")
+| bin _time span=10m
+| stats values(EventCode) as codes count by _time, host, TargetUserName
+| where mvfind(codes,"4625")>-1 AND mvfind(codes,"4624")>-1
+| table _time, host, TargetUserName, codes, count
+
+/* AQ-SPL-012 | Auth | Neue Benutzerkonten — letzte 48h
+   USE CASE: Backdoor-Account oder unbefugte Kontoerstellung
+   PARAMETER: keine */
+index=windows EventCode=4720 earliest=-48h
+| eval ts=strftime(_time, "%Y-%m-%d %H:%M:%S")
+| table ts, host, TargetUserName, SubjectUserName
+| sort ts
+
+/* AQ-SPL-013 | Auth | Benutzer zu privilegierter Gruppe hinzugefügt
+   USE CASE: Privilege-Escalation via Gruppenzugehörigkeit
+   PARAMETER: keine */
+index=windows EventCode IN (4728, 4732, 4756)
+| eval ts=strftime(_time, "%Y-%m-%d %H:%M:%S")
+| table ts, host, TargetUserName, SubjectUserName, GroupName, EventCode
+| sort ts
+
+/* AQ-SPL-014 | Auth | Passwort-Änderungen — Übersicht
+   USE CASE: Unbefugte Passwortänderungen erkennen
+   PARAMETER: keine */
+index=windows EventCode IN (4723, 4724)
+| eval action=case(EventCode=4723,"User changed own PW",EventCode=4724,"Admin reset PW",true(),"other")
+| eval ts=strftime(_time, "%Y-%m-%d %H:%M:%S")
+| table ts, host, TargetUserName, SubjectUserName, action
+| sort ts
+
+/* AQ-SPL-015 | Auth | Interaktive Logins eines Nutzers — alle Quell-IPs
+   USE CASE: Welche IPs hat dieser Nutzer verwendet? Gibt es Auffälligkeiten?
+   PARAMETER: <USER> */
+index=windows EventCode=4624
+(TargetUserName="<USER>" OR AccountName="<USER>")
+LogonType IN (2, 10)
+| stats count by IpAddress, host, LogonType
+| sort -count
+
+/* AQ-SPL-016 | Auth | Logins außerhalb der Geschäftszeiten (vor 06:00 / nach 22:00)
+   USE CASE: After-Hours-Zugriff — typisches Angreifer-Muster
+   PARAMETER: keine */
+index=windows EventCode=4624 LogonType IN (2, 3, 10)
+| eval hour=tonumber(strftime(_time, "%H"))
+| where hour < 6 OR hour >= 22
+| eval ts=strftime(_time, "%Y-%m-%d %H:%M:%S")
+| table ts, host, AccountName, IpAddress, LogonType, hour
+| sort ts
+
+
+/* ──────────────────────────────────────────────
+   KATEGORIE 3 — PROZESS & AUSFÜHRUNG (AQ-SPL-017 – AQ-SPL-024)
+   ────────────────────────────────────────────── */
+
+/* AQ-SPL-017 | Process | Alle Kindprozesse eines bestimmten Prozesses
+   USE CASE: Prozessbaum für Pivot-Analyse aufbauen
+   PARAMETER: <PROCESS> */
+index=windows EventCode=1 ParentImage="*\\<PROCESS>"
+| eval ts=strftime(_time, "%Y-%m-%d %H:%M:%S")
+| table ts, host, user, ParentImage, Image, CommandLine
+| sort ts
+
+/* AQ-SPL-018 | Process | PowerShell-Ausführungen auf einem Host — Details
+   USE CASE: Alle PS-Aktivitäten auf verdächtigem Endpunkt
+   PARAMETER: <HOST> */
+index=windows host="<HOST>" (EventCode=1 OR EventCode=4104 OR EventCode=4688)
+(Image="*\\powershell.exe" OR Image="*\\pwsh.exe" OR source="*powershell*")
+| eval ts=strftime(_time, "%Y-%m-%d %H:%M:%S")
+| table ts, EventCode, user, Image, CommandLine, ScriptBlockText
+| sort ts
+
+/* AQ-SPL-019 | Process | Prozesse aus Temp/AppData-Pfaden
+   USE CASE: Staging-Pfade identifizieren — typisch für Malware
+   PARAMETER: <HOST> */
+index=windows EventCode=1 host="<HOST>"
+(Image="*\\Temp\\*" OR Image="*\\AppData\\*" OR Image="*\\Users\\Public\\*" OR Image="*\\ProgramData\\*")
+| eval ts=strftime(_time, "%Y-%m-%d %H:%M:%S")
+| table ts, user, ParentImage, Image, CommandLine
+| sort ts
+
+/* AQ-SPL-020 | Process | Prozesse mit bestimmtem String in Commandline
+   USE CASE: Flexibler Keyword-Search für Indicators
+   PARAMETER: <STRING> */
+index=windows EventCode=1
+CommandLine="*<STRING>*"
+| eval ts=strftime(_time, "%Y-%m-%d %H:%M:%S")
+| table ts, host, user, Image, CommandLine
+| sort ts
+
+/* AQ-SPL-021 | Process | Prozessbaum für einen Host — letzten 30 Minuten
+   USE CASE: Initialen Angriffspfad rekonstruieren
+   PARAMETER: <HOST> */
+index=windows EventCode=1 host="<HOST>" earliest=-30m
+| eval ts=strftime(_time, "%Y-%m-%d %H:%M:%S")
+| table ts, user, ParentImage, Image, CommandLine, ProcessId, ParentProcessId
+| sort ts
+
+/* AQ-SPL-022 | Process | Nicht-signierte Executables gestartet
+   USE CASE: Unsigned/unbekannte Binaries finden
+   PARAMETER: <HOST> */
+index=windows EventCode=7 host="<HOST>"
+Signed="false" SignatureStatus!="Valid"
+NOT (ImageLoaded="*\\Windows\\*" OR ImageLoaded="*\\Program Files\\*" OR ImageLoaded="*\\Program Files (x86)\\*")
+| stats count by Image, ImageLoaded, SignatureStatus
+| sort -count
+
+/* AQ-SPL-023 | Process | Prozess-Suche nach Hash-Wert
+   USE CASE: Bekannte Malware-Hash in der Umgebung suchen
+   PARAMETER: <HASH> */
+index=windows EventCode=1
+(Hashes="*<HASH>*" OR MD5="<HASH>" OR SHA256="<HASH>" OR SHA1="<HASH>")
+| eval ts=strftime(_time, "%Y-%m-%d %H:%M:%S")
+| table ts, host, user, Image, CommandLine, Hashes
+| sort ts
+
+/* AQ-SPL-024 | Process | Netzwerkverbindungen eines spezifischen Prozesses
+   USE CASE: C2-Verbindungen eines verdächtigen Prozesses prüfen
+   PARAMETER: <PROCESS> */
+index=windows EventCode=3 Image="*\\<PROCESS>"
+| eval ts=strftime(_time, "%Y-%m-%d %H:%M:%S")
+| table ts, host, Image, DestinationIp, DestinationPort, Protocol
+| sort ts
+
+
+/* ──────────────────────────────────────────────
+   KATEGORIE 4 — NETZWERK & C2 (AQ-SPL-025 – AQ-SPL-031)
+   ────────────────────────────────────────────── */
+
+/* AQ-SPL-025 | Network | Alle ausgehenden Verbindungen eines Hosts
+   USE CASE: Welche externen Ziele kontaktiert der Host?
+   PARAMETER: <HOST> */
+index=windows EventCode=3 host="<HOST>"
+NOT (DestinationIp="10.*" OR DestinationIp="192.168.*" OR DestinationIp="172.16.*" OR DestinationIp="127.*")
+| stats count by DestinationIp, DestinationPort, Image
+| sort -count
+
+/* AQ-SPL-026 | Network | Alle Verbindungen zu einer Ziel-IP
+   USE CASE: Welche internen Hosts kommunizieren mit verdächtiger IP?
+   PARAMETER: <IP> */
+index=windows EventCode=3 DestinationIp="<IP>"
+| stats count by host, Image, DestinationPort
+| sort -count
+
+/* AQ-SPL-027 | Network | Alle DNS-Anfragen eines Hosts
+   USE CASE: DNS-Exfil, DGA, Beaconing aufdecken
+   PARAMETER: <HOST> */
+index=windows EventCode=22 host="<HOST>"
+| eval ts=strftime(_time, "%Y-%m-%d %H:%M:%S")
+| table ts, Image, QueryName, QueryType, QueryStatus
+| sort ts
+
+/* AQ-SPL-028 | Network | DNS-Anfragen für eine bestimmte Domain
+   USE CASE: Welche Hosts haben eine verdächtige Domain aufgelöst?
+   PARAMETER: <DOMAIN> */
+index=windows EventCode=22 QueryName="*<DOMAIN>*"
+| stats count by host, Image, QueryName
+| sort -count
+
+/* AQ-SPL-029 | Network | Verbindungsfrequenz pro Host und Ziel-IP — Beaconing-Check
+   USE CASE: Regelmäßige Intervall-Verbindungen = C2-Beaconing
+   PARAMETER: <HOST> */
+index=windows EventCode=3 host="<HOST>"
+NOT (DestinationIp="10.*" OR DestinationIp="192.168.*" OR DestinationIp="172.16.*")
+| bin _time span=5m
+| stats count by _time, DestinationIp, Image
+| sort DestinationIp, _time
+
+/* AQ-SPL-030 | Network | Verbindungen auf ungewöhnlichen Ports
+   USE CASE: Nicht-Standard-Port-Kommunikation erkennen
+   PARAMETER: <HOST> */
+index=windows EventCode=3 host="<HOST>"
+NOT DestinationPort IN (80, 443, 53, 123, 135, 389, 445, 636, 3389, 5985, 5986)
+NOT (DestinationIp="10.*" OR DestinationIp="192.168.*" OR DestinationIp="172.16.*")
+| stats count by DestinationIp, DestinationPort, Image
+| sort -count
+
+/* AQ-SPL-031 | Network | Top DNS-Domains nach Anfragehäufigkeit — Baseline
+   USE CASE: Ausreißer im DNS-Verhalten finden
+   PARAMETER: <HOST> */
+index=windows EventCode=22 host="<HOST>"
+| rex field=QueryName "(?P<domain>[^.]+\.[^.]+)$"
+| stats count by domain, Image
+| sort -count
+| head 30
+
+
+/* ──────────────────────────────────────────────
+   KATEGORIE 5 — DATEISYSTEM (AQ-SPL-032 – AQ-SPL-036)
+   ────────────────────────────────────────────── */
+
+/* AQ-SPL-032 | File | Dateien erstellt von einem bestimmten Prozess
+   USE CASE: Was hat ein verdächtiger Prozess auf Disk geschrieben?
+   PARAMETER: <PROCESS>, <HOST> */
+index=windows EventCode=11 host="<HOST>" Image="*\\<PROCESS>"
+| eval ts=strftime(_time, "%Y-%m-%d %H:%M:%S")
+| table ts, Image, TargetFilename
+| sort ts
+
+/* AQ-SPL-033 | File | Ausführbare Dateien in Temp/AppData — letzte 24h
+   USE CASE: Malware-Drops in Staging-Pfaden erkennen
+   PARAMETER: keine */
+index=windows EventCode=11 earliest=-24h
+(TargetFilename="*\\Temp\\*.exe" OR TargetFilename="*\\AppData\\*.exe" OR TargetFilename="*\\Users\\Public\\*.exe" OR TargetFilename="*\\ProgramData\\*.exe")
+| eval ts=strftime(_time, "%Y-%m-%d %H:%M:%S")
+| table ts, host, Image, TargetFilename
+| sort ts
+
+/* AQ-SPL-034 | File | Datei-Suche nach Name oder Pfad-Muster
+   USE CASE: Spezifisches Artefakt im Environment suchen
+   PARAMETER: <PATH> */
+index=windows EventCode=11 TargetFilename="*<PATH>*"
+| eval ts=strftime(_time, "%Y-%m-%d %H:%M:%S")
+| table ts, host, Image, TargetFilename
+| sort ts
+
+/* AQ-SPL-035 | File | Dateien in Startup- / Persistenz-Pfaden geschrieben
+   USE CASE: Dateibasierte Persistenz erkennen
+   PARAMETER: keine */
+index=windows EventCode=11
+(TargetFilename="*\\Start Menu\\Programs\\Startup\\*" OR
+ TargetFilename="*\\System32\\Tasks\\*" OR
+ TargetFilename="*\\Windows\\System32\\*.dll" OR
+ TargetFilename="*\\Windows\\SysWOW64\\*.dll")
+NOT (Image="*\\msiexec.exe" OR Image="*\\TrustedInstaller.exe" OR Image="*\\wusa.exe")
+| eval ts=strftime(_time, "%Y-%m-%d %H:%M:%S")
+| table ts, host, Image, TargetFilename
+| sort ts
+
+/* AQ-SPL-036 | File | Alle Datei-Schreibvorgänge in einem Verzeichnis
+   USE CASE: Was wurde in ein bestimmtes Verzeichnis geschrieben?
+   PARAMETER: <PATH> */
+index=windows EventCode=11 TargetFilename="*\\<PATH>\\*"
+| eval ts=strftime(_time, "%Y-%m-%d %H:%M:%S")
+| table ts, host, Image, TargetFilename
+| sort ts
+
+
+/* ──────────────────────────────────────────────
+   KATEGORIE 6 — PERSISTENZ (AQ-SPL-037 – AQ-SPL-040)
+   ────────────────────────────────────────────── */
+
+/* AQ-SPL-037 | Persistence | Registry Run-Key-Änderungen — letzte 24h
+   USE CASE: Registry-Persistenz auf allen Hosts prüfen
+   PARAMETER: keine */
+index=windows EventCode=13 earliest=-24h
+(TargetObject="*\\CurrentVersion\\Run\\*" OR TargetObject="*\\CurrentVersion\\RunOnce\\*")
+| eval ts=strftime(_time, "%Y-%m-%d %H:%M:%S")
+| table ts, host, Image, TargetObject, Details
+| sort ts
+
+/* AQ-SPL-038 | Persistence | Neu erstellte geplante Tasks
+   USE CASE: Schtasks-Persistenz untersuchen
+   PARAMETER: keine */
+index=windows (EventCode=4698 OR EventCode=4702) earliest=-24h
+| eval ts=strftime(_time, "%Y-%m-%d %H:%M:%S")
+| table ts, host, SubjectUserName, TaskName, TaskContent
+| sort ts
+
+/* AQ-SPL-039 | Persistence | Neu installierte Dienste
+   USE CASE: Unbekannte Dienste als Persistenz erkennen
+   PARAMETER: keine */
+index=windows (EventCode=4697 OR EventCode=7045) earliest=-48h
+| eval ts=strftime(_time, "%Y-%m-%d %H:%M:%S")
+| table ts, host, ServiceName, ServiceFileName, ServiceType, AccountName
+| sort ts
+
+/* AQ-SPL-040 | Persistence | Alle Persistenz-Mechanismen eines Hosts — Überblick
+   USE CASE: Vollständiges Persistenz-Bild eines kompromittierten Systems
+   PARAMETER: <HOST> */
+index=windows host="<HOST>"
+(EventCode=4698 OR EventCode=7045 OR
+ (EventCode=13 TargetObject="*\\Run\\*") OR
+ (EventCode=11 TargetFilename="*\\Startup\\*"))
+| eval type=case(
+    EventCode=4698,"Scheduled Task",
+    EventCode=7045,"Service",
+    EventCode=13,"Registry Run Key",
+    EventCode=11,"Startup File",
+    true(),"Other")
+| eval ts=strftime(_time, "%Y-%m-%d %H:%M:%S")
+| table ts, type, Image, CommandLine, TargetObject, Details, TargetFilename
+| sort ts
+
+
+/* ──────────────────────────────────────────────
+   KATEGORIE 7 — CREDENTIAL ACCESS (AQ-SPL-041 – AQ-SPL-045)
+   ────────────────────────────────────────────── */
+
+/* AQ-SPL-041 | Cred | LSASS-Zugriffe auf einem Host — vollständige Liste
+   USE CASE: Credential Dumping-Versuche auf einem Endpunkt
+   PARAMETER: <HOST> */
+index=windows EventCode=10 host="<HOST>" TargetImage="*\\lsass.exe"
+| eval ts=strftime(_time, "%Y-%m-%d %H:%M:%S")
+| table ts, SourceImage, GrantedAccess, Signed
+| sort ts
+
+/* AQ-SPL-042 | Cred | Fehlgeschlagene Logins über alle Hosts von einer IP
+   USE CASE: Password-Spray-Quelle analysieren
+   PARAMETER: <IP> */
+index=windows EventCode=4625 IpAddress="<IP>"
+| bin _time span=5m
+| stats dc(TargetUserName) as UniqueUsers count as Attempts by _time, host
+| sort -Attempts
+
+/* AQ-SPL-043 | Cred | Kerberos Service-Ticket-Anfragen (TGS) — potenzielle Kerberoasting
+   USE CASE: Kerberoasting-Angriff erkennen
+   PARAMETER: keine */
+index=windows EventCode=4769 TicketEncryptionType="0x17"
+NOT AccountName="*$*"
+| stats count by AccountName, ServiceName, ClientAddress
+| sort -count
+
+/* AQ-SPL-044 | Cred | SAM/SECURITY-Hive-Zugriffe über reg.exe
+   USE CASE: Registry-Hive-Dump zur Credential-Extraktion
+   PARAMETER: none */
+index=windows (EventCode=1 OR EventCode=4688)
+Image="*\\reg.exe" CommandLine="*save*"
+(CommandLine="*SAM*" OR CommandLine="*SYSTEM*" OR CommandLine="*SECURITY*")
+| eval ts=strftime(_time, "%Y-%m-%d %H:%M:%S")
+| table ts, host, user, CommandLine
+| sort ts
+
+/* AQ-SPL-045 | Cred | Alle Credential-Access-relevanten Events auf einem Host
+   USE CASE: Gesamtbild Credential Access auf verdächtigem System
+   PARAMETER: <HOST> */
+index=windows host="<HOST>"
+(EventCode=10 TargetImage="*\\lsass.exe" OR
+ (EventCode=1 Image="*\\procdump*") OR
+ (EventCode=1 Image="*\\reg.exe" CommandLine="*SAM*") OR
+ (EventCode=4769 TicketEncryptionType="0x17") OR
+ (EventCode=4625))
+| eval ts=strftime(_time, "%Y-%m-%d %H:%M:%S")
+| eval event_type=case(
+    EventCode=10,"LSASS Access",
+    (EventCode=1 AND Image="*\\procdump*"),"ProcDump",
+    (EventCode=1 AND Image="*\\reg.exe"),"Reg SAM Dump",
+    EventCode=4769,"Kerberos TGS",
+    EventCode=4625,"Failed Logon",
+    true(),"Other")
+| table ts, event_type, user, Image, CommandLine
+| sort ts
+
+
+/* ──────────────────────────────────────────────
+   KATEGORIE 8 — LATERAL MOVEMENT (AQ-SPL-046 – AQ-SPL-049)
+   ────────────────────────────────────────────── */
+
+/* AQ-SPL-046 | Lateral | RDP-Verbindungen von einem Host zu anderen
+   USE CASE: Welche Systeme hat der Angreifer via RDP erreicht?
+   PARAMETER: <HOST> */
+index=windows EventCode=3 host="<HOST>" DestinationPort=3389
+| eval ts=strftime(_time, "%Y-%m-%d %H:%M:%S")
+| table ts, DestinationIp, Image
+| sort ts
+
+/* AQ-SPL-047 | Lateral | Admin-Share-Zugriffe von einer Quell-IP
+   USE CASE: SMB-Lateral-Movement-Pfad aufdecken
+   PARAMETER: <IP> */
+index=windows EventCode=5140 IpAddress="<IP>"
+ShareName IN ("\\\\*\\C$", "\\\\*\\ADMIN$", "\\\\*\\IPC$")
+| eval ts=strftime(_time, "%Y-%m-%d %H:%M:%S")
+| table ts, host, SubjectUserName, ShareName
+| sort ts
+
+/* AQ-SPL-048 | Lateral | WMI-Remote-Ausführung — alle Instanzen
+   USE CASE: WMI-Lateral-Movement-Kette rekonstruieren
+   PARAMETER: <HOST> */
+index=windows host="<HOST>"
+(EventCode=1 ParentImage="*\\WmiPrvSE.exe") OR
+(EventCode=1 Image="*\\wmic.exe" CommandLine="*/node:*")
+| eval ts=strftime(_time, "%Y-%m-%d %H:%M:%S")
+| table ts, ParentImage, Image, CommandLine
+| sort ts
+
+/* AQ-SPL-049 | Lateral | PsExec / Remote-Service-Aktivität
+   USE CASE: PsExec-basierte Bewegungen erkennen und verfolgen
+   PARAMETER: keine */
+index=windows earliest=-24h
+((EventCode=1 Image="*\\psexec*") OR
+ (EventCode=7045 ServiceFileName="*psexec*") OR
+ (EventCode=11 TargetFilename="*\\PSEXESVC.exe"))
+| eval ts=strftime(_time, "%Y-%m-%d %H:%M:%S")
+| table ts, host, Image, CommandLine, ServiceFileName, TargetFilename
+| sort ts
+
+
+/* ──────────────────────────────────────────────
+   KATEGORIE 9 — DISCOVERY & RECON (AQ-SPL-050)
+   ────────────────────────────────────────────── */
+
+/* AQ-SPL-050 | Discovery | Recon-Burst — alle Discovery-Tools auf einem Host
+   USE CASE: Aufklärungsphase eines Angriffs sichtbar machen
+   PARAMETER: <HOST> */
+index=windows EventCode=1 host="<HOST>"
+(Image="*\\whoami.exe" OR Image="*\\ipconfig.exe" OR Image="*\\systeminfo.exe" OR
+ Image="*\\net.exe" OR Image="*\\net1.exe" OR Image="*\\arp.exe" OR
+ Image="*\\netstat.exe" OR Image="*\\tasklist.exe" OR Image="*\\ping.exe" OR
+ Image="*\\route.exe" OR Image="*\\nltest.exe" OR Image="*\\nslookup.exe" OR
+ Image="*\\wmic.exe" OR Image="*\\reg.exe" OR Image="*\\quser.exe")
+| eval ts=strftime(_time, "%Y-%m-%d %H:%M:%S")
+| table ts, Image, CommandLine, user
+| sort ts

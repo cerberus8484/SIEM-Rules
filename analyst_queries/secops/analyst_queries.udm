@@ -1,0 +1,406 @@
+//
+// ============================================================
+// HuntingThreats — Analyst Query Library
+// Platform  : Google SecOps (Chronicle) — UDM Search
+// Queries   : AQ-GS-001 – AQ-GS-050
+// Zweck     : Triage, Investigation, Incident Response
+// Verwendung: In Chronicle UI → Search → UDM Search
+//             Parameter in <WINKELKLAMMERN> ersetzen
+//             Zeitfenster über den Time-Picker setzen
+// ============================================================
+//
+// PARAMETER-REFERENZ
+//   <HOST>       → Hostname (z.B. win10-client01)
+//   <USER>       → Benutzername (z.B. jsmith@domain.com)
+//   <IP>         → IP-Adresse (z.B. 192.168.1.55)
+//   <DOMAIN>     → Domain (z.B. evil.example.com)
+//   <PROCESS>    → Prozessname (z.B. powershell.exe)
+//   <STRING>     → Suchstring / Keyword
+//   <HASH>       → SHA256-Hash
+//
+// UDM SEARCH SYNTAX
+//   Gleichheit    : field = "value"
+//   Enthält       : field ~ "value"  (regex)
+//   ODER          : field = "a" OR field = "b"
+//   UND           : field = "a" AND field = "b"
+//   Event-Type    : metadata.event_type = "..."
+//   Nocase        : field nocase "Value"
+//
+// WICHTIGE UDM EVENT TYPES
+//   PROCESS_LAUNCH            → Prozessstart (Sysmon ID 1)
+//   NETWORK_CONNECTION        → Netzwerkverbindung (Sysmon ID 3)
+//   DNS_RESOLUTION            → DNS-Anfrage (Sysmon ID 22)
+//   USER_LOGIN                → Login-Event
+//   USER_LOGIN_FAIL           → Fehlgeschlagener Login
+//   FILE_CREATION             → Datei erstellt (Sysmon ID 11)
+//   REGISTRY_MODIFICATION     → Registry (Sysmon ID 13)
+//   SCHEDULED_TASK_CREATION   → Task erstellt
+//   SERVICE_INSTALLATION      → Dienst installiert
+// ============================================================
+
+
+// ──────────────────────────────────────────────
+// KATEGORIE 1 — TIMELINE & TRIAGE (AQ-GS-001 – AQ-GS-008)
+// ──────────────────────────────────────────────
+
+// AQ-GS-001 | Triage | Alle Events eines Hosts — Zeitfenster via Time-Picker
+// USE CASE: Erster Überblick nach Alert
+// PARAMETER: <HOST>
+principal.hostname = "<HOST>"
+
+// AQ-GS-002 | Triage | Alle Events eines Nutzers
+// USE CASE: User-Kompromittierung untersuchen
+// PARAMETER: <USER>
+(principal.user.userid = "<USER>" OR target.user.userid = "<USER>")
+
+// AQ-GS-003 | Triage | Alle Events einer IP-Adresse
+// USE CASE: Angreifer-IP zurückverfolgen
+// PARAMETER: <IP>
+(principal.ip = "<IP>" OR target.ip = "<IP>" OR intermediary.ip = "<IP>")
+
+// AQ-GS-004 | Triage | Alle High/Critical Severity Events
+// USE CASE: Kritische Events — Sofort-Triage
+metadata.vendor_name nocase "microsoft"
+AND (metadata.event_type = "PROCESS_LAUNCH"
+  OR metadata.event_type = "NETWORK_CONNECTION"
+  OR metadata.event_type = "USER_LOGIN_FAIL")
+
+// AQ-GS-005 | Triage | Alle Events zwischen zwei Zeitstempeln
+// USE CASE: Incident-Zeitraum eingrenzen — Zeitfenster in Time-Picker einstellen
+// Tipp: In Chronicle UI: Kalender-Icon → Custom Range
+principal.hostname = "<HOST>"
+
+// AQ-GS-006 | Triage | Erstes Auftreten eines Prozesses — Suche
+// USE CASE: Wann tauchte das Artefakt erstmals auf?
+// PARAMETER: <PROCESS>
+target.process.file.full_path ~ "<PROCESS>"
+AND metadata.event_type = "PROCESS_LAUNCH"
+
+// AQ-GS-007 | Triage | Alle Events nach Event-Typ und Host
+// USE CASE: Gezielte Suche nach bestimmtem Event-Typ
+// PARAMETER: <HOST>
+principal.hostname = "<HOST>"
+AND metadata.event_type = "PROCESS_LAUNCH"
+
+// AQ-GS-008 | Triage | Keyword-Suche über alle Events
+// USE CASE: Flexible Indicator-Suche im gesamten Log-Bestand
+// PARAMETER: <STRING>
+metadata.description ~ "<STRING>"
+
+
+// ──────────────────────────────────────────────
+// KATEGORIE 2 — AUTHENTICATION & ACCOUNTS (AQ-GS-009 – AQ-GS-016)
+// ──────────────────────────────────────────────
+
+// AQ-GS-009 | Auth | Alle fehlgeschlagenen Logins eines Nutzers
+// USE CASE: Brute-Force / Passwort-Spray gegen Account
+// PARAMETER: <USER>
+target.user.userid = "<USER>"
+AND metadata.event_type = "USER_LOGIN_FAIL"
+
+// AQ-GS-010 | Auth | Fehlgeschlagene Logins von einer IP
+// USE CASE: Password-Spray-Quelle identifizieren
+// PARAMETER: <IP>
+principal.ip = "<IP>"
+AND metadata.event_type = "USER_LOGIN_FAIL"
+
+// AQ-GS-011 | Auth | Alle erfolgreichen Logins eines Nutzers
+// USE CASE: Normales Loginverhalten vs. Anomalien
+// PARAMETER: <USER>
+target.user.userid = "<USER>"
+AND metadata.event_type = "USER_LOGIN"
+
+// AQ-GS-012 | Auth | Erfolgreicher Login von unbekannter/externer IP
+// USE CASE: Kompromittierter Account über externe Quelle
+// PARAMETER: <USER>
+target.user.userid = "<USER>"
+AND metadata.event_type = "USER_LOGIN"
+AND NOT principal.ip ~ "^(10\.|192\.168\.|172\.16\.)"
+
+// AQ-GS-013 | Auth | Neue Benutzerkonten erstellt
+// USE CASE: Backdoor-Account nach Kompromittierung
+metadata.event_type = "USER_CREATION"
+
+// AQ-GS-014 | Auth | Nutzer zu privilegierter Gruppe hinzugefügt
+// USE CASE: Privilege Escalation via Gruppenzugehörigkeit
+metadata.event_type = "USER_CHANGE_PERMISSIONS"
+
+// AQ-GS-015 | Auth | Passwortänderungen
+// USE CASE: Unbefugte Passwortänderungen
+metadata.event_type = "USER_CHANGE_PASSWORD"
+
+// AQ-GS-016 | Auth | Alle Login-Events eines Hosts — Überblick
+// USE CASE: Welche Accounts haben sich an diesem System angemeldet?
+// PARAMETER: <HOST>
+target.hostname = "<HOST>"
+AND (metadata.event_type = "USER_LOGIN" OR metadata.event_type = "USER_LOGIN_FAIL")
+
+
+// ──────────────────────────────────────────────
+// KATEGORIE 3 — PROZESS & AUSFÜHRUNG (AQ-GS-017 – AQ-GS-024)
+// ──────────────────────────────────────────────
+
+// AQ-GS-017 | Process | Alle Kindprozesse eines Elternprozesses
+// USE CASE: Prozessbaum-Analyse für Pivot
+// PARAMETER: <PROCESS>
+principal.process.file.full_path ~ "<PROCESS>"
+AND metadata.event_type = "PROCESS_LAUNCH"
+
+// AQ-GS-018 | Process | PowerShell-Ausführungen
+// USE CASE: Alle PS-Aktivitäten — verdächtige Hosts und Commands
+metadata.event_type = "PROCESS_LAUNCH"
+AND (target.process.file.full_path ~ "powershell" OR target.process.command_line ~ "powershell")
+
+// AQ-GS-019 | Process | PowerShell mit verdächtigen Flags
+// USE CASE: Obfuskierte PS-Ausführung erkennen
+metadata.event_type = "PROCESS_LAUNCH"
+AND target.process.file.full_path ~ "powershell"
+AND (target.process.command_line ~ "-enc" OR target.process.command_line ~ "EncodedCommand"
+  OR target.process.command_line ~ "-nop" OR target.process.command_line ~ "-hidden")
+
+// AQ-GS-020 | Process | Prozesse aus Temp/AppData-Pfaden
+// USE CASE: Malware-Staging erkennen
+metadata.event_type = "PROCESS_LAUNCH"
+AND (target.process.file.full_path ~ "\\\\Temp\\\\"
+  OR target.process.file.full_path ~ "\\\\AppData\\\\"
+  OR target.process.file.full_path ~ "\\\\Users\\\\Public\\\\")
+
+// AQ-GS-021 | Process | Prozess-Suche nach Commandline-Keyword
+// USE CASE: Indicator-Suche in Prozessargumenten
+// PARAMETER: <STRING>
+metadata.event_type = "PROCESS_LAUNCH"
+AND target.process.command_line ~ "<STRING>"
+
+// AQ-GS-022 | Process | Prozess-Suche nach SHA256-Hash
+// USE CASE: Bekannte Malware-Hash im Environment
+// PARAMETER: <HASH>
+metadata.event_type = "PROCESS_LAUNCH"
+AND target.process.file.sha256 = "<HASH>"
+
+// AQ-GS-023 | Process | Office-Prozesse spawnen Shell
+// USE CASE: Office-Makro-Angriff — phishing document
+metadata.event_type = "PROCESS_LAUNCH"
+AND (principal.process.file.full_path ~ "winword"
+  OR principal.process.file.full_path ~ "excel"
+  OR principal.process.file.full_path ~ "powerpnt"
+  OR principal.process.file.full_path ~ "outlook")
+AND (target.process.file.full_path ~ "cmd.exe"
+  OR target.process.file.full_path ~ "powershell"
+  OR target.process.file.full_path ~ "wscript"
+  OR target.process.file.full_path ~ "mshta")
+
+// AQ-GS-024 | Process | Nicht-signierte Executables gestartet
+// USE CASE: Unsigned binaries finden
+metadata.event_type = "PROCESS_LAUNCH"
+AND target.process.file.full_path = "<HOST>"
+AND principal.hostname = "<HOST>"
+
+
+// ──────────────────────────────────────────────
+// KATEGORIE 4 — NETZWERK & C2 (AQ-GS-025 – AQ-GS-031)
+// ──────────────────────────────────────────────
+
+// AQ-GS-025 | Network | Alle ausgehenden Verbindungen eines Hosts
+// USE CASE: Externe Kontakte eines kompromittierten Systems
+// PARAMETER: <HOST>
+principal.hostname = "<HOST>"
+AND metadata.event_type = "NETWORK_CONNECTION"
+AND NOT target.ip ~ "^(10\.|192\.168\.|172\.16\.|127\.)"
+
+// AQ-GS-026 | Network | Alle Verbindungen zu einer Ziel-IP
+// USE CASE: Welche Hosts kommunizieren mit verdächtiger IP?
+// PARAMETER: <IP>
+target.ip = "<IP>"
+AND metadata.event_type = "NETWORK_CONNECTION"
+
+// AQ-GS-027 | Network | DNS-Anfragen eines Hosts
+// USE CASE: DNS-Exfiltration, DGA, Beaconing-Analyse
+// PARAMETER: <HOST>
+principal.hostname = "<HOST>"
+AND metadata.event_type = "DNS_RESOLUTION"
+
+// AQ-GS-028 | Network | DNS-Anfragen für eine bestimmte Domain
+// USE CASE: Welche Hosts haben eine verdächtige Domain aufgelöst?
+// PARAMETER: <DOMAIN>
+metadata.event_type = "DNS_RESOLUTION"
+AND network.dns.questions.name ~ "<DOMAIN>"
+
+// AQ-GS-029 | Network | Verbindungen auf spezifischem Port
+// USE CASE: C2-Port-Suche, Non-Standard-Port-Kommunikation
+// PARAMETER: <PORT>
+metadata.event_type = "NETWORK_CONNECTION"
+AND target.port = <PORT>
+AND NOT target.ip ~ "^(10\.|192\.168\.|172\.16\.)"
+
+// AQ-GS-030 | Network | Verbindungen von bestimmtem Prozess nach außen
+// USE CASE: C2-Verbindungen eines verdächtigen Prozesses
+// PARAMETER: <PROCESS>
+metadata.event_type = "NETWORK_CONNECTION"
+AND principal.process.file.full_path ~ "<PROCESS>"
+AND NOT target.ip ~ "^(10\.|192\.168\.|172\.16\.|127\.)"
+
+// AQ-GS-031 | Network | Ungewöhnliche Prozesse mit Netzwerkverbindungen
+// USE CASE: LOLBin-C2-Verbindungen erkennen
+metadata.event_type = "NETWORK_CONNECTION"
+AND (principal.process.file.full_path ~ "mshta"
+  OR principal.process.file.full_path ~ "certutil"
+  OR principal.process.file.full_path ~ "regsvr32"
+  OR principal.process.file.full_path ~ "bitsadmin"
+  OR principal.process.file.full_path ~ "wscript")
+AND NOT target.ip ~ "^(10\.|192\.168\.|172\.16\.|127\.)"
+
+
+// ──────────────────────────────────────────────
+// KATEGORIE 5 — DATEISYSTEM (AQ-GS-032 – AQ-GS-036)
+// ──────────────────────────────────────────────
+
+// AQ-GS-032 | File | Dateierstellungen auf einem Host
+// USE CASE: Was wurde auf diesem System abgelegt?
+// PARAMETER: <HOST>
+principal.hostname = "<HOST>"
+AND metadata.event_type = "FILE_CREATION"
+
+// AQ-GS-033 | File | Executables in Staging-Pfaden erstellt
+// USE CASE: Malware-Drops in Temp/AppData
+metadata.event_type = "FILE_CREATION"
+AND (target.file.full_path ~ "\\\\Temp\\\\"
+  OR target.file.full_path ~ "\\\\AppData\\\\"
+  OR target.file.full_path ~ "\\\\Public\\\\")
+AND (target.file.full_path ~ "\\.exe$" OR target.file.full_path ~ "\\.dll$")
+
+// AQ-GS-034 | File | Datei-Suche nach Name oder Pfad
+// USE CASE: Spezifisches Artefakt im Environment suchen
+// PARAMETER: <PATH>
+metadata.event_type = "FILE_CREATION"
+AND target.file.full_path ~ "<PATH>"
+
+// AQ-GS-035 | File | Dateien in Startup/Persistenz-Pfaden
+// USE CASE: Dateibasierte Persistenz erkennen
+metadata.event_type = "FILE_CREATION"
+AND (target.file.full_path ~ "\\\\Startup\\\\"
+  OR target.file.full_path ~ "\\\\System32\\\\Tasks\\\\"
+  OR target.file.full_path ~ "\\\\System32\\\\.+\\.dll$")
+
+// AQ-GS-036 | File | Dateierstellungen durch bekannten Malware-Prozess
+// USE CASE: Was hat ein verdächtiger Prozess geschrieben?
+// PARAMETER: <PROCESS>
+metadata.event_type = "FILE_CREATION"
+AND principal.process.file.full_path ~ "<PROCESS>"
+
+
+// ──────────────────────────────────────────────
+// KATEGORIE 6 — PERSISTENZ (AQ-GS-037 – AQ-GS-040)
+// ──────────────────────────────────────────────
+
+// AQ-GS-037 | Persistence | Registry Run-Key-Änderungen
+// USE CASE: Registry-Persistenz erkennen
+metadata.event_type = "REGISTRY_MODIFICATION"
+AND target.registry.registry_key ~ "CurrentVersion\\\\Run"
+
+// AQ-GS-038 | Persistence | Geplante Tasks erstellt
+// USE CASE: Schtasks-Persistenz erkennen
+metadata.event_type = "SCHEDULED_TASK_CREATION"
+
+// AQ-GS-039 | Persistence | Neue Dienste installiert
+// USE CASE: Service-basierte Persistenz erkennen
+metadata.event_type = "SERVICE_INSTALLATION"
+
+// AQ-GS-040 | Persistence | Alle Persistenz-Events eines Hosts
+// USE CASE: Vollständiges Persistenz-Bild nach Kompromittierung
+// PARAMETER: <HOST>
+principal.hostname = "<HOST>"
+AND (metadata.event_type = "SCHEDULED_TASK_CREATION"
+  OR metadata.event_type = "SERVICE_INSTALLATION"
+  OR (metadata.event_type = "REGISTRY_MODIFICATION"
+    AND target.registry.registry_key ~ "Run"))
+
+
+// ──────────────────────────────────────────────
+// KATEGORIE 7 — CREDENTIAL ACCESS (AQ-GS-041 – AQ-GS-045)
+// ──────────────────────────────────────────────
+
+// AQ-GS-041 | Cred | LSASS-Zugriffsereignisse
+// USE CASE: Credential Dumping erkennen
+metadata.event_type = "PROCESS_OPEN"
+AND target.process.file.full_path ~ "lsass"
+
+// AQ-GS-042 | Cred | Brute-Force-Angriff — viele Fehlschläge
+// USE CASE: Password-Spray oder Brute-Force identifizieren
+// PARAMETER: <USER>
+target.user.userid = "<USER>"
+AND metadata.event_type = "USER_LOGIN_FAIL"
+
+// AQ-GS-043 | Cred | Kerberoasting-Indikatoren
+// USE CASE: Kerberos-Ticket-Missbrauch erkennen
+metadata.event_type = "USER_LOGIN"
+AND metadata.description ~ "kerberos"
+AND metadata.description ~ "0x17"
+
+// AQ-GS-044 | Cred | Credential-Dumping-Tool-Signaturen
+// USE CASE: Bekannte Tools (Mimikatz, ProcDump, etc.)
+metadata.event_type = "PROCESS_LAUNCH"
+AND (target.process.command_line ~ "mimikatz"
+  OR target.process.command_line ~ "sekurlsa"
+  OR target.process.command_line ~ "procdump.*lsass"
+  OR target.process.command_line ~ "comsvcs.*minidump"
+  OR target.process.command_line ~ "reg.*save.*SAM")
+
+// AQ-GS-045 | Cred | Alle Credential-Events auf einem Host
+// USE CASE: Gesamtbild Credential Access
+// PARAMETER: <HOST>
+principal.hostname = "<HOST>"
+AND (metadata.event_type = "PROCESS_OPEN"
+  OR metadata.event_type = "USER_LOGIN_FAIL")
+
+
+// ──────────────────────────────────────────────
+// KATEGORIE 8 — LATERAL MOVEMENT (AQ-GS-046 – AQ-GS-049)
+// ──────────────────────────────────────────────
+
+// AQ-GS-046 | Lateral | RDP-Verbindungen von einem Host
+// USE CASE: RDP-basiertes Lateral Movement
+// PARAMETER: <HOST>
+principal.hostname = "<HOST>"
+AND metadata.event_type = "NETWORK_CONNECTION"
+AND target.port = 3389
+
+// AQ-GS-047 | Lateral | SMB-Admin-Share-Zugriffe
+// USE CASE: Admin-Share-basiertes Lateral Movement
+// PARAMETER: <HOST>
+principal.hostname = "<HOST>"
+AND metadata.event_type = "NETWORK_CONNECTION"
+AND target.port = 445
+
+// AQ-GS-048 | Lateral | WMI-Remote-Ausführung
+// USE CASE: WMI-Lateral-Movement-Kette erkennen
+metadata.event_type = "PROCESS_LAUNCH"
+AND principal.process.file.full_path ~ "WmiPrvSE"
+AND (target.process.file.full_path ~ "cmd"
+  OR target.process.file.full_path ~ "powershell"
+  OR target.process.file.full_path ~ "wscript")
+
+// AQ-GS-049 | Lateral | PsExec / Remote-Service-Deployment
+// USE CASE: PsExec-basierte Movements im Netzwerk
+metadata.event_type = "SERVICE_INSTALLATION"
+AND target.file.full_path ~ "PSEXESVC"
+
+
+// ──────────────────────────────────────────────
+// KATEGORIE 9 — DISCOVERY (AQ-GS-050)
+// ──────────────────────────────────────────────
+
+// AQ-GS-050 | Discovery | Recon-Tool-Burst auf einem Host
+// USE CASE: Aufklärungsphase des Angreifers sichtbar machen
+// PARAMETER: <HOST>
+principal.hostname = "<HOST>"
+AND metadata.event_type = "PROCESS_LAUNCH"
+AND (target.process.file.full_path ~ "whoami"
+  OR target.process.file.full_path ~ "ipconfig"
+  OR target.process.file.full_path ~ "systeminfo"
+  OR target.process.file.full_path ~ "net.exe"
+  OR target.process.file.full_path ~ "arp.exe"
+  OR target.process.file.full_path ~ "netstat"
+  OR target.process.file.full_path ~ "tasklist"
+  OR target.process.file.full_path ~ "nltest"
+  OR target.process.file.full_path ~ "nslookup"
+  OR target.process.file.full_path ~ "wmic")

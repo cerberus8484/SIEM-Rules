@@ -1,0 +1,321 @@
+/*
+============================================================
+HuntingThreats — Analyst Query Library
+Platform  : Wazuh 4.x — OpenSearch Dashboards (Kibana Query Language)
+Queries   : AQ-WZ-001 – AQ-WZ-050
+Zweck     : Triage, Investigation, Incident Response
+Verwendung: In Wazuh Dashboard → Discover → KQL-Suchfeld
+            Parameter in <WINKELKLAMMERN> ersetzen
+            Zeitfenster oben rechts im Dashboard setzen
+============================================================
+
+PARAMETER-REFERENZ
+  <HOST>       → Agent-Name / Hostname (z.B. win10-client01)
+  <USER>       → Benutzername (z.B. jsmith)
+  <IP>         → IP-Adresse (z.B. 192.168.1.55)
+  <DOMAIN>     → Domain (z.B. evil.example.com)
+  <PROCESS>    → Prozessname (z.B. powershell.exe)
+  <STRING>     → Suchstring / Keyword
+  <HASH>       → MD5/SHA256-Hash
+  <RULE_ID>    → Wazuh Rule ID (z.B. 92650)
+  <LEVEL>      → Alert-Level (0-15, Standard: >= 10)
+
+KQL-SYNTAX KURZREFERENZ
+  Gleichheit   : agent.name: "WIN01"
+  Enthält      : rule.description: *powershell*
+  Bereich      : rule.level >= 10
+  UND          : field1: "a" AND field2: "b"
+  ODER         : field1: "a" OR field1: "b"
+  NICHT        : NOT field: "value"
+  Wildcard     : field: *pattern*
+  Phrase       : field: "exact phrase"
+
+WICHTIGE FELDER
+  agent.name                   → Hostname des Wazuh-Agents
+  agent.ip                     → Agent-IP
+  rule.id                      → Wazuh Rule ID
+  rule.level                   → Severity Level (1-15)
+  rule.description             → Regelname / Beschreibung
+  rule.groups                  → Regelgruppen (Array)
+  rule.mitre.id                → MITRE ATT&CK ID
+  rule.mitre.tactic            → MITRE Taktik
+  data.win.system.eventID      → Windows Event ID
+  data.win.eventdata.commandLine     → Commandline
+  data.win.eventdata.image           → Prozess-Pfad
+  data.win.eventdata.parentImage     → Elternprozess
+  data.win.eventdata.user            → Nutzer (Windows)
+  data.srcip                   → Quell-IP
+  data.dstip                   → Ziel-IP
+  data.srcuser                 → Quell-Nutzer
+  full_log                     → Vollständiger Log-Eintrag
+============================================================
+*/
+
+
+/* ──────────────────────────────────────────────
+   KATEGORIE 1 — TIMELINE & TRIAGE (AQ-WZ-001 – AQ-WZ-008)
+   ────────────────────────────────────────────── */
+
+/* AQ-WZ-001 | Triage | Alle Alerts eines Hosts — Level >= 5
+   USE CASE: Erster Überblick nach Alert auf Endpunkt
+   PARAMETER: <HOST> */
+agent.name: "<HOST>" AND rule.level >= 5
+
+/* AQ-WZ-002 | Triage | Alle Alerts eines Nutzers
+   USE CASE: User-Kompromittierung untersuchen
+   PARAMETER: <USER> */
+(data.win.eventdata.user: "<USER>" OR data.srcuser: "<USER>" OR data.win.eventdata.subjectUserName: "<USER>")
+
+/* AQ-WZ-003 | Triage | High/Critical Alerts — Level >= 12
+   USE CASE: Sofort-Triage bei Incident-Beginn */
+rule.level >= 12
+
+/* AQ-WZ-004 | Triage | Alle Alerts einer IP-Adresse
+   USE CASE: Angreifer-IP zurückverfolgen
+   PARAMETER: <IP> */
+(data.srcip: "<IP>" OR data.dstip: "<IP>" OR agent.ip: "<IP>")
+
+/* AQ-WZ-005 | Triage | Alerts nach MITRE-Technik
+   USE CASE: Spezifische ATT&CK-Technik im Environment prüfen
+   PARAMETER: z.B. T1059.001 */
+rule.mitre.id: "T1059.001"
+
+/* AQ-WZ-006 | Triage | Alle Alerts einer MITRE-Taktik
+   USE CASE: Überblick über Aktivitäten einer Taktik
+   PARAMETER: Execution | Persistence | Credential Access | etc. */
+rule.mitre.tactic: "Execution"
+
+/* AQ-WZ-007 | Triage | Alerts nach Rule-Gruppe
+   USE CASE: Alle Alerts einer bestimmten Kategorie (z.B. Authentication, Malware)
+   PARAMETER: authentication_failed | attack | malware | syscheck | etc. */
+rule.groups: "authentication_failed"
+
+/* AQ-WZ-008 | Triage | Volltext-Suche im Log
+   USE CASE: Flexibler Keyword-Search über alle Felder
+   PARAMETER: <STRING> */
+full_log: *<STRING>*
+
+
+/* ──────────────────────────────────────────────
+   KATEGORIE 2 — AUTHENTICATION & ACCOUNTS (AQ-WZ-009 – AQ-WZ-016)
+   ────────────────────────────────────────────── */
+
+/* AQ-WZ-009 | Auth | Fehlgeschlagene Logins eines Nutzers
+   USE CASE: Brute-Force / Passwort-Spray gegen Account
+   PARAMETER: <USER> */
+rule.groups: "authentication_failed" AND (data.win.eventdata.targetUserName: "<USER>" OR data.srcuser: "<USER>")
+
+/* AQ-WZ-010 | Auth | Fehlgeschlagene Logins von einer IP
+   USE CASE: Brute-Force-Quelle identifizieren
+   PARAMETER: <IP> */
+rule.groups: "authentication_failed" AND data.srcip: "<IP>"
+
+/* AQ-WZ-011 | Auth | Fehlgeschlagene Logins — alle Hosts (Spray-Überblick)
+   USE CASE: Passwort-Spray im Netzwerk erkennen */
+data.win.system.eventID: "4625"
+
+/* AQ-WZ-012 | Auth | Erfolgreiche Logins nach Fehlschlägen
+   USE CASE: Kompromittierter Account nach Brute-Force — zeitliches Clustering
+   PARAMETER: <USER> */
+(data.win.system.eventID: "4624" OR data.win.system.eventID: "4625") AND data.win.eventdata.targetUserName: "<USER>"
+
+/* AQ-WZ-013 | Auth | Neue Benutzerkonten erstellt
+   USE CASE: Backdoor-Account nach Kompromittierung */
+data.win.system.eventID: "4720"
+
+/* AQ-WZ-014 | Auth | Nutzer zu privilegierter Gruppe hinzugefügt
+   USE CASE: Privilege Escalation via Gruppenmitgliedschaft */
+data.win.system.eventID: ("4728" OR "4732" OR "4756")
+
+/* AQ-WZ-015 | Auth | Passwortänderungen
+   USE CASE: Unbefugte Passwortänderungen erkennen */
+data.win.system.eventID: ("4723" OR "4724")
+
+/* AQ-WZ-016 | Auth | Logins außerhalb Geschäftszeiten
+   USE CASE: After-Hours-Zugriff (manuelle Zeitfilterung im Dashboard)
+   Tipp: Zeitfenster auf 22:00–06:00 eingrenzen, dann: */
+data.win.system.eventID: "4624" AND (data.win.eventdata.logonType: "2" OR data.win.eventdata.logonType: "10")
+
+
+/* ──────────────────────────────────────────────
+   KATEGORIE 3 — PROZESS & AUSFÜHRUNG (AQ-WZ-017 – AQ-WZ-024)
+   ────────────────────────────────────────────── */
+
+/* AQ-WZ-017 | Process | Alle Prozesse gestartet von einem Elternprozess
+   USE CASE: Prozessbaum-Analyse für Pivot
+   PARAMETER: <PROCESS> */
+data.win.eventdata.parentImage: *<PROCESS>* AND data.win.system.eventID: "1"
+
+/* AQ-WZ-018 | Process | PowerShell-Ausführungen auf einem Host
+   USE CASE: Alle PS-Aktivitäten auf verdächtigem Endpunkt
+   PARAMETER: <HOST> */
+agent.name: "<HOST>" AND (data.win.eventdata.image: *powershell.exe* OR data.win.eventdata.image: *pwsh.exe*)
+
+/* AQ-WZ-019 | Process | PowerShell mit verdächtigen Flags
+   USE CASE: Obfuskierte PS-Ausführung erkennen */
+data.win.eventdata.image: *powershell.exe* AND (data.win.eventdata.commandLine: *-enc* OR data.win.eventdata.commandLine: *EncodedCommand* OR data.win.eventdata.commandLine: *-nop* OR data.win.eventdata.commandLine: *-hidden*)
+
+/* AQ-WZ-020 | Process | Prozesse aus Temp/AppData-Pfaden
+   USE CASE: Malware-Staging erkennen */
+data.win.system.eventID: "1" AND (data.win.eventdata.image: *\\Temp\\* OR data.win.eventdata.image: *\\AppData\\* OR data.win.eventdata.image: *\\Users\\Public\\*)
+
+/* AQ-WZ-021 | Process | Commandline-Keyword-Suche
+   USE CASE: Indicator of Compromise in Prozessargumenten
+   PARAMETER: <STRING> */
+data.win.eventdata.commandLine: *<STRING>*
+
+/* AQ-WZ-022 | Process | Office-Prozess spawnt Shell
+   USE CASE: Office-Makro-Angriff / Phishing Document */
+data.win.system.eventID: "1" AND (data.win.eventdata.parentImage: *winword.exe* OR data.win.eventdata.parentImage: *excel.exe* OR data.win.eventdata.parentImage: *powerpnt.exe* OR data.win.eventdata.parentImage: *outlook.exe*) AND (data.win.eventdata.image: *cmd.exe* OR data.win.eventdata.image: *powershell.exe* OR data.win.eventdata.image: *wscript.exe* OR data.win.eventdata.image: *mshta.exe*)
+
+/* AQ-WZ-023 | Process | Prozess-Suche nach Hash-Wert
+   USE CASE: Bekannte Malware im Environment suchen
+   PARAMETER: <HASH> */
+data.win.eventdata.hashes: *<HASH>*
+
+/* AQ-WZ-024 | Process | WMI-Prozess-Erstellung
+   USE CASE: WMI-Missbrauch (Persistence, Lateral Movement) */
+data.win.system.eventID: ("19" OR "20" OR "21")
+
+
+/* ──────────────────────────────────────────────
+   KATEGORIE 4 — NETZWERK & C2 (AQ-WZ-025 – AQ-WZ-031)
+   ────────────────────────────────────────────── */
+
+/* AQ-WZ-025 | Network | Alle ausgehenden Verbindungen eines Hosts
+   USE CASE: Externe Kontakte eines kompromittierten Systems
+   PARAMETER: <HOST> */
+agent.name: "<HOST>" AND data.win.system.eventID: "3" AND NOT (data.win.eventdata.destinationIp: 10.* OR data.win.eventdata.destinationIp: 192.168.* OR data.win.eventdata.destinationIp: 172.16.*)
+
+/* AQ-WZ-026 | Network | Verbindungen zu einer Ziel-IP
+   USE CASE: Welche Hosts kommunizieren mit verdächtiger IP?
+   PARAMETER: <IP> */
+data.win.eventdata.destinationIp: "<IP>" AND data.win.system.eventID: "3"
+
+/* AQ-WZ-027 | Network | DNS-Anfragen eines Hosts
+   USE CASE: DNS-Exfiltration, DGA, Beaconing
+   PARAMETER: <HOST> */
+agent.name: "<HOST>" AND data.win.system.eventID: "22"
+
+/* AQ-WZ-028 | Network | DNS-Anfragen für eine bestimmte Domain
+   USE CASE: Welche Hosts haben eine verdächtige Domain aufgelöst?
+   PARAMETER: <DOMAIN> */
+data.win.eventdata.queryName: *<DOMAIN>* AND data.win.system.eventID: "22"
+
+/* AQ-WZ-029 | Network | Verbindungen auf bestimmtem Port
+   USE CASE: C2-Port-Suche, Non-Standard-Port
+   PARAMETER: <PORT> */
+data.win.eventdata.destinationPort: "<PORT>" AND data.win.system.eventID: "3" AND NOT (data.win.eventdata.destinationIp: 10.* OR data.win.eventdata.destinationIp: 192.168.*)
+
+/* AQ-WZ-030 | Network | LOLBin-Prozesse mit Netzwerkverbindungen
+   USE CASE: C2 über LOLBins erkennen */
+data.win.system.eventID: "3" AND (data.win.eventdata.image: *mshta.exe* OR data.win.eventdata.image: *certutil.exe* OR data.win.eventdata.image: *regsvr32.exe* OR data.win.eventdata.image: *bitsadmin.exe* OR data.win.eventdata.image: *wscript.exe*)
+
+/* AQ-WZ-031 | Network | Hosts-Datei-Änderungen (Windows Syscheck)
+   USE CASE: Hosts-Datei-Manipulation erkennen */
+rule.groups: "syscheck" AND syscheck.path: *etc\\hosts*
+
+
+/* ──────────────────────────────────────────────
+   KATEGORIE 5 — DATEISYSTEM / SYSCHECK (AQ-WZ-032 – AQ-WZ-036)
+   ────────────────────────────────────────────── */
+
+/* AQ-WZ-032 | File | Alle FIM-Alerts eines Hosts
+   USE CASE: Was wurde auf diesem System geändert?
+   PARAMETER: <HOST> */
+agent.name: "<HOST>" AND rule.groups: "syscheck"
+
+/* AQ-WZ-033 | File | Executables in Staging-Pfaden
+   USE CASE: Malware-Drops in Temp/AppData */
+rule.groups: "syscheck" AND (syscheck.path: *\\Temp\\*.exe OR syscheck.path: *\\AppData\\*.exe OR syscheck.path: *\\Public\\*.exe)
+
+/* AQ-WZ-034 | File | Neue Dateien erstellt (FIM-Add)
+   USE CASE: Neu abgelegte Dateien erkennen */
+rule.groups: "syscheck" AND syscheck.event: "added"
+
+/* AQ-WZ-035 | File | Startup-Ordner Änderungen
+   USE CASE: Dateibasierte Persistenz erkennen */
+rule.groups: "syscheck" AND (syscheck.path: *\\Startup\\* OR syscheck.path: *\\System32\\Tasks\\*)
+
+/* AQ-WZ-036 | File | FIM-Änderungen nach Dateipfad
+   USE CASE: Bestimmtes Verzeichnis überwachen
+   PARAMETER: <PATH> */
+rule.groups: "syscheck" AND syscheck.path: *<PATH>*
+
+
+/* ──────────────────────────────────────────────
+   KATEGORIE 6 — PERSISTENZ (AQ-WZ-037 – AQ-WZ-040)
+   ────────────────────────────────────────────── */
+
+/* AQ-WZ-037 | Persistence | Registry Run-Key-Änderungen
+   USE CASE: Registry-basierte Persistenz erkennen */
+data.win.system.eventID: "13" AND data.win.eventdata.targetObject: *CurrentVersion\\Run*
+
+/* AQ-WZ-038 | Persistence | Geplante Tasks erstellt oder geändert
+   USE CASE: Schtasks-Persistenz erkennen */
+data.win.system.eventID: ("4698" OR "4702")
+
+/* AQ-WZ-039 | Persistence | Neue Dienste installiert
+   USE CASE: Service-basierte Persistenz */
+data.win.system.eventID: ("4697" OR "7045")
+
+/* AQ-WZ-040 | Persistence | Alle Persistenz-Events eines Hosts — Überblick
+   USE CASE: Vollständiges Persistenz-Bild nach Kompromittierung
+   PARAMETER: <HOST> */
+agent.name: "<HOST>" AND (data.win.system.eventID: ("4698" OR "4697" OR "7045") OR (data.win.system.eventID: "13" AND data.win.eventdata.targetObject: *CurrentVersion\\Run*))
+
+
+/* ──────────────────────────────────────────────
+   KATEGORIE 7 — CREDENTIAL ACCESS (AQ-WZ-041 – AQ-WZ-045)
+   ────────────────────────────────────────────── */
+
+/* AQ-WZ-041 | Cred | LSASS-Zugriffsereignisse
+   USE CASE: Credential Dumping erkennen */
+data.win.system.eventID: "10" AND data.win.eventdata.targetImage: *lsass.exe*
+
+/* AQ-WZ-042 | Cred | Brute-Force-Schwellenwert — Wazuh Alert
+   USE CASE: Wazuh-Alert für erkannte Brute-Force-Attacken */
+rule.id: ("5712" OR "5710" OR "5503" OR "18100" OR "18101")
+
+/* AQ-WZ-043 | Cred | Credential-Tool-Signaturen
+   USE CASE: Bekannte Credential-Tools (Mimikatz etc.) */
+(data.win.eventdata.commandLine: *mimikatz* OR data.win.eventdata.commandLine: *sekurlsa* OR data.win.eventdata.commandLine: *lsadump* OR data.win.eventdata.commandLine: *comsvcs*minidump*)
+
+/* AQ-WZ-044 | Cred | SAM/SECURITY-Hive-Dump
+   USE CASE: Registry-Hive-Dump zur Credential-Extraktion */
+data.win.eventdata.commandLine: *reg* AND data.win.eventdata.commandLine: *save* AND (data.win.eventdata.commandLine: *SAM* OR data.win.eventdata.commandLine: *SECURITY* OR data.win.eventdata.commandLine: *SYSTEM*)
+
+/* AQ-WZ-045 | Cred | Alle Credential-Access-Alerts — Wazuh-Gruppen
+   USE CASE: Gesamtbild Credential Access */
+rule.mitre.tactic: "Credential Access"
+
+
+/* ──────────────────────────────────────────────
+   KATEGORIE 8 — LATERAL MOVEMENT (AQ-WZ-046 – AQ-WZ-049)
+   ────────────────────────────────────────────── */
+
+/* AQ-WZ-046 | Lateral | RDP-Verbindungen
+   USE CASE: RDP-basiertes Lateral Movement erkennen */
+data.win.system.eventID: "4624" AND data.win.eventdata.logonType: "10"
+
+/* AQ-WZ-047 | Lateral | Admin-Share-Zugriffe
+   USE CASE: SMB-Admin-Share-basiertes Lateral Movement */
+data.win.system.eventID: "5140" AND (data.win.eventdata.shareName: *C$* OR data.win.eventdata.shareName: *ADMIN$*)
+
+/* AQ-WZ-048 | Lateral | WMI-Remote-Ausführung
+   USE CASE: WMI-Lateral-Movement-Kette erkennen */
+data.win.system.eventID: "1" AND data.win.eventdata.parentImage: *WmiPrvSE.exe* AND (data.win.eventdata.image: *cmd.exe* OR data.win.eventdata.image: *powershell.exe* OR data.win.eventdata.image: *wscript.exe*)
+
+/* AQ-WZ-049 | Lateral | PsExec / Remote-Service
+   USE CASE: PsExec-basierte Movements erkennen */
+(data.win.eventdata.image: *psexec* OR data.win.system.eventID: "7045" AND data.win.eventdata.serviceName: *psexesvc* OR data.win.eventdata.targetFileName: *PSEXESVC*)
+
+
+/* ──────────────────────────────────────────────
+   KATEGORIE 9 — DISCOVERY (AQ-WZ-050)
+   ────────────────────────────────────────────── */
+
+/* AQ-WZ-050 | Discovery | Recon-Tool-Burst auf einem Host
+   USE CASE: Aufklärungsphase des Angreifers sichtbar machen
+   PARAMETER: <HOST> */
+agent.name: "<HOST>" AND data.win.system.eventID: "1" AND (data.win.eventdata.image: *whoami.exe* OR data.win.eventdata.image: *ipconfig.exe* OR data.win.eventdata.image: *systeminfo.exe* OR data.win.eventdata.image: *net.exe* OR data.win.eventdata.image: *arp.exe* OR data.win.eventdata.image: *netstat.exe* OR data.win.eventdata.image: *tasklist.exe* OR data.win.eventdata.image: *nltest.exe* OR data.win.eventdata.image: *nslookup.exe* OR data.win.eventdata.image: *wmic.exe*)
