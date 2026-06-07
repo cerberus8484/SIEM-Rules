@@ -1,6 +1,6 @@
 {
-  "_comment": "TRUE POSITIVE — WZ-702001: Okta Admin-Rolle vergeben (Wazuh KQL)",
-  "rule_id": "WZ-702001",
+  "_comment": "TRUE POSITIVE — WZ-700012: Okta Admin-Rolle vergeben (Wazuh KQL)",
+  "rule_id": "WZ-700012",
   "expected_result": "ALERT",
   "severity": "HIGH",
   "confidence": 80,

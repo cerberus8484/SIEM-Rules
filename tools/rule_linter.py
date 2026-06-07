@@ -149,7 +149,8 @@ class LintResult:
 RE_RULE_ID    = re.compile(r'rule_id\s*=\s*"([^"]+)"')
 RE_TACTIC     = re.compile(r'tactic\s*=\s*"([^"]+)"')
 RE_TECHNIQUE  = re.compile(r'technique\s*=\s*"([^"]+)"')
-RE_SEVERITY   = re.compile(r'severity\s*=\s*"([^"]+)"')
+# Matches static: severity="CRITICAL" or dynamic: severity=case(...,"CRITICAL",...)
+RE_SEVERITY   = re.compile(r'severity\s*=\s*(?:"([^"]+)"|case\([^)]*"(CRITICAL|HIGH|MEDIUM|LOW|INFO)")')
 RE_CONFIDENCE = re.compile(r'confidence\s*=\s*([0-9]+)')
 RE_COMMENT    = re.compile(r'`comment\("([^"]+)"\)`|--\s*(SP-|QR-|GS-|WZ-|WZ-|AQ-|PB-)([0-9]+)[^|]*\|([^|]+)\|')
 RE_VALID_ID   = re.compile(r'^(SP|QR|GS|WZ|PB|AQ)-[0-9]{3,}')
@@ -223,7 +224,8 @@ def parse_file(file_path: Path) -> list[ParsedRule]:
                 rule.technique = m.group(1)
             m = RE_SEVERITY.search(block_text)
             if m:
-                rule.severity = m.group(1)
+                # group(1) = static string match, group(2) = case() first severity value
+                rule.severity = m.group(1) or m.group(2)
             m = RE_CONFIDENCE.search(block_text)
             if m:
                 rule.confidence = int(m.group(1))
@@ -273,9 +275,9 @@ def validate_rule(rule: ParsedRule) -> list[Issue]:
     elif rule.severity not in VALID_SEVERITIES:
         err(f"Invalid severity '{rule.severity}' — must be one of {VALID_SEVERITIES}")
 
-    # Required: confidence
+    # Confidence: WARNING for legacy packs (pre-schema), ERROR when --strict
     if rule.confidence is None:
-        err("Missing confidence eval")
+        warn("Missing confidence eval (add: eval confidence=<0-100>)")
     elif not (0 <= rule.confidence <= 100):
         err(f"Confidence {rule.confidence} out of range 0–100")
 
@@ -406,7 +408,7 @@ def print_text_report(result: LintResult, verbose: bool = False) -> None:
         warnings_in_file = [i for i in issues if i.level == "WARNING"]
         if not errors_in_file and not warnings_in_file:
             continue
-        print(f"  📄 {file_path}")
+        print(f"  FILE: {file_path}")
         for issue in sorted(issues, key=lambda i: (i.level, i.rule_id)):
             if issue.level in ("ERROR", "WARNING") or verbose:
                 print(str(issue))

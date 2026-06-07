@@ -120,14 +120,14 @@ AND match(source, "(?i)(veeam|zerto|commvault|veritas)")
 `comment("SP-730017 | Backup-Resilience | Backup Encryption Key gelöscht (AWS KMS)")`
 index=aws sourcetype="aws:cloudtrail" eventName IN ("ScheduleKeyDeletion","DisableKey","DeleteImportedKeyMaterial")
 | eval key_arn='requestParameters.keyId', actor='userIdentity.arn'
-| eval rule_id="SP-730018", tactic="Impact", technique="T1485", severity="CRITICAL", confidence=90
+| eval rule_id="SP-730017", tactic="Impact", technique="T1485", severity="CRITICAL", confidence=90
 | table _time, actor, key_arn, sourceIPAddress
 
 `comment("SP-730018 | Backup-Resilience | Restic / Borg Backup-Konfiguration geändert")`
 index=linux sourcetype="linux:audit"
 | where (match(exe,"(?i)(restic|borg|duplicati|rclone)") AND match(cmdline,"(?i)(forget|prune|delete|purge|unlock --remove-all)"))
 OR match(name,"(?i)(/etc/restic|/etc/borg|\.config/borg|\.restic)")
-| eval rule_id="SP-730019", tactic="Impact", technique="T1490", severity="HIGH", confidence=82
+| eval rule_id="SP-730018", tactic="Impact", technique="T1490", severity="HIGH", confidence=82
 | table _time, host, auid, exe, cmdline
 
 `comment("SP-730019 | Backup-Resilience | S3 Bucket Versioning deaktiviert (Backup-Bucket)")`

@@ -1,0 +1,136 @@
+name: Rule Quality CI
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - "splunk/**"
+      - "qradar/**"
+      - "secops/**"
+      - "wazuh/**"
+      - "tools/**"
+      - "schema/**"
+      - "tests/**"
+  pull_request:
+    branches: [main]
+    paths:
+      - "splunk/**"
+      - "qradar/**"
+      - "secops/**"
+      - "wazuh/**"
+      - "tools/**"
+      - "schema/**"
+      - "tests/**"
+
+jobs:
+  lint:
+    name: Rule Linter
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r tools/requirements.txt
+
+      - name: Run rule linter (all packs — errors only)
+        id: linter
+        run: |
+          python tools/rule_linter.py --json 2>&1 | tee lint_results.json
+          exit ${PIPESTATUS[0]}
+
+      - name: Run rule linter strict (new packs G+ — no missing confidence)
+        run: |
+          python tools/rule_linter.py --strict \
+            --pack identity --pack container --pack devops --pack backup \
+            --pack hypervisor --pack email --pack database --pack vpn \
+            --pack macos --pack dlp --pack deception --pack correlation 2>&1
+
+      - name: Upload lint results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lint-results
+          path: lint_results.json
+          retention-days: 14
+
+  validate-fixtures:
+    name: Fixture Validator
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r tools/requirements.txt
+
+      - name: Run fixture validator
+        run: python tools/fixture_validator.py
+
+  coverage-matrix:
+    name: Coverage Matrix
+    runs-on: ubuntu-latest
+    needs: lint
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r tools/requirements.txt
+
+      - name: Generate coverage matrix
+        run: python tools/coverage_matrix.py
+
+      - name: Check coverage.json is up to date
+        run: |
+          git diff --exit-code coverage.json COVERAGE.md || {
+            echo "::error::coverage.json or COVERAGE.md is out of date. Run 'python tools/coverage_matrix.py' locally and commit the result."
+            exit 1
+          }
+
+      - name: Upload coverage artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-matrix
+          path: |
+            coverage.json
+            COVERAGE.md
+          retention-days: 30
+
+  summary:
+    name: CI Summary
+    runs-on: ubuntu-latest
+    needs: [lint, validate-fixtures, coverage-matrix]
+    if: always()
+    steps:
+      - name: Check all jobs passed
+        run: |
+          if [[ "${{ needs.lint.result }}" != "success" ]]; then
+            echo "::error::Lint failed"
+            exit 1
+          fi
+          if [[ "${{ needs.validate-fixtures.result }}" != "success" ]]; then
+            echo "::error::Fixture validation failed"
+            exit 1
+          fi
+          if [[ "${{ needs.coverage-matrix.result }}" != "success" ]]; then
+            echo "::error::Coverage matrix check failed"
+            exit 1
+          fi
+          echo "All CI checks passed."

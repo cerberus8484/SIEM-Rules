@@ -1,0 +1,67 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+jobs:
+  build-release:
+    name: Build & Publish Release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install -r tools/requirements.txt
+
+      - name: Run linter (release gate)
+        run: python tools/rule_linter.py --strict
+
+      - name: Run fixture validator (release gate)
+        run: python tools/fixture_validator.py
+
+      - name: Generate coverage matrix
+        run: python tools/coverage_matrix.py
+
+      - name: Build release packages
+        run: python tools/release_package.py --tag "${{ github.ref_name }}"
+
+      - name: Extract changelog for this version
+        id: changelog
+        run: |
+          VERSION="${{ github.ref_name }}"
+          python - <<'EOF'
+          import re, sys
+          version = "${{ github.ref_name }}"
+          text = open("CHANGELOG.md").read()
+          pattern = rf"## \[{re.escape(version)}\].*?(?=^## \[|\Z)"
+          m = re.search(pattern, text, re.MULTILINE | re.DOTALL)
+          if m:
+              with open("release_notes.md", "w") as f:
+                  f.write(m.group(0).strip())
+          else:
+              with open("release_notes.md", "w") as f:
+                  f.write(f"Release {version}")
+          EOF
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          body_path: release_notes.md
+          files: |
+            dist/huntingthreats-splunk-*.zip
+            dist/huntingthreats-qradar-*.zip
+            dist/huntingthreats-secops-*.zip
+            dist/huntingthreats-wazuh-*.zip
+            dist/huntingthreats-all-*.zip
+            coverage.json
+            COVERAGE.md

@@ -1,6 +1,6 @@
 {
-  "_comment": "TRUE POSITIVE — WZ-701001: AWS Root Account Login (Wazuh KQL)",
-  "rule_id": "WZ-701001",
+  "_comment": "TRUE POSITIVE — WZ-700006: AWS Root Account Login (Wazuh KQL)",
+  "rule_id": "WZ-700006",
   "expected_result": "ALERT",
   "severity": "CRITICAL",
   "confidence": 95,
