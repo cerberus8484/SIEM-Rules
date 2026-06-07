@@ -1,0 +1,33 @@
+{
+  "_comment": "TRUE POSITIVE — SP-760005: xp_cmdshell enabled in MSSQL (T1059 — OS command execution via DB)",
+  "rule_id": "SP-760005",
+  "expected_result": "ALERT",
+  "severity": "CRITICAL",
+  "confidence": 95,
+  "scenario": "Attacker or malware enables xp_cmdshell in MSSQL Server to execute OS commands directly from SQL queries",
+  "mitre": "T1059",
+  "event": {
+    "sourcetype": "mssql:audit",
+    "host": "DB-SERVER-PROD",
+    "action_id": "DBCC",
+    "statement": "EXEC sp_configure 'show advanced options', 1; RECONFIGURE; EXEC sp_configure 'xp_cmdshell', 1; RECONFIGURE;",
+    "database_name": "master",
+    "server_principal_name": "sa",
+    "client_ip": "10.10.100.55",
+    "time": "2024-01-15T02:15:00Z"
+  },
+  "why_tp": [
+    "xp_cmdshell is disabled by default in all modern MSSQL installations — any enablement is suspicious",
+    "Executed via the 'sa' account — SQL Server system administrator, highest privilege",
+    "Client IP 10.10.100.55 is a workstation, not a known DBA management host",
+    "Time 02:15 — outside maintenance window",
+    "Confidence 95: xp_cmdshell activation rarely has legitimate use cases in production"
+  ],
+  "analyst_action": [
+    "IMMEDIATE: Disable xp_cmdshell: EXEC sp_configure 'xp_cmdshell', 0; RECONFIGURE;",
+    "Check what commands were executed via xp_cmdshell before detection",
+    "Investigate how the 'sa' credentials were obtained",
+    "Check for new Windows accounts, scheduled tasks, or files created by MSSQL service account",
+    "Review MSSQL audit log for all statements from client 10.10.100.55"
+  ]
+}

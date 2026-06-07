@@ -1,0 +1,43 @@
+{
+  "_comment": "TRUE POSITIVE — SP-103001: LSASS memory dump via procdump (T1003.001)",
+  "rule_id": "SP-103001",
+  "expected_result": "ALERT",
+  "severity": "CRITICAL",
+  "confidence": 81,
+  "scenario": "Attacker uses procdump to dump LSASS memory and extract credentials for lateral movement",
+  "mitre": "T1003.001",
+  "events": [
+    {
+      "sourcetype": "WinEventLog:Security",
+      "EventCode": 4656,
+      "host": "WORKSTATION-SALES-03",
+      "ObjectName": "C:\\Windows\\System32\\lsass.exe",
+      "GrantedAccess": "0x1410",
+      "ProcessName": "C:\\Temp\\procdump64.exe",
+      "SubjectUserName": "jdoe",
+      "time": "2024-01-15T15:33:00Z"
+    },
+    {
+      "sourcetype": "WinEventLog:Sysmon",
+      "EventCode": 10,
+      "host": "WORKSTATION-SALES-03",
+      "TargetImage": "C:\\Windows\\System32\\lsass.exe",
+      "SourceImage": "C:\\Temp\\procdump64.exe",
+      "GrantedAccess": "0x1410",
+      "CallTrace": "C:\\Windows\\SYSTEM32\\ntdll.dll+...|C:\\Windows\\System32\\KERNELBASE.dll+...",
+      "time": "2024-01-15T15:33:00Z"
+    }
+  ],
+  "why_tp": [
+    "procdump64.exe accessing LSASS with PROCESS_VM_READ (0x1410) — textbook credential dumping",
+    "Tool written to C:\\Temp — attacker staging location",
+    "AccessMask 0x1410 = PROCESS_QUERY_INFORMATION + PROCESS_VM_READ — the minimum for a memory dump",
+    "Sysmon event 10 (ProcessAccess) corroborates the 4656 — dual-source confirmation"
+  ],
+  "analyst_action": [
+    "IMMEDIATE: Check if any lateral movement occurred from WORKSTATION-SALES-03 after 15:33",
+    "Identify all accounts whose credentials may have been in LSASS (logged-in users)",
+    "Force password reset for all accounts found on this machine",
+    "Investigate how procdump64.exe arrived on the host (parent process, download source)"
+  ]
+}

@@ -1,0 +1,27 @@
+{
+  "_comment": "FALSE POSITIVE — SP-750001: Legitimate newsletter where sender display name contains 'CEO'",
+  "rule_id": "SP-750001",
+  "expected_result": "NO_ALERT",
+  "scenario": "Legitimate newsletter from a business publication whose editor-in-chief title appears in display name",
+  "event": {
+    "sourcetype": "ms:o365:management",
+    "Operation": "MessageReceived",
+    "SenderAddress": "newsletter@hbr.org",
+    "RecipientAddress": "ceo@contoso.com",
+    "Subject": "CEO Today: Leadership Insights for Q1 2024",
+    "SenderDisplayName": "HBR CEO Today Newsletter",
+    "SenderIPAddress": "199.89.0.1",
+    "time": "2024-01-15T07:00:00Z"
+  },
+  "why_fp": [
+    "Sender domain hbr.org has SPF+DKIM+DMARC pass — authenticated sender",
+    "Display name 'HBR CEO Today Newsletter' — 'CEO' is part of publication name, not impersonation",
+    "Recipient is the actual CEO, not finance — not a wire fraud target",
+    "Known newsletter subscription (check user's inbox rules for recurring sender)"
+  ],
+  "tuning_recommendation": [
+    "Allowlist authenticated senders (DMARC pass) from known business publications",
+    "Tighten the display-name regex to: '^(CEO|CFO|COO|CTO|Chief Executive|President)\\s+[A-Z][a-z]+'",
+    "Require both: display-name impersonation AND external sender domain mismatch"
+  ]
+}

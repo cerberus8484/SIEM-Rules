@@ -472,12 +472,12 @@ def main() -> None:
             print(md)
         else:
             OUTPUT_MD.write_text(md, encoding="utf-8")
-            print(f"  ✔  Wrote {OUTPUT_MD}")
+            print(f"  OK  Wrote {OUTPUT_MD}")
 
     if not args.md_only:
         j = generate_json(rules)
         OUTPUT_JSON.write_text(json.dumps(j, indent=2, ensure_ascii=False), encoding="utf-8")
-        print(f"  ✔  Wrote {OUTPUT_JSON}")
+        print(f"  OK  Wrote {OUTPUT_JSON}")
 
 
 if __name__ == "__main__":

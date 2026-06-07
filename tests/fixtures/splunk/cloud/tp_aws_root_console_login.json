@@ -1,0 +1,33 @@
+{
+  "_comment": "TRUE POSITIVE — SP-200001: AWS Root Account Console Login (T1078.004)",
+  "rule_id": "SP-200001",
+  "expected_result": "ALERT",
+  "severity": "CRITICAL",
+  "confidence": 98,
+  "scenario": "AWS root account used to log in to AWS Console — should never be used for routine operations",
+  "mitre": "T1078.004",
+  "event": {
+    "sourcetype": "aws:cloudtrail",
+    "eventName": "ConsoleLogin",
+    "eventSource": "signin.amazonaws.com",
+    "userIdentity.type": "Root",
+    "userIdentity.arn": "arn:aws:iam::123456789012:root",
+    "responseElements.ConsoleLogin": "Success",
+    "additionalEventData.MFAUsed": "No",
+    "sourceIPAddress": "203.0.113.99",
+    "awsRegion": "us-east-1",
+    "eventTime": "2024-01-15T04:00:00Z"
+  },
+  "why_tp": [
+    "userIdentity.type = Root — the AWS root account",
+    "MFAUsed = No — login without MFA is especially critical",
+    "Source IP 203.0.113.99 has never been seen for this account",
+    "Confidence 98: root account logins are binary — either authorized DR/emergency or attack"
+  ],
+  "analyst_action": [
+    "IMMEDIATE: Contact account owner out-of-band (phone/Slack) to confirm authorization",
+    "Review all API calls made during this root session in CloudTrail",
+    "If unauthorized: rotate root credentials, enable MFA, check for new IAM users/keys created",
+    "Check AWS Organizations for changes (SCPs, new accounts) during this session"
+  ]
+}

@@ -299,6 +299,7 @@ index=* (index=windows OR index=linux OR index=aws OR index=azure OR index=netwo
 | stats dc(phase) as kill_chain_phases values(phase) as phases count as events by _time, host_user
 | eval risk_score=kill_chain_phases * 15 + if(mvfind(phases,"CREDENTIAL_ACCESS")>=0,25,0) + if(mvfind(phases,"EXFILTRATION")>=0,20,0) + if(mvfind(phases,"IMPACT")>=0,30,0)
 | where risk_score >= 50
-| eval rule_id="SP-810020", tactic="Full Kill Chain", technique="Multiple", severity=case(risk_score>=90,"CRITICAL",risk_score>=70,"HIGH",true(),"MEDIUM"), confidence=min(95,risk_score)
+| eval confidence=85
+| eval rule_id="SP-810020", tactic="Full Kill Chain", technique="T1059/T1078/T1003/T1486", severity=case(risk_score>=90,"CRITICAL",risk_score>=70,"HIGH",true(),"MEDIUM"), confidence=if(risk_score>=95,95,risk_score)
 | sort -risk_score
 | table _time, host_user, kill_chain_phases, phases, events, risk_score, severity

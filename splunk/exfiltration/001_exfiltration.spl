@@ -14,7 +14,7 @@ index=windows EventCode=3
 DestinationPort IN (443, 8443)
 NOT (Image="*\\chrome.exe" OR Image="*\\msedge.exe" OR Image="*\\firefox.exe" OR Image="*\\iexplore.exe" OR Image="*\\svchost.exe")
 NOT (DestinationIp="10.*" OR DestinationIp="192.168.*" OR DestinationIp="172.16.*")
-| eval rule_id="SP-107001", mitre_technique="T1048.003", mitre_tactic="Exfiltration", severity="HIGH", confidence="HIGH"
+| eval rule_id="SP-107001", mitre_technique="T1048.003", mitre_tactic="Exfiltration", severity="HIGH", confidence=78
 | table _time, host, Image, DestinationIp, DestinationPort, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -23,7 +23,7 @@ index=windows EventCode=22
 QueryType="TXT"
 | rex field=QueryName "^(?P<label>[a-zA-Z0-9+/=]{20,})\."
 | where len(label) > 20
-| eval rule_id="SP-107002", mitre_technique="T1048.001", mitre_tactic="Exfiltration", severity="HIGH", confidence="HIGH"
+| eval rule_id="SP-107002", mitre_technique="T1048.001", mitre_tactic="Exfiltration", severity="HIGH", confidence=78
 | table _time, host, Image, QueryName, label, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -31,14 +31,14 @@ QueryType="TXT"
 index=windows EventCode=4104
 (ScriptBlockText="*Compress-Archive*" OR ScriptBlockText="*ZipFile*" OR ScriptBlockText="*7z*")
 (ScriptBlockText="*.docx*" OR ScriptBlockText="*.xlsx*" OR ScriptBlockText="*.pdf*" OR ScriptBlockText="*.kdbx*" OR ScriptBlockText="*.pfx*")
-| eval rule_id="SP-107003", mitre_technique="T1560.001", mitre_tactic="Collection", severity="MEDIUM", confidence="MEDIUM"
+| eval rule_id="SP-107003", mitre_technique="T1560.001", mitre_tactic="Collection", severity="MEDIUM", confidence=62
 | table _time, host, user, ScriptBlockText, rule_id, mitre_technique, severity
 | sort -_time
 
 `comment("SP-107004 | T1041 | Exfil: PowerShell UploadFile/UploadString — data sent via PS | Severity: HIGH | Confidence: HIGH")`
 index=windows EventCode=4104
 (ScriptBlockText="*UploadFile*" OR ScriptBlockText="*UploadString*" OR ScriptBlockText="*UploadData*")
-| eval rule_id="SP-107004", mitre_technique="T1041", mitre_tactic="Exfiltration", severity="HIGH", confidence="HIGH"
+| eval rule_id="SP-107004", mitre_technique="T1041", mitre_tactic="Exfiltration", severity="HIGH", confidence=78
 | table _time, host, user, ScriptBlockText, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -47,7 +47,7 @@ index=windows (EventCode=1 OR EventCode=4688)
 (Image="*\\curl.exe" OR CommandLine="*curl*")
 (CommandLine="*-d*" OR CommandLine="*--data*" OR CommandLine="*-T*" OR CommandLine="*--upload*")
 NOT (DestinationIp="10.*" OR DestinationIp="192.168.*")
-| eval rule_id="SP-107005", mitre_technique="T1048", mitre_tactic="Exfiltration", severity="HIGH", confidence="HIGH"
+| eval rule_id="SP-107005", mitre_technique="T1048", mitre_tactic="Exfiltration", severity="HIGH", confidence=78
 | table _time, host, user, Image, CommandLine, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -55,7 +55,7 @@ NOT (DestinationIp="10.*" OR DestinationIp="192.168.*")
 index=windows EventCode=3
 (Image="*\\ftp.exe" OR Image="*\\sftp.exe")
 NOT (DestinationIp="10.*" OR DestinationIp="192.168.*" OR DestinationIp="172.16.*")
-| eval rule_id="SP-107006", mitre_technique="T1048", mitre_tactic="Exfiltration", severity="HIGH", confidence="HIGH"
+| eval rule_id="SP-107006", mitre_technique="T1048", mitre_tactic="Exfiltration", severity="HIGH", confidence=78
 | table _time, host, Image, DestinationIp, DestinationPort, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -63,7 +63,7 @@ NOT (DestinationIp="10.*" OR DestinationIp="192.168.*" OR DestinationIp="172.16.
 index=windows EventCode=11
 (TargetFilename="E:\\*" OR TargetFilename="F:\\*" OR TargetFilename="G:\\*" OR TargetFilename="H:\\*")
 (TargetFilename="*.zip" OR TargetFilename="*.rar" OR TargetFilename="*.tar*" OR TargetFilename="*.7z")
-| eval rule_id="SP-107007", mitre_technique="T1052.001", mitre_tactic="Exfiltration", severity="HIGH", confidence="MEDIUM"
+| eval rule_id="SP-107007", mitre_technique="T1052.001", mitre_tactic="Exfiltration", severity="HIGH", confidence=62
 | table _time, host, Image, TargetFilename, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -74,7 +74,7 @@ NOT (DestinationIp="10.*" OR DestinationIp="192.168.*" OR DestinationIp="172.16.
 | bin _time span=10m
 | stats count as SyncCount sum(bytes_out) as TotalBytes by _time, host, Image
 | where TotalBytes > 104857600
-| eval rule_id="SP-107008", mitre_technique="T1567.002", mitre_tactic="Exfiltration", severity="MEDIUM", confidence="MEDIUM"
+| eval rule_id="SP-107008", mitre_technique="T1567.002", mitre_tactic="Exfiltration", severity="MEDIUM", confidence=62
 | table _time, host, Image, TotalBytes, SyncCount, rule_id, severity
 | sort -_time
 
@@ -83,7 +83,7 @@ index=windows (EventCode=1 OR EventCode=4688)
 (Image="*\\bitsadmin.exe" OR NewProcessName="*\\bitsadmin.exe")
 (CommandLine="*/transfer*" OR CommandLine="*/addfile*")
 (CommandLine="*http://*" OR CommandLine="*https://*" OR CommandLine="*ftp://*")
-| eval rule_id="SP-107009", mitre_technique="T1041", mitre_tactic="Exfiltration", severity="HIGH", confidence="HIGH"
+| eval rule_id="SP-107009", mitre_technique="T1041", mitre_tactic="Exfiltration", severity="HIGH", confidence=78
 | table _time, host, user, Image, CommandLine, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -92,7 +92,7 @@ index=windows EventCode=3
 (Image="*\\wscript.exe" OR Image="*\\cscript.exe")
 DestinationPort IN (80, 443, 8080, 8443)
 NOT (DestinationIp="10.*" OR DestinationIp="192.168.*" OR DestinationIp="172.16.*")
-| eval rule_id="SP-107010", mitre_technique="T1048.003", mitre_tactic="Exfiltration", severity="HIGH", confidence="HIGH"
+| eval rule_id="SP-107010", mitre_technique="T1048.003", mitre_tactic="Exfiltration", severity="HIGH", confidence=78
 | table _time, host, Image, DestinationIp, DestinationPort, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -100,7 +100,7 @@ NOT (DestinationIp="10.*" OR DestinationIp="192.168.*" OR DestinationIp="172.16.
 index=windows EventCode=11
 (TargetFilename="*\\Temp\\*.zip" OR TargetFilename="*\\AppData\\*.zip" OR TargetFilename="*\\ProgramData\\*.zip" OR TargetFilename="*\\Public\\*.zip")
 NOT (Image="*\\7z.exe" OR Image="*\\winzip*" OR Image="*\\winrar*")
-| eval rule_id="SP-107011", mitre_technique="T1020", mitre_tactic="Collection", severity="HIGH", confidence="HIGH"
+| eval rule_id="SP-107011", mitre_technique="T1020", mitre_tactic="Collection", severity="HIGH", confidence=78
 | table _time, host, Image, TargetFilename, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -108,7 +108,7 @@ NOT (Image="*\\7z.exe" OR Image="*\\winzip*" OR Image="*\\winrar*")
 index=windows (EventCode=1 OR EventCode=4688)
 (Image="*\\7z.exe" OR Image="*\\7za.exe")
 CommandLine="*a *" (CommandLine="*\\\\*" OR CommandLine="*\\Temp\\*" OR CommandLine="*\\AppData\\*")
-| eval rule_id="SP-107012", mitre_technique="T1560.001", mitre_tactic="Exfiltration", severity="HIGH", confidence="HIGH"
+| eval rule_id="SP-107012", mitre_technique="T1560.001", mitre_tactic="Exfiltration", severity="HIGH", confidence=78
 | table _time, host, user, Image, CommandLine, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -116,7 +116,7 @@ CommandLine="*a *" (CommandLine="*\\\\*" OR CommandLine="*\\Temp\\*" OR CommandL
 index=windows EventCode=3
 Image="*\\mshta.exe"
 NOT (DestinationIp="10.*" OR DestinationIp="192.168.*" OR DestinationIp="172.16.*")
-| eval rule_id="SP-107013", mitre_technique="T1041", mitre_tactic="Exfiltration", severity="HIGH", confidence="HIGH"
+| eval rule_id="SP-107013", mitre_technique="T1041", mitre_tactic="Exfiltration", severity="HIGH", confidence=78
 | table _time, host, Image, DestinationIp, DestinationPort, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -125,14 +125,14 @@ index=windows EventCode=4104
 (ScriptBlockText="*Invoke-RestMethod*" OR ScriptBlockText="*Invoke-WebRequest*")
 (ScriptBlockText="*-Method POST*" OR ScriptBlockText="*-Method Put*" OR ScriptBlockText="*POST*")
 (ScriptBlockText="*-Body*" OR ScriptBlockText="*-InFile*")
-| eval rule_id="SP-107014", mitre_technique="T1048", mitre_tactic="Exfiltration", severity="HIGH", confidence="HIGH"
+| eval rule_id="SP-107014", mitre_technique="T1048", mitre_tactic="Exfiltration", severity="HIGH", confidence=78
 | table _time, host, user, ScriptBlockText, rule_id, mitre_technique, severity
 | sort -_time
 
 `comment("SP-107015 | T1048.001 | Exfil: DNSCAT/iodine DNS tunnel pattern | Severity: HIGH | Confidence: HIGH")`
 index=windows (EventCode=1 OR EventCode=4688)
 (Image="*\\dnscat*" OR Image="*\\iodine*" OR CommandLine="*dnscat*" OR CommandLine="*dns2tcp*")
-| eval rule_id="SP-107015", mitre_technique="T1048.001", mitre_tactic="Exfiltration", severity="HIGH", confidence="HIGH"
+| eval rule_id="SP-107015", mitre_technique="T1048.001", mitre_tactic="Exfiltration", severity="HIGH", confidence=78
 | table _time, host, user, Image, CommandLine, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -141,7 +141,7 @@ index=windows (EventCode=1 OR EventCode=4688)
 Image="*\\cmd.exe"
 (CommandLine="*/c*ncat*" OR CommandLine="*/c*nc *" OR CommandLine="*/c*\\\\*")
 CommandLine="*>*"
-| eval rule_id="SP-107016", mitre_technique="T1048", mitre_tactic="Exfiltration", severity="MEDIUM", confidence="MEDIUM"
+| eval rule_id="SP-107016", mitre_technique="T1048", mitre_tactic="Exfiltration", severity="MEDIUM", confidence=62
 | table _time, host, user, Image, CommandLine, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -149,7 +149,7 @@ CommandLine="*>*"
 index=windows EventCode=22
 (QueryName="*api.github.com*" OR QueryName="*gist.github.com*" OR QueryName="*pastebin.com*" OR QueryName="*paste.ee*")
 NOT (Image="*\\chrome.exe" OR Image="*\\msedge.exe" OR Image="*\\firefox.exe")
-| eval rule_id="SP-107017", mitre_technique="T1567", mitre_tactic="Exfiltration", severity="MEDIUM", confidence="MEDIUM"
+| eval rule_id="SP-107017", mitre_technique="T1567", mitre_tactic="Exfiltration", severity="MEDIUM", confidence=62
 | table _time, host, Image, QueryName, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -157,7 +157,7 @@ NOT (Image="*\\chrome.exe" OR Image="*\\msedge.exe" OR Image="*\\firefox.exe")
 index=windows EventCode=3
 (Image="*\\nc.exe" OR Image="*\\ncat.exe" OR Image="*\\netcat*")
 NOT (DestinationIp="10.*" OR DestinationIp="192.168.*" OR DestinationIp="172.16.*")
-| eval rule_id="SP-107018", mitre_technique="T1041", mitre_tactic="Exfiltration", severity="HIGH", confidence="HIGH"
+| eval rule_id="SP-107018", mitre_technique="T1041", mitre_tactic="Exfiltration", severity="HIGH", confidence=78
 | table _time, host, Image, DestinationIp, DestinationPort, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -168,7 +168,7 @@ NOT (Image="*\\chrome.exe" OR Image="*\\svchost.exe" OR Image="*\\OneDrive.exe")
 | bin _time span=10m
 | stats sum(bytes_out) as TotalBytes by _time, host
 | where TotalBytes > 524288000
-| eval rule_id="SP-107019", mitre_technique="T1048", mitre_tactic="Exfiltration", severity="CRITICAL", confidence="HIGH"
+| eval rule_id="SP-107019", mitre_technique="T1048", mitre_tactic="Exfiltration", severity="CRITICAL", confidence=90
 | table _time, host, TotalBytes, rule_id, severity
 | sort -_time
 
@@ -177,7 +177,7 @@ index=windows
 ((EventCode=1 Image="*\\reg.exe" CommandLine="*export*") OR (EventCode=3 NOT (DestinationIp="10.*" OR DestinationIp="192.168.*")))
 | transaction host maxspan=10m
 | where eventcount >= 2
-| eval rule_id="SP-107020", mitre_technique="T1048", mitre_tactic="Exfiltration", severity="CRITICAL", confidence="HIGH"
+| eval rule_id="SP-107020", mitre_technique="T1048", mitre_tactic="Exfiltration", severity="CRITICAL", confidence=90
 | table _time, host, rule_id, severity
 | sort -_time
 
@@ -186,7 +186,7 @@ index=windows EventCode=3
 (Image="*\\outlook.exe" OR Image="*\\thunderbird*")
 DestinationPort IN (25, 465, 587)
 NOT (DestinationIp="10.*" OR DestinationIp="192.168.*" OR DestinationIp="172.16.*")
-| eval rule_id="SP-107021", mitre_technique="T1048", mitre_tactic="Exfiltration", severity="MEDIUM", confidence="MEDIUM"
+| eval rule_id="SP-107021", mitre_technique="T1048", mitre_tactic="Exfiltration", severity="MEDIUM", confidence=62
 | table _time, host, Image, DestinationIp, DestinationPort, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -194,7 +194,7 @@ NOT (DestinationIp="10.*" OR DestinationIp="192.168.*" OR DestinationIp="172.16.
 index=windows (EventCode=1 OR EventCode=4688)
 (Image="*\\rar.exe" OR Image="*\\winrar*" OR Image="*\\7z.exe")
 (CommandLine="*-hp*" OR CommandLine="*-p*" OR CommandLine="*password*")
-| eval rule_id="SP-107022", mitre_technique="T1560", mitre_tactic="Exfiltration", severity="HIGH", confidence="HIGH"
+| eval rule_id="SP-107022", mitre_technique="T1560", mitre_tactic="Exfiltration", severity="HIGH", confidence=78
 | table _time, host, user, Image, CommandLine, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -202,7 +202,7 @@ index=windows (EventCode=1 OR EventCode=4688)
 index=windows EventCode=4104
 (ScriptBlockText="*webhook*" OR ScriptBlockText="*discord.com/api/webhooks*" OR ScriptBlockText="*hooks.slack.com*")
 ScriptBlockText="*POST*"
-| eval rule_id="SP-107023", mitre_technique="T1048", mitre_tactic="Exfiltration", severity="HIGH", confidence="HIGH"
+| eval rule_id="SP-107023", mitre_technique="T1048", mitre_tactic="Exfiltration", severity="HIGH", confidence=78
 | table _time, host, user, ScriptBlockText, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -210,7 +210,7 @@ ScriptBlockText="*POST*"
 index=windows EventCode=22
 (QueryName="*api.telegram.org*" OR QueryName="*discordapp.com*" OR QueryName="*discord.com*")
 NOT (Image="*\\chrome.exe" OR Image="*\\msedge.exe" OR Image="*\\firefox.exe" OR Image="*\\Discord.exe")
-| eval rule_id="SP-107024", mitre_technique="T1048", mitre_tactic="Exfiltration", severity="HIGH", confidence="HIGH"
+| eval rule_id="SP-107024", mitre_technique="T1048", mitre_tactic="Exfiltration", severity="HIGH", confidence=78
 | table _time, host, Image, QueryName, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -219,7 +219,7 @@ index=windows EventCode=3
 (Image="*\\plink.exe" OR Image="*\\putty.exe")
 DestinationPort IN (22, 2222)
 NOT (DestinationIp="10.*" OR DestinationIp="192.168.*" OR DestinationIp="172.16.*")
-| eval rule_id="SP-107025", mitre_technique="T1041", mitre_tactic="Exfiltration", severity="HIGH", confidence="HIGH"
+| eval rule_id="SP-107025", mitre_technique="T1041", mitre_tactic="Exfiltration", severity="HIGH", confidence=78
 | table _time, host, Image, DestinationIp, DestinationPort, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -229,7 +229,7 @@ index=windows EventCode=11
 | bin _time span=5m
 | stats count as FileRead by _time, host, Image
 | where FileRead > 50
-| eval rule_id="SP-107026", mitre_technique="T1048", mitre_tactic="Collection", severity="HIGH", confidence="MEDIUM"
+| eval rule_id="SP-107026", mitre_technique="T1048", mitre_tactic="Collection", severity="HIGH", confidence=62
 | table _time, host, Image, FileRead, rule_id, severity
 | sort -_time
 
@@ -238,7 +238,7 @@ index=windows
 ((EventCode=11 TargetFilename="*\\Downloads\\*.zip") OR (EventCode=3 NOT (DestinationIp="10.*" OR DestinationIp="192.168.*")))
 | transaction host maxspan=5m
 | where eventcount >= 2
-| eval rule_id="SP-107027", mitre_technique="T1048", mitre_tactic="Exfiltration", severity="HIGH", confidence="HIGH"
+| eval rule_id="SP-107027", mitre_technique="T1048", mitre_tactic="Exfiltration", severity="HIGH", confidence=78
 | table _time, host, rule_id, severity
 | sort -_time
 
@@ -246,7 +246,7 @@ index=windows
 index=windows EventCode=4104
 (ScriptBlockText="*Get-Clipboard*" OR ScriptBlockText="*GetClipboardData*")
 (ScriptBlockText="*Out-File*" OR ScriptBlockText="*Set-Content*" OR ScriptBlockText="*Add-Content*")
-| eval rule_id="SP-107028", mitre_technique="T1020", mitre_tactic="Collection", severity="MEDIUM", confidence="MEDIUM"
+| eval rule_id="SP-107028", mitre_technique="T1020", mitre_tactic="Collection", severity="MEDIUM", confidence=62
 | table _time, host, user, ScriptBlockText, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -254,7 +254,7 @@ index=windows EventCode=4104
 index=windows (EventCode=1 OR EventCode=4688)
 (Image="*\\certutil.exe" OR NewProcessName="*\\certutil.exe")
 (CommandLine="*-encode*" OR CommandLine="*-encodehex*")
-| eval rule_id="SP-107029", mitre_technique="T1048", mitre_tactic="Exfiltration", severity="HIGH", confidence="HIGH"
+| eval rule_id="SP-107029", mitre_technique="T1048", mitre_tactic="Exfiltration", severity="HIGH", confidence=78
 | table _time, host, user, Image, CommandLine, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -265,6 +265,6 @@ index=windows
  (EventCode=3 NOT (DestinationIp="10.*" OR DestinationIp="192.168.*" OR DestinationIp="172.16.*")))
 | transaction host maxspan=15m
 | where eventcount >= 3
-| eval rule_id="SP-107030", mitre_technique="T1048", mitre_tactic="Exfiltration", severity="CRITICAL", confidence="HIGH"
+| eval rule_id="SP-107030", mitre_technique="T1048", mitre_tactic="Exfiltration", severity="CRITICAL", confidence=90
 | table _time, host, rule_id, severity
 | sort -_time

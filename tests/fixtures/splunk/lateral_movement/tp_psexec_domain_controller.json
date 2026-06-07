@@ -1,0 +1,50 @@
+{
+  "_comment": "TRUE POSITIVE — SP-105002: PsExec lateral movement to Domain Controller (T1021.002)",
+  "rule_id": "SP-105002",
+  "expected_result": "ALERT",
+  "severity": "HIGH",
+  "confidence": 78,
+  "scenario": "Attacker uses PsExec (or similar) to execute commands on the Domain Controller after compromising a workstation",
+  "mitre": "T1021.002",
+  "events": [
+    {
+      "sourcetype": "WinEventLog:Security",
+      "EventCode": 5145,
+      "host": "DC01",
+      "ShareName": "\\\\*\\ADMIN$",
+      "RelativeTargetName": "PSEXESVC.exe",
+      "SubjectUserName": "jdoe",
+      "IpAddress": "10.10.5.42",
+      "time": "2024-01-15T22:01:00Z"
+    },
+    {
+      "sourcetype": "WinEventLog:System",
+      "EventCode": 7045,
+      "host": "DC01",
+      "param1": "PSEXESVC",
+      "param2": "C:\\Windows\\PSEXESVC.exe",
+      "time": "2024-01-15T22:01:05Z"
+    },
+    {
+      "sourcetype": "WinEventLog:Security",
+      "EventCode": 4624,
+      "host": "DC01",
+      "LogonType": 3,
+      "SubjectUserName": "jdoe",
+      "IpAddress": "10.10.5.42",
+      "time": "2024-01-15T22:01:02Z"
+    }
+  ],
+  "why_tp": [
+    "PSEXESVC.exe written to ADMIN$ share on Domain Controller — textbook PsExec pattern",
+    "New service PSEXESVC installed on DC (Event 7045) — confirms remote execution",
+    "Type 3 (Network) logon from workstation 10.10.5.42 to DC01 at 22:01 (after hours)",
+    "jdoe is a regular user account, not a domain admin — suspicious privilege use"
+  ],
+  "analyst_action": [
+    "IMMEDIATE: Check if jdoe has legitimate domain admin rights (should not for a regular user)",
+    "Review all commands executed via PSEXESVC on DC01 between 22:01 and service removal",
+    "Check if DC01 was used to execute further commands (e.g., net user /add, DCSync)",
+    "Review how jdoe obtained domain admin credentials (likely from prior LSASS dump)"
+  ]
+}

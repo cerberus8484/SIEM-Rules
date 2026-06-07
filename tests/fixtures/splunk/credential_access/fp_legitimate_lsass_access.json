@@ -1,0 +1,27 @@
+{
+  "_comment": "FALSE POSITIVE — SP-103001: Legitimate EDR/AV accessing LSASS for protection",
+  "rule_id": "SP-103001",
+  "expected_result": "NO_ALERT",
+  "scenario": "CrowdStrike Falcon sensor accesses LSASS as part of its credential theft protection module — this is expected and benign",
+  "mitre": "T1003.001",
+  "event": {
+    "sourcetype": "WinEventLog:Sysmon",
+    "EventCode": 10,
+    "host": "WORKSTATION-HR-01",
+    "TargetImage": "C:\\Windows\\System32\\lsass.exe",
+    "SourceImage": "C:\\Windows\\System32\\csrss.exe",
+    "GrantedAccess": "0x1000",
+    "time": "2024-01-15T08:00:00Z"
+  },
+  "why_fp": [
+    "Source is csrss.exe — Windows system process, not an attacker tool",
+    "AccessMask 0x1000 = PROCESS_QUERY_LIMITED_INFORMATION — read-only, not sufficient for full dump",
+    "Many EDR products (CrowdStrike, Defender, SentinelOne) legitimately access LSASS for protection",
+    "Known benign callers: csrss.exe, werfault.exe, lsm.exe, SecurityHealthService.exe"
+  ],
+  "tuning_recommendation": [
+    "Allowlist known benign SourceImage values: csrss.exe, werfault.exe, lsm.exe, wininit.exe",
+    "Allowlist EDR sensor processes by signing certificate (CrowdStrike, Defender, etc.)",
+    "Focus on GrantedAccess masks that enable full dump: 0x1410, 0x1438, 0x143A, 0xFFFF"
+  ]
+}

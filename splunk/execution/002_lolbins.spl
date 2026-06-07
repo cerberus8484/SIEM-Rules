@@ -13,7 +13,7 @@ Sources   : Sysmon Event 1, Windows Event 4688
 index=windows EventCode=1
 Image="*\\mshta.exe"
 (CommandLine="*http://*" OR CommandLine="*https://*" OR CommandLine="*\\\\*" OR CommandLine="*vbscript*" OR CommandLine="*javascript*")
-| eval rule_id="SP-100026", mitre_technique="T1218.005", mitre_tactic="Execution", severity="HIGH", confidence="HIGH"
+| eval rule_id="SP-100026", mitre_technique="T1218.005", mitre_tactic="Execution", severity="HIGH", confidence=78
 | table _time, host, user, ParentImage, Image, CommandLine, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -21,7 +21,7 @@ Image="*\\mshta.exe"
 index=windows EventCode=1
 Image="*\\regsvr32.exe"
 (CommandLine="*scrobj.dll*" OR CommandLine="*http://*" OR CommandLine="*https://*" OR CommandLine="*/s /n /u*")
-| eval rule_id="SP-100027", mitre_technique="T1218.010", mitre_tactic="Execution", severity="HIGH", confidence="HIGH"
+| eval rule_id="SP-100027", mitre_technique="T1218.010", mitre_tactic="Execution", severity="HIGH", confidence=78
 | table _time, host, user, ParentImage, Image, CommandLine, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -29,7 +29,7 @@ Image="*\\regsvr32.exe"
 index=windows EventCode=1
 Image="*\\rundll32.exe"
 (CommandLine="*\\\\*" OR CommandLine="*http://*" OR CommandLine="*javascript*" OR CommandLine="*vbscript*")
-| eval rule_id="SP-100028", mitre_technique="T1218.011", mitre_tactic="Execution", severity="HIGH", confidence="HIGH"
+| eval rule_id="SP-100028", mitre_technique="T1218.011", mitre_tactic="Execution", severity="HIGH", confidence=78
 | table _time, host, user, ParentImage, Image, CommandLine, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -37,7 +37,7 @@ Image="*\\rundll32.exe"
 index=windows (EventCode=1 OR EventCode=4688)
 (Image="*\\certutil.exe" OR NewProcessName="*\\certutil.exe")
 (CommandLine="*-decode*" OR CommandLine="*-urlcache*" OR CommandLine="*-f*http*" OR CommandLine="*-split*")
-| eval rule_id="SP-100029", mitre_technique="T1140", mitre_tactic="Defense Evasion", severity="HIGH", confidence="HIGH"
+| eval rule_id="SP-100029", mitre_technique="T1140", mitre_tactic="Defense Evasion", severity="HIGH", confidence=78
 | table _time, host, user, ParentImage, Image, CommandLine, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -45,7 +45,7 @@ index=windows (EventCode=1 OR EventCode=4688)
 index=windows (EventCode=1 OR EventCode=4688)
 (Image="*\\bitsadmin.exe" OR NewProcessName="*\\bitsadmin.exe")
 (CommandLine="*transfer*" OR CommandLine="*/download*" OR CommandLine="*/addfile*" OR CommandLine="*/SetNotifyCmdLine*")
-| eval rule_id="SP-100030", mitre_technique="T1197", mitre_tactic="Defense Evasion", severity="HIGH", confidence="HIGH"
+| eval rule_id="SP-100030", mitre_technique="T1197", mitre_tactic="Defense Evasion", severity="HIGH", confidence=78
 | table _time, host, user, ParentImage, Image, CommandLine, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -53,7 +53,7 @@ index=windows (EventCode=1 OR EventCode=4688)
 index=windows EventCode=1
 (Image="*\\wscript.exe" OR Image="*\\cscript.exe")
 (CommandLine="*\\Temp\\*" OR CommandLine="*\\AppData\\*" OR CommandLine="*\\Downloads\\*" OR CommandLine="*\\Public\\*")
-| eval rule_id="SP-100031", mitre_technique="T1059.005", mitre_tactic="Execution", severity="HIGH", confidence="HIGH"
+| eval rule_id="SP-100031", mitre_technique="T1059.005", mitre_tactic="Execution", severity="HIGH", confidence=78
 | table _time, host, user, ParentImage, Image, CommandLine, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -61,7 +61,7 @@ index=windows EventCode=1
 index=windows EventCode=1
 Image="*\\InstallUtil.exe"
 (CommandLine="*\\Temp\\*" OR CommandLine="*\\AppData\\*" OR CommandLine="*\\Public\\*" OR CommandLine="*\\Downloads\\*")
-| eval rule_id="SP-100032", mitre_technique="T1218.004", mitre_tactic="Defense Evasion", severity="HIGH", confidence="HIGH"
+| eval rule_id="SP-100032", mitre_technique="T1218.004", mitre_tactic="Defense Evasion", severity="HIGH", confidence=78
 | table _time, host, user, ParentImage, Image, CommandLine, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -69,7 +69,7 @@ Image="*\\InstallUtil.exe"
 index=windows EventCode=1
 Image="*\\msiexec.exe"
 (CommandLine="*http://*" OR CommandLine="*https://*" OR CommandLine="*ftp://*" OR CommandLine="*/i \\\\*")
-| eval rule_id="SP-100033", mitre_technique="T1218", mitre_tactic="Execution", severity="HIGH", confidence="HIGH"
+| eval rule_id="SP-100033", mitre_technique="T1218", mitre_tactic="Execution", severity="HIGH", confidence=78
 | table _time, host, user, ParentImage, Image, CommandLine, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -77,7 +77,7 @@ Image="*\\msiexec.exe"
 index=windows EventCode=1
 Image="*\\cmstp.exe"
 CommandLine="*/s*"
-| eval rule_id="SP-100034", mitre_technique="T1218.003", mitre_tactic="Defense Evasion", severity="HIGH", confidence="HIGH"
+| eval rule_id="SP-100034", mitre_technique="T1218.003", mitre_tactic="Defense Evasion", severity="HIGH", confidence=78
 | table _time, host, user, ParentImage, Image, CommandLine, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -85,7 +85,7 @@ CommandLine="*/s*"
 index=windows EventCode=1
 Image="*\\odbcconf.exe"
 (CommandLine="*REGSVR*" OR CommandLine="*/f*" OR CommandLine="*RSP*")
-| eval rule_id="SP-100035", mitre_technique="T1218.008", mitre_tactic="Defense Evasion", severity="HIGH", confidence="HIGH"
+| eval rule_id="SP-100035", mitre_technique="T1218.008", mitre_tactic="Defense Evasion", severity="HIGH", confidence=78
 | table _time, host, user, ParentImage, Image, CommandLine, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -93,7 +93,7 @@ Image="*\\odbcconf.exe"
 index=windows EventCode=1
 Image="*\\forfiles.exe"
 (CommandLine="*cmd*" OR CommandLine="*/c*" OR CommandLine="*powershell*")
-| eval rule_id="SP-100036", mitre_technique="T1218", mitre_tactic="Execution", severity="MEDIUM", confidence="HIGH"
+| eval rule_id="SP-100036", mitre_technique="T1218", mitre_tactic="Execution", severity="MEDIUM", confidence=78
 | table _time, host, user, ParentImage, Image, CommandLine, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -101,7 +101,7 @@ Image="*\\forfiles.exe"
 index=windows EventCode=1
 Image="*\\pcalua.exe"
 CommandLine="*-a *"
-| eval rule_id="SP-100037", mitre_technique="T1218", mitre_tactic="Execution", severity="HIGH", confidence="HIGH"
+| eval rule_id="SP-100037", mitre_technique="T1218", mitre_tactic="Execution", severity="HIGH", confidence=78
 | table _time, host, user, ParentImage, Image, CommandLine, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -109,7 +109,7 @@ CommandLine="*-a *"
 index=windows EventCode=1
 (Image="*\\AppSyncPublishingServer.exe" OR Image="*\\SyncAppvPublishingServer.exe")
 CommandLine="*powershell*"
-| eval rule_id="SP-100038", mitre_technique="T1218", mitre_tactic="Execution", severity="HIGH", confidence="HIGH"
+| eval rule_id="SP-100038", mitre_technique="T1218", mitre_tactic="Execution", severity="HIGH", confidence=78
 | table _time, host, user, ParentImage, Image, CommandLine, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -117,7 +117,7 @@ CommandLine="*powershell*"
 index=windows EventCode=1
 Image="*\\xwizard.exe"
 (CommandLine="*RunWizard*" OR CommandLine="*\\Temp\\*" OR CommandLine="*\\AppData\\*")
-| eval rule_id="SP-100039", mitre_technique="T1218", mitre_tactic="Execution", severity="HIGH", confidence="HIGH"
+| eval rule_id="SP-100039", mitre_technique="T1218", mitre_tactic="Execution", severity="HIGH", confidence=78
 | table _time, host, user, ParentImage, Image, CommandLine, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -125,7 +125,7 @@ Image="*\\xwizard.exe"
 index=windows EventCode=1
 Image="*\\MSBuild.exe"
 (CommandLine="*\\Temp\\*" OR CommandLine="*\\AppData\\*" OR CommandLine="*\\Users\\Public\\*" OR CommandLine="*\\Downloads\\*")
-| eval rule_id="SP-100040", mitre_technique="T1127.001", mitre_tactic="Defense Evasion", severity="HIGH", confidence="HIGH"
+| eval rule_id="SP-100040", mitre_technique="T1127.001", mitre_tactic="Defense Evasion", severity="HIGH", confidence=78
 | table _time, host, user, ParentImage, Image, CommandLine, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -133,7 +133,7 @@ Image="*\\MSBuild.exe"
 index=windows (EventCode=1 OR EventCode=4688)
 (Image="*\\dnscmd.exe" OR NewProcessName="*\\dnscmd.exe")
 CommandLine="*/serverlevelplugindll*"
-| eval rule_id="SP-100041", mitre_technique="T1543.003", mitre_tactic="Persistence", severity="CRITICAL", confidence="HIGH"
+| eval rule_id="SP-100041", mitre_technique="T1543.003", mitre_tactic="Persistence", severity="CRITICAL", confidence=90
 | table _time, host, user, ParentImage, Image, CommandLine, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -141,7 +141,7 @@ CommandLine="*/serverlevelplugindll*"
 index=windows (EventCode=1 OR EventCode=4688)
 (Image="*\\nltest.exe" OR NewProcessName="*\\nltest.exe")
 (CommandLine="*/domain_trusts*" OR CommandLine="*/dclist*" OR CommandLine="*/dsgetdc*")
-| eval rule_id="SP-100042", mitre_technique="T1482", mitre_tactic="Discovery", severity="MEDIUM", confidence="MEDIUM"
+| eval rule_id="SP-100042", mitre_technique="T1482", mitre_tactic="Discovery", severity="MEDIUM", confidence=62
 | table _time, host, user, ParentImage, Image, CommandLine, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -149,7 +149,7 @@ index=windows (EventCode=1 OR EventCode=4688)
 index=windows (EventCode=1 OR EventCode=4688)
 (Image="*\\expand.exe" OR NewProcessName="*\\expand.exe")
 (CommandLine="*\\Temp\\*" OR CommandLine="*\\AppData\\*" OR CommandLine="*\\Public\\*")
-| eval rule_id="SP-100043", mitre_technique="T1218", mitre_tactic="Defense Evasion", severity="MEDIUM", confidence="MEDIUM"
+| eval rule_id="SP-100043", mitre_technique="T1218", mitre_tactic="Defense Evasion", severity="MEDIUM", confidence=62
 | table _time, host, user, ParentImage, Image, CommandLine, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -157,7 +157,7 @@ index=windows (EventCode=1 OR EventCode=4688)
 index=windows (EventCode=1 OR EventCode=4688)
 (Image="*\\wmic.exe" OR NewProcessName="*\\wmic.exe")
 (CommandLine="*process call create*" OR CommandLine="*process*create*")
-| eval rule_id="SP-100044", mitre_technique="T1047", mitre_tactic="Execution", severity="HIGH", confidence="HIGH"
+| eval rule_id="SP-100044", mitre_technique="T1047", mitre_tactic="Execution", severity="HIGH", confidence=78
 | table _time, host, user, ParentImage, Image, CommandLine, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -166,7 +166,7 @@ index=windows (EventCode=1 OR EventCode=4688)
 (Image="*\\cmd.exe" OR NewProcessName="*\\cmd.exe")
 (CommandLine="*Startup*" OR CommandLine="*Start Menu*")
 CommandLine="*echo*"
-| eval rule_id="SP-100045", mitre_technique="T1547.001", mitre_tactic="Persistence", severity="HIGH", confidence="HIGH"
+| eval rule_id="SP-100045", mitre_technique="T1547.001", mitre_tactic="Persistence", severity="HIGH", confidence=78
 | table _time, host, user, ParentImage, Image, CommandLine, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -174,7 +174,7 @@ CommandLine="*echo*"
 index=windows (EventCode=1 OR EventCode=4688)
 (Image="*\\net1.exe" OR NewProcessName="*\\net1.exe")
 CommandLine="* /add*"
-| eval rule_id="SP-100046", mitre_technique="T1136.001", mitre_tactic="Persistence", severity="HIGH", confidence="HIGH"
+| eval rule_id="SP-100046", mitre_technique="T1136.001", mitre_tactic="Persistence", severity="HIGH", confidence=78
 | table _time, host, user, ParentImage, Image, CommandLine, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -183,7 +183,7 @@ index=windows (EventCode=1 OR EventCode=4688)
 (Image="*\\schtasks.exe" OR NewProcessName="*\\schtasks.exe")
 CommandLine="*/sc ONLOGON*"
 (CommandLine="*\\Temp\\*" OR CommandLine="*\\AppData\\*" OR CommandLine="*powershell*" OR CommandLine="*wscript*")
-| eval rule_id="SP-100047", mitre_technique="T1053.005", mitre_tactic="Persistence", severity="HIGH", confidence="HIGH"
+| eval rule_id="SP-100047", mitre_technique="T1053.005", mitre_tactic="Persistence", severity="HIGH", confidence=78
 | table _time, host, user, ParentImage, Image, CommandLine, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -191,7 +191,7 @@ CommandLine="*/sc ONLOGON*"
 index=windows (EventCode=1 OR EventCode=4688)
 (Image="*\\at.exe" OR NewProcessName="*\\at.exe")
 CommandLine="* /every:*"
-| eval rule_id="SP-100048", mitre_technique="T1053.005", mitre_tactic="Persistence", severity="MEDIUM", confidence="HIGH"
+| eval rule_id="SP-100048", mitre_technique="T1053.005", mitre_tactic="Persistence", severity="MEDIUM", confidence=78
 | table _time, host, user, ParentImage, Image, CommandLine, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -199,7 +199,7 @@ CommandLine="* /every:*"
 index=windows EventCode=1
 Image="*\\IEExec.exe"
 CommandLine="*http://*"
-| eval rule_id="SP-100049", mitre_technique="T1218", mitre_tactic="Execution", severity="HIGH", confidence="HIGH"
+| eval rule_id="SP-100049", mitre_technique="T1218", mitre_tactic="Execution", severity="HIGH", confidence=78
 | table _time, host, user, ParentImage, Image, CommandLine, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -207,7 +207,7 @@ CommandLine="*http://*"
 index=windows (EventCode=1 OR EventCode=4688)
 (Image="*\\pktmon.exe" OR NewProcessName="*\\pktmon.exe")
 (CommandLine="*start*" OR CommandLine="*filter*" OR CommandLine="*list*")
-| eval rule_id="SP-100050", mitre_technique="T1218", mitre_tactic="Collection", severity="HIGH", confidence="HIGH"
+| eval rule_id="SP-100050", mitre_technique="T1218", mitre_tactic="Collection", severity="HIGH", confidence=78
 | table _time, host, user, ParentImage, Image, CommandLine, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -215,7 +215,7 @@ index=windows (EventCode=1 OR EventCode=4688)
 index=windows (EventCode=1 OR EventCode=4688)
 (Image="*\\diskshadow.exe" OR NewProcessName="*\\diskshadow.exe")
 (CommandLine="*exec*" OR CommandLine="*/s*" OR CommandLine="*script*")
-| eval rule_id="SP-100051", mitre_technique="T1490", mitre_tactic="Impact", severity="CRITICAL", confidence="HIGH"
+| eval rule_id="SP-100051", mitre_technique="T1490", mitre_tactic="Impact", severity="CRITICAL", confidence=90
 | table _time, host, user, ParentImage, Image, CommandLine, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -223,7 +223,7 @@ index=windows (EventCode=1 OR EventCode=4688)
 index=windows (EventCode=1 OR EventCode=4688)
 (Image="*\\mavinject.exe" OR NewProcessName="*\\mavinject.exe")
 CommandLine="*/injectrunning*"
-| eval rule_id="SP-100052", mitre_technique="T1055.001", mitre_tactic="Defense Evasion", severity="CRITICAL", confidence="HIGH"
+| eval rule_id="SP-100052", mitre_technique="T1055.001", mitre_tactic="Defense Evasion", severity="CRITICAL", confidence=90
 | table _time, host, user, ParentImage, Image, CommandLine, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -232,7 +232,7 @@ index=windows (EventCode=1 OR EventCode=4688)
 (Image="*\\sc.exe" OR NewProcessName="*\\sc.exe")
 CommandLine="*create*"
 (CommandLine="*\\Temp\\*" OR CommandLine="*\\AppData\\*" OR CommandLine="*\\Users\\Public\\*" OR CommandLine="*cmd.exe*" OR CommandLine="*powershell*")
-| eval rule_id="SP-100053", mitre_technique="T1543.003", mitre_tactic="Persistence", severity="HIGH", confidence="HIGH"
+| eval rule_id="SP-100053", mitre_technique="T1543.003", mitre_tactic="Persistence", severity="HIGH", confidence=78
 | table _time, host, user, ParentImage, Image, CommandLine, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -241,7 +241,7 @@ index=windows (EventCode=1 OR EventCode=4688)
 (Image="*\\reg.exe" OR NewProcessName="*\\reg.exe")
 CommandLine="*save*"
 (CommandLine="*HKLM\\SAM*" OR CommandLine="*HKLM\\SECURITY*" OR CommandLine="*HKLM\\SYSTEM*")
-| eval rule_id="SP-100054", mitre_technique="T1003.002", mitre_tactic="Credential Access", severity="CRITICAL", confidence="HIGH"
+| eval rule_id="SP-100054", mitre_technique="T1003.002", mitre_tactic="Credential Access", severity="CRITICAL", confidence=90
 | table _time, host, user, ParentImage, Image, CommandLine, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -249,7 +249,7 @@ CommandLine="*save*"
 index=windows (EventCode=1 OR EventCode=4688)
 (Image="*\\ntdsutil.exe" OR NewProcessName="*\\ntdsutil.exe")
 (CommandLine="*snapshot*" OR CommandLine="*ac i ntds*" OR CommandLine="*ifm*")
-| eval rule_id="SP-100055", mitre_technique="T1003.003", mitre_tactic="Credential Access", severity="CRITICAL", confidence="HIGH"
+| eval rule_id="SP-100055", mitre_technique="T1003.003", mitre_tactic="Credential Access", severity="CRITICAL", confidence=90
 | table _time, host, user, ParentImage, Image, CommandLine, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -257,7 +257,7 @@ index=windows (EventCode=1 OR EventCode=4688)
 index=windows (EventCode=1 OR EventCode=4688)
 (Image="*\\vssadmin.exe" OR NewProcessName="*\\vssadmin.exe")
 (CommandLine="*delete shadows*" OR CommandLine="*Delete Shadows*" OR CommandLine="*resize shadowstorage*")
-| eval rule_id="SP-100056", mitre_technique="T1490", mitre_tactic="Impact", severity="CRITICAL", confidence="HIGH"
+| eval rule_id="SP-100056", mitre_technique="T1490", mitre_tactic="Impact", severity="CRITICAL", confidence=90
 | table _time, host, user, ParentImage, Image, CommandLine, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -265,7 +265,7 @@ index=windows (EventCode=1 OR EventCode=4688)
 index=windows (EventCode=1 OR EventCode=4688)
 (Image="*\\wusa.exe" OR NewProcessName="*\\wusa.exe")
 CommandLine="*/extract*"
-| eval rule_id="SP-100057", mitre_technique="T1218.007", mitre_tactic="Defense Evasion", severity="MEDIUM", confidence="HIGH"
+| eval rule_id="SP-100057", mitre_technique="T1218.007", mitre_tactic="Defense Evasion", severity="MEDIUM", confidence=78
 | table _time, host, user, ParentImage, Image, CommandLine, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -273,7 +273,7 @@ CommandLine="*/extract*"
 index=windows (EventCode=1 OR EventCode=4688)
 (Image="*\\finger.exe" OR NewProcessName="*\\finger.exe")
 CommandLine="*@*"
-| eval rule_id="SP-100058", mitre_technique="T1218", mitre_tactic="Command and Control", severity="HIGH", confidence="HIGH"
+| eval rule_id="SP-100058", mitre_technique="T1218", mitre_tactic="Command and Control", severity="HIGH", confidence=78
 | table _time, host, user, ParentImage, Image, CommandLine, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -282,7 +282,7 @@ index=windows EventCode=1
 (Image="*\\cmd.exe" OR Image="*\\powershell.exe")
 (ParentImage="*\\svchost.exe" OR ParentImage="*\\wmiprvse.exe")
 NOT CommandLine="*dllhost.exe*"
-| eval rule_id="SP-100059", mitre_technique="T1059.003", mitre_tactic="Execution", severity="HIGH", confidence="HIGH"
+| eval rule_id="SP-100059", mitre_technique="T1059.003", mitre_tactic="Execution", severity="HIGH", confidence=78
 | table _time, host, user, ParentImage, Image, CommandLine, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -290,6 +290,6 @@ NOT CommandLine="*dllhost.exe*"
 index=windows EventCode=7
 Image="*\\eudcedit.exe"
 NOT (ImageLoaded="*\\Windows\\*" OR ImageLoaded="*\\system32\\*" OR ImageLoaded="*\\SysWOW64\\*")
-| eval rule_id="SP-100060", mitre_technique="T1218", mitre_tactic="Defense Evasion", severity="HIGH", confidence="HIGH"
+| eval rule_id="SP-100060", mitre_technique="T1218", mitre_tactic="Defense Evasion", severity="HIGH", confidence=78
 | table _time, host, Image, ImageLoaded, Signed, rule_id, mitre_technique, severity
 | sort -_time

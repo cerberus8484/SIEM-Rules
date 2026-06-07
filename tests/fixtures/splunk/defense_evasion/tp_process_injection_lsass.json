@@ -1,0 +1,44 @@
+{
+  "_comment": "TRUE POSITIVE — SP-102003: Process Hollowing / Injection into critical process (T1055.012)",
+  "rule_id": "SP-102003",
+  "expected_result": "ALERT",
+  "severity": "CRITICAL",
+  "confidence": 90,
+  "scenario": "Malware injects code into a legitimate Windows process (svchost.exe) to hide its execution and evade AV detection",
+  "mitre": "T1055.012",
+  "events": [
+    {
+      "sourcetype": "WinEventLog:Sysmon",
+      "EventCode": 8,
+      "description": "CreateRemoteThread — cross-process thread injection",
+      "host": "WORKSTATION-SALES-07",
+      "SourceImage": "C:\\Users\\jdoe\\AppData\\Local\\Temp\\updater.exe",
+      "TargetImage": "C:\\Windows\\System32\\svchost.exe",
+      "TargetProcessId": 1452,
+      "NewThreadId": 3892,
+      "StartAddress": "0x7FFEC2A30000",
+      "time": "2024-01-15T13:45:22Z"
+    },
+    {
+      "sourcetype": "WinEventLog:Sysmon",
+      "EventCode": 10,
+      "description": "ProcessAccess — memory write to svchost.exe",
+      "SourceImage": "C:\\Users\\jdoe\\AppData\\Local\\Temp\\updater.exe",
+      "TargetImage": "C:\\Windows\\System32\\svchost.exe",
+      "GrantedAccess": "0x1F3FFF",
+      "time": "2024-01-15T13:45:22Z"
+    }
+  ],
+  "why_tp": [
+    "CreateRemoteThread from user-writable AppData path into svchost.exe — textbook injection",
+    "GrantedAccess 0x1F3FFF = PROCESS_ALL_ACCESS — full memory write capability",
+    "Source binary updater.exe in Temp — not a signed system binary",
+    "StartAddress 0x7FFE... suggests injected shellcode or reflective DLL"
+  ],
+  "analyst_action": [
+    "Dump the memory of svchost.exe PID 1452 for forensic analysis",
+    "Hash and analyze updater.exe (sandbox submission)",
+    "Check network connections from svchost.exe PID 1452 post-injection",
+    "Isolate WORKSTATION-SALES-07 — injected svchost.exe may be C2 beaconing"
+  ]
+}

@@ -1,0 +1,27 @@
+{
+  "_comment": "FALSE POSITIVE — SP-100001: Legitimate IT automation script using encoded PS",
+  "rule_id": "SP-100001",
+  "expected_result": "NO_ALERT",
+  "scenario": "IT automation tool (Ansible/SCCM/DSC) uses encoded PowerShell for legitimate configuration management",
+  "mitre": "T1059.001",
+  "event": {
+    "sourcetype": "WinEventLog:Security",
+    "EventCode": 4688,
+    "host": "MGMT-SERVER-01",
+    "CommandLine": "powershell.exe -NonInteractive -Enc <base64_of_known_dsc_config>",
+    "ParentProcessName": "C:\\Windows\\CCM\\CcmExec.exe",
+    "SubjectUserName": "SYSTEM",
+    "time": "2024-01-15T06:00:00Z"
+  },
+  "why_fp": [
+    "Parent process is CcmExec.exe (SCCM agent) — known automation context",
+    "Host is MGMT-SERVER-01 (known management server, in CMDB)",
+    "Time is 06:00 — matches SCCM maintenance schedule",
+    "Running as SYSTEM — expected for agent-driven automation"
+  ],
+  "tuning_recommendation": [
+    "Allowlist specific parent process + host combinations: CcmExec.exe on known management servers",
+    "Suppress alerts where SubjectUserName=SYSTEM AND ParentProcessName matches known automation agents",
+    "Allowlist DSC-configured hosts by network segment (management VLAN)"
+  ]
+}

@@ -7,6 +7,64 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ---
 
+## [v0.2.0] — 2026-06-07
+
+### Summary
+
+Quality hardening release — 0 linter warnings, global strict mode, 30 test fixtures.
+
+### Changed
+
+- **Rule Linter (S2):** `confidence` downgrade from ERROR to WARNING removed — linter now runs in
+  global `--strict` mode (0 errors, 0 warnings required for CI pass)
+- **CI (T1):** GitHub Actions updated from pack-selective strict to `--strict` for all packs
+- **Coverage Matrix (S4):** Fixed emoji encoding issue for Windows terminal compatibility
+
+### Fixed
+
+- **U1 Metadata Backfill (500 rules):** A-F packs used `confidence="HIGH"` (string label) instead
+  of numeric values. Converted all 500 occurrences to integers derived from severity + pack adjustment:
+  - CRITICAL rules: 90 (or 85 with pack penalty for discovery/web)
+  - HIGH rules: 78 (or 73 with -5 discovery adjustment)
+  - MEDIUM rules: 62 (or 57 with pack penalty)
+  - LOW/INFO rules: 45/35 respectively
+- **SP-730017/730018 eval mismatch:** Copy-paste bug left wrong `rule_id` values in eval — fixed
+- **SP-810020 dynamic severity:** `severity=case(...)` now parsed by linter regex
+- **SP-810020 technique:** Changed `technique="Multiple"` to `technique="T1059/T1078/T1003/T1486"`
+- **SP-810020 confidence:** Added static `eval confidence=85` for linter detection before dynamic override
+- **SP-106021/106031 CRITICAL confidence:** Discovery pack CRITICAL rules had confidence=73 (78-5);
+  corrected to 85 (90-5)
+
+### Added
+
+- **U2 tools/metadata_normalizer.py:** Tool for confidence backfill and string-to-int conversion;
+  severity-based heuristics with pack-level adjustment
+- **U4 Test Fixtures (30 total, +17 new):**
+  - execution: `tp_powershell_encoded.json`, `fp_legitimate_automation.json`
+  - persistence: `tp_registry_run_key.json`
+  - credential_access: `tp_lsass_dump.json`, `fp_legitimate_lsass_access.json`
+  - lateral_movement: `tp_psexec_domain_controller.json`
+  - impact: `tp_ransomware_mass_rename.json`
+  - cloud: `tp_aws_root_console_login.json`, `tp_azure_global_admin_added.json`
+  - email: `tp_executive_impersonation.json`, `fp_newsletter_lookalike.json`
+  - c2: `tp_dns_tunneling.json`
+  - defense_evasion: `tp_process_injection_lsass.json`
+  - database: `tp_xp_cmdshell_enabled.json`
+  - vpn: `tp_impossible_travel.json`
+  - devops: `tp_cicd_pipeline_curl_bash.json`, `fp_approved_install_script.json`
+
+### Quality Metrics
+
+| Metric | v0.1.0 | v0.2.0 |
+|---|---|---|
+| Linter Errors | 0 | 0 |
+| Linter Warnings | 506 | 0 |
+| Strict Mode | G+ packs only | Global (all packs) |
+| Test Fixtures | 13 | 30 |
+| CI confidence | All G+ rules | All 1029 rules |
+
+---
+
 ## [v0.1.0] — 2026-06-07
 
 ### Summary

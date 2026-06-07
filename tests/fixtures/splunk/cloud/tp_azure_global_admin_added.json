@@ -1,0 +1,31 @@
+{
+  "_comment": "TRUE POSITIVE — SP-201001: Azure AD Global Admin assigned directly (T1098.003)",
+  "rule_id": "SP-201001",
+  "expected_result": "ALERT",
+  "severity": "CRITICAL",
+  "confidence": 97,
+  "scenario": "Global Administrator role assigned to a user account in Azure AD — without preceding PIM activation",
+  "mitre": "T1098.003",
+  "event": {
+    "sourcetype": "azure:aad:audit",
+    "operationName": "Add member to role",
+    "category": "RoleManagement",
+    "properties.targetResources[0].userPrincipalName": "new.admin@contoso.com",
+    "properties.targetResources[1].displayName": "Global Administrator",
+    "properties.initiatedBy.user.userPrincipalName": "compromised.user@contoso.com",
+    "properties.result": "success",
+    "time": "2024-01-15T01:44:00Z"
+  },
+  "why_tp": [
+    "Global Administrator is the highest Azure AD role — any unexpected assignment is critical",
+    "No preceding PIM (Privileged Identity Management) activation event",
+    "Initiated at 01:44 — outside business hours",
+    "Initiating user 'compromised.user' is a regular user, not a known Identity Admin"
+  ],
+  "analyst_action": [
+    "IMMEDIATELY remove the Global Administrator role from new.admin@contoso.com",
+    "Investigate compromised.user@contoso.com — likely compromised account",
+    "Check all actions taken by new.admin@contoso.com since 01:44 (app registrations, CA policies, etc.)",
+    "Review the break-glass account and verify it was not tampered with"
+  ]
+}

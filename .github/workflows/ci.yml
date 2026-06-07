@@ -38,18 +38,11 @@ jobs:
       - name: Install dependencies
         run: pip install -r tools/requirements.txt
 
-      - name: Run rule linter (all packs — errors only)
+      - name: Run rule linter (strict — 0 errors, 0 warnings required)
         id: linter
         run: |
-          python tools/rule_linter.py --json 2>&1 | tee lint_results.json
+          python tools/rule_linter.py --json --strict 2>&1 | tee lint_results.json
           exit ${PIPESTATUS[0]}
-
-      - name: Run rule linter strict (new packs G+ — no missing confidence)
-        run: |
-          python tools/rule_linter.py --strict \
-            --pack identity --pack container --pack devops --pack backup \
-            --pack hypervisor --pack email --pack database --pack vpn \
-            --pack macos --pack dlp --pack deception --pack correlation 2>&1
 
       - name: Upload lint results
         if: always()

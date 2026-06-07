@@ -12,7 +12,7 @@ Sources   : Sysmon Event 1/7/11/13, Windows Event 4697/7045
 `comment("SP-101056 | T1543.003 | Service: New service created with suspicious binary path | Severity: HIGH | Confidence: HIGH")`
 index=windows (EventCode=4697 OR EventCode=7045)
 (ServiceFileName="*\\Temp\\*" OR ServiceFileName="*\\AppData\\*" OR ServiceFileName="*\\Users\\Public\\*" OR ServiceFileName="*\\ProgramData\\*")
-| eval rule_id="SP-101056", mitre_technique="T1543.003", mitre_tactic="Persistence", severity="HIGH", confidence="HIGH"
+| eval rule_id="SP-101056", mitre_technique="T1543.003", mitre_tactic="Persistence", severity="HIGH", confidence=78
 | table _time, host, ServiceName, ServiceFileName, ServiceType, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -20,7 +20,7 @@ index=windows (EventCode=4697 OR EventCode=7045)
 index=windows (EventCode=1 OR EventCode=4688)
 (Image="*\\sc.exe" OR NewProcessName="*\\sc.exe")
 CommandLine="*create*" (CommandLine="*cmd.exe*" OR CommandLine="*cmd /c*" OR CommandLine="*cmd /k*")
-| eval rule_id="SP-101057", mitre_technique="T1543.003", mitre_tactic="Execution", severity="HIGH", confidence="HIGH"
+| eval rule_id="SP-101057", mitre_technique="T1543.003", mitre_tactic="Execution", severity="HIGH", confidence=78
 | table _time, host, user, Image, CommandLine, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -28,14 +28,14 @@ CommandLine="*create*" (CommandLine="*cmd.exe*" OR CommandLine="*cmd /c*" OR Com
 index=windows (EventCode=1 OR EventCode=4688)
 (Image="*\\sc.exe" OR NewProcessName="*\\sc.exe")
 CommandLine="*create*" CommandLine="*powershell*"
-| eval rule_id="SP-101058", mitre_technique="T1543.003", mitre_tactic="Persistence", severity="HIGH", confidence="HIGH"
+| eval rule_id="SP-101058", mitre_technique="T1543.003", mitre_tactic="Persistence", severity="HIGH", confidence=78
 | table _time, host, user, Image, CommandLine, rule_id, mitre_technique, severity
 | sort -_time
 
 `comment("SP-101059 | T1543.003 | Service: New service with rundll32 as binary — DLL service | Severity: HIGH | Confidence: HIGH")`
 index=windows (EventCode=4697 OR EventCode=7045)
 (ServiceFileName="*rundll32*" OR ServiceFileName="*regsvr32*" OR ServiceFileName="*mshta*")
-| eval rule_id="SP-101059", mitre_technique="T1543.003", mitre_tactic="Persistence", severity="HIGH", confidence="HIGH"
+| eval rule_id="SP-101059", mitre_technique="T1543.003", mitre_tactic="Persistence", severity="HIGH", confidence=78
 | table _time, host, ServiceName, ServiceFileName, ServiceType, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -45,7 +45,7 @@ index=windows (EventCode=1 OR EventCode=4688)
 (CommandLine="*create*" OR CommandLine="*start*")
 | transaction host, user maxspan=1m
 | where eventcount >= 2
-| eval rule_id="SP-101060", mitre_technique="T1543.003", mitre_tactic="Persistence", severity="MEDIUM", confidence="HIGH"
+| eval rule_id="SP-101060", mitre_technique="T1543.003", mitre_tactic="Persistence", severity="MEDIUM", confidence=78
 | table _time, host, user, rule_id, severity
 | sort -_time
 
@@ -53,7 +53,7 @@ index=windows (EventCode=1 OR EventCode=4688)
 index=windows EventCode=7
 (ImageLoaded="*\\Temp\\*" OR ImageLoaded="*\\AppData\\*" OR ImageLoaded="*\\Users\\Public\\*")
 Image="*\\svchost.exe"
-| eval rule_id="SP-101061", mitre_technique="T1543.003", mitre_tactic="Persistence", severity="HIGH", confidence="HIGH"
+| eval rule_id="SP-101061", mitre_technique="T1543.003", mitre_tactic="Persistence", severity="HIGH", confidence=78
 | table _time, host, Image, ImageLoaded, Signed, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -62,7 +62,7 @@ index=windows EventCode=7
 Image="*\\svchost.exe"
 Signed="false" SignatureStatus!="Valid"
 NOT (ImageLoaded="*\\Windows\\*" OR ImageLoaded="*\\Program Files\\*")
-| eval rule_id="SP-101062", mitre_technique="T1543.003", mitre_tactic="Persistence", severity="HIGH", confidence="MEDIUM"
+| eval rule_id="SP-101062", mitre_technique="T1543.003", mitre_tactic="Persistence", severity="HIGH", confidence=62
 | table _time, host, Image, ImageLoaded, Signed, SignatureStatus, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -71,7 +71,7 @@ index=windows EventCode=13
 TargetObject="*\\services\\*\\ImagePath*"
 NOT (Image="*\\msiexec.exe" OR Image="*\\services.exe" OR Image="*\\svchost.exe")
 NOT (Details="*\\Windows\\*" OR Details="*\\Program Files\\*")
-| eval rule_id="SP-101063", mitre_technique="T1543.003", mitre_tactic="Persistence", severity="CRITICAL", confidence="HIGH"
+| eval rule_id="SP-101063", mitre_technique="T1543.003", mitre_tactic="Persistence", severity="CRITICAL", confidence=90
 | table _time, host, Image, TargetObject, Details, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -79,7 +79,7 @@ NOT (Details="*\\Windows\\*" OR Details="*\\Program Files\\*")
 index=windows (EventCode=4697 OR EventCode=7045)
 ServiceType="Kernel Driver"
 NOT ServiceFileName="*\\Windows\\*"
-| eval rule_id="SP-101064", mitre_technique="T1543.003", mitre_tactic="Persistence", severity="HIGH", confidence="HIGH"
+| eval rule_id="SP-101064", mitre_technique="T1543.003", mitre_tactic="Persistence", severity="HIGH", confidence=78
 | table _time, host, ServiceName, ServiceFileName, ServiceType, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -87,7 +87,7 @@ NOT ServiceFileName="*\\Windows\\*"
 index=windows (EventCode=1 OR EventCode=4688)
 (Image="*\\sc.exe" OR NewProcessName="*\\sc.exe")
 CommandLine="*config*" CommandLine="*binpath*"
-| eval rule_id="SP-101065", mitre_technique="T1543.003", mitre_tactic="Persistence", severity="HIGH", confidence="HIGH"
+| eval rule_id="SP-101065", mitre_technique="T1543.003", mitre_tactic="Persistence", severity="HIGH", confidence=78
 | table _time, host, user, Image, CommandLine, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -95,7 +95,7 @@ CommandLine="*config*" CommandLine="*binpath*"
 index=windows EventCode=1
 ParentImage="*\\services.exe"
 NOT (Image="*\\svchost.exe" OR Image="*\\spoolsv.exe" OR Image="*\\msiexec.exe" OR Image="*\\wbem\\*" OR Image="*\\lsass.exe" OR Image="*\\SearchIndexer.exe")
-| eval rule_id="SP-101066", mitre_technique="T1574.010", mitre_tactic="Privilege Escalation", severity="HIGH", confidence="HIGH"
+| eval rule_id="SP-101066", mitre_technique="T1574.010", mitre_tactic="Privilege Escalation", severity="HIGH", confidence=78
 | table _time, host, ParentImage, Image, CommandLine, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -103,7 +103,7 @@ NOT (Image="*\\svchost.exe" OR Image="*\\spoolsv.exe" OR Image="*\\msiexec.exe" 
 index=windows EventCode=4104
 (ScriptBlockText="*New-Service*" OR ScriptBlockText="*Set-Service*")
 (ScriptBlockText="*-BinaryPathName*" OR ScriptBlockText="*-StartupType*")
-| eval rule_id="SP-101067", mitre_technique="T1543.003", mitre_tactic="Persistence", severity="HIGH", confidence="HIGH"
+| eval rule_id="SP-101067", mitre_technique="T1543.003", mitre_tactic="Persistence", severity="HIGH", confidence=78
 | table _time, host, user, ScriptBlockText, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -112,7 +112,7 @@ index=windows (EventCode=4697 OR EventCode=7045)
 ServiceStartType IN ("Auto Start", "Demand Start")
 AccountName IN ("LocalSystem", "NT AUTHORITY\\SYSTEM")
 NOT (ServiceFileName="*\\Windows\\*" OR ServiceFileName="*\\Program Files\\*")
-| eval rule_id="SP-101068", mitre_technique="T1543.003", mitre_tactic="Persistence", severity="HIGH", confidence="HIGH"
+| eval rule_id="SP-101068", mitre_technique="T1543.003", mitre_tactic="Persistence", severity="HIGH", confidence=78
 | table _time, host, ServiceName, ServiceFileName, AccountName, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -121,7 +121,7 @@ index=windows EventCode=13
 TargetObject="*\\services\\*\\Parameters\\ServiceDll*"
 NOT (Image="*\\msiexec.exe" OR Image="*\\services.exe")
 NOT (Details="*\\Windows\\*" OR Details="*\\Program Files\\*" OR Details="*\\System32\\*")
-| eval rule_id="SP-101069", mitre_technique="T1574.011", mitre_tactic="Persistence", severity="CRITICAL", confidence="HIGH"
+| eval rule_id="SP-101069", mitre_technique="T1574.011", mitre_tactic="Persistence", severity="CRITICAL", confidence=90
 | table _time, host, Image, TargetObject, Details, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -129,14 +129,14 @@ NOT (Details="*\\Windows\\*" OR Details="*\\Program Files\\*" OR Details="*\\Sys
 index=windows (EventCode=1 OR EventCode=4688)
 (Image="*\\sc.exe" OR NewProcessName="*\\sc.exe")
 CommandLine="*delete*"
-| eval rule_id="SP-101070", mitre_technique="T1543.003", mitre_tactic="Defense Evasion", severity="MEDIUM", confidence="HIGH"
+| eval rule_id="SP-101070", mitre_technique="T1543.003", mitre_tactic="Defense Evasion", severity="MEDIUM", confidence=78
 | table _time, host, user, Image, CommandLine, rule_id, mitre_technique, severity
 | sort -_time
 
 `comment("SP-101071 | T1543.003 | Service: New service with encoded/obfuscated path | Severity: HIGH | Confidence: HIGH")`
 index=windows (EventCode=4697 OR EventCode=7045)
 (ServiceFileName="*-enc*" OR ServiceFileName="*-e *" OR ServiceFileName="*frombase64*" OR ServiceFileName="*base64*")
-| eval rule_id="SP-101071", mitre_technique="T1543.003", mitre_tactic="Persistence", severity="HIGH", confidence="HIGH"
+| eval rule_id="SP-101071", mitre_technique="T1543.003", mitre_tactic="Persistence", severity="HIGH", confidence=78
 | table _time, host, ServiceName, ServiceFileName, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -144,7 +144,7 @@ index=windows (EventCode=4697 OR EventCode=7045)
 index=windows EventCode=11
 TargetFilename="*\\Temp\\*.exe" OR TargetFilename="*\\AppData\\*.exe" OR TargetFilename="*\\ProgramData\\*.exe"
 Image="*\\powershell.exe" OR Image="*\\cmd.exe" OR Image="*\\certutil.exe"
-| eval rule_id="SP-101072", mitre_technique="T1543.003", mitre_tactic="Persistence", severity="HIGH", confidence="HIGH"
+| eval rule_id="SP-101072", mitre_technique="T1543.003", mitre_tactic="Persistence", severity="HIGH", confidence=78
 | table _time, host, Image, TargetFilename, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -153,7 +153,7 @@ index=windows (EventCode=4697 OR EventCode=7045)
 | bin _time span=10m
 | stats count as SvcCount by _time, host
 | where SvcCount > 3
-| eval rule_id="SP-101073", mitre_technique="T1543.003", mitre_tactic="Persistence", severity="HIGH", confidence="MEDIUM"
+| eval rule_id="SP-101073", mitre_technique="T1543.003", mitre_tactic="Persistence", severity="HIGH", confidence=62
 | table _time, host, SvcCount, rule_id, severity
 | sort -_time
 
@@ -161,7 +161,7 @@ index=windows (EventCode=4697 OR EventCode=7045)
 index=windows EventCode=1
 (ParentImage="*\\winword.exe" OR ParentImage="*\\excel.exe" OR ParentImage="*\\outlook.exe")
 Image="*\\sc.exe"
-| eval rule_id="SP-101074", mitre_technique="T1543.003", mitre_tactic="Persistence", severity="CRITICAL", confidence="HIGH"
+| eval rule_id="SP-101074", mitre_technique="T1543.003", mitre_tactic="Persistence", severity="CRITICAL", confidence=90
 | table _time, host, ParentImage, Image, CommandLine, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -169,7 +169,7 @@ Image="*\\sc.exe"
 index=windows EventCode=1
 (ParentImage="*\\wscript.exe" OR ParentImage="*\\cscript.exe")
 Image="*\\sc.exe"
-| eval rule_id="SP-101075", mitre_technique="T1543.003", mitre_tactic="Persistence", severity="HIGH", confidence="HIGH"
+| eval rule_id="SP-101075", mitre_technique="T1543.003", mitre_tactic="Persistence", severity="HIGH", confidence=78
 | table _time, host, ParentImage, Image, CommandLine, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -177,7 +177,7 @@ Image="*\\sc.exe"
 index=windows EventCode=13
 TargetObject="*\\services\\*\\FailureActions*"
 NOT (Image="*\\services.exe" OR Image="*\\msiexec.exe")
-| eval rule_id="SP-101076", mitre_technique="T1543.003", mitre_tactic="Persistence", severity="HIGH", confidence="MEDIUM"
+| eval rule_id="SP-101076", mitre_technique="T1543.003", mitre_tactic="Persistence", severity="HIGH", confidence=62
 | table _time, host, Image, TargetObject, Details, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -185,7 +185,7 @@ NOT (Image="*\\services.exe" OR Image="*\\msiexec.exe")
 index=windows (EventCode=1 OR EventCode=4688)
 (Image="*\\sc.exe" OR NewProcessName="*\\sc.exe")
 CommandLine="*create*" CommandLine="*\\\\*"
-| eval rule_id="SP-101077", mitre_technique="T1543.003", mitre_tactic="Lateral Movement", severity="CRITICAL", confidence="HIGH"
+| eval rule_id="SP-101077", mitre_technique="T1543.003", mitre_tactic="Lateral Movement", severity="CRITICAL", confidence=90
 | table _time, host, user, Image, CommandLine, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -193,7 +193,7 @@ CommandLine="*create*" CommandLine="*\\\\*"
 index=windows EventCode=13
 TargetObject="*\\services\\*\\ImagePath*"
 Details="*\\\\*"
-| eval rule_id="SP-101078", mitre_technique="T1543.003", mitre_tactic="Persistence", severity="CRITICAL", confidence="HIGH"
+| eval rule_id="SP-101078", mitre_technique="T1543.003", mitre_tactic="Persistence", severity="CRITICAL", confidence=90
 | table _time, host, Image, TargetObject, Details, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -202,7 +202,7 @@ index=windows EventCode=1
 ParentImage="*\\svchost.exe"
 (Image="*\\cmd.exe" OR Image="*\\powershell.exe" OR Image="*\\wscript.exe" OR Image="*\\cscript.exe")
 NOT (ParentCommandLine="*-k dcomlaunch*" OR ParentCommandLine="*-k netsvcs*" OR ParentCommandLine="*-k rpcss*")
-| eval rule_id="SP-101079", mitre_technique="T1543.003", mitre_tactic="Execution", severity="CRITICAL", confidence="HIGH"
+| eval rule_id="SP-101079", mitre_technique="T1543.003", mitre_tactic="Execution", severity="CRITICAL", confidence=90
 | table _time, host, ParentImage, ParentCommandLine, Image, CommandLine, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -213,6 +213,6 @@ index=windows (EventCode=1 OR EventCode=4688)
 | bin _time span=5m
 | stats count as CmdCount by _time, host, user
 | where CmdCount >= 3
-| eval rule_id="SP-101080", mitre_technique="T1543.003", mitre_tactic="Discovery", severity="MEDIUM", confidence="MEDIUM"
+| eval rule_id="SP-101080", mitre_technique="T1543.003", mitre_tactic="Discovery", severity="MEDIUM", confidence=62
 | table _time, host, user, CmdCount, rule_id, severity
 | sort -_time

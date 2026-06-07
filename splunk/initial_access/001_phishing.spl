@@ -13,7 +13,7 @@ Sources   : Sysmon Event 1/7/11, Windows Event 4688
 index=windows EventCode=1
 (ParentImage="*\\winword.exe" OR ParentImage="*\\excel.exe" OR ParentImage="*\\powerpnt.exe" OR ParentImage="*\\onenote.exe" OR ParentImage="*\\msaccess.exe" OR ParentImage="*\\outlook.exe")
 (Image="*\\cmd.exe" OR Image="*\\powershell.exe" OR Image="*\\wscript.exe" OR Image="*\\cscript.exe" OR Image="*\\mshta.exe")
-| eval rule_id="SP-110001", mitre_technique="T1566.001", mitre_tactic="Initial Access", severity="HIGH", confidence="HIGH"
+| eval rule_id="SP-110001", mitre_technique="T1566.001", mitre_tactic="Initial Access", severity="HIGH", confidence=78
 | table _time, host, user, ParentImage, Image, CommandLine, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -22,7 +22,7 @@ index=windows EventCode=1
 (ParentImage="*\\winword.exe" OR ParentImage="*\\excel.exe" OR ParentImage="*\\powerpnt.exe")
 Image="*\\powershell.exe"
 (CommandLine="*-enc*" OR CommandLine="*-EncodedCommand*" OR CommandLine="*-e *")
-| eval rule_id="SP-110002", mitre_technique="T1566.001", mitre_tactic="Initial Access", severity="CRITICAL", confidence="HIGH"
+| eval rule_id="SP-110002", mitre_technique="T1566.001", mitre_tactic="Initial Access", severity="CRITICAL", confidence=90
 | table _time, host, user, ParentImage, Image, CommandLine, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -30,7 +30,7 @@ Image="*\\powershell.exe"
 index=windows EventCode=1
 (ParentImage="*\\winword.exe" OR ParentImage="*\\excel.exe")
 (ParentCommandLine="*\\Downloads\\*" OR ParentCommandLine="*\\Temp\\*" OR ParentCommandLine="*\\AppData\\*")
-| eval rule_id="SP-110003", mitre_technique="T1204.002", mitre_tactic="Initial Access", severity="HIGH", confidence="HIGH"
+| eval rule_id="SP-110003", mitre_technique="T1204.002", mitre_tactic="Initial Access", severity="HIGH", confidence=78
 | table _time, host, user, ParentImage, ParentCommandLine, Image, CommandLine, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -38,7 +38,7 @@ index=windows EventCode=1
 index=windows EventCode=1
 (ParentImage="*\\chrome.exe" OR ParentImage="*\\msedge.exe" OR ParentImage="*\\firefox.exe" OR ParentImage="*\\iexplore.exe")
 (Image="*\\winword.exe" OR Image="*\\excel.exe" OR Image="*\\powerpnt.exe")
-| eval rule_id="SP-110004", mitre_technique="T1566.002", mitre_tactic="Initial Access", severity="HIGH", confidence="HIGH"
+| eval rule_id="SP-110004", mitre_technique="T1566.002", mitre_tactic="Initial Access", severity="HIGH", confidence=78
 | table _time, host, user, ParentImage, Image, CommandLine, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -46,7 +46,7 @@ index=windows EventCode=1
 index=windows EventCode=11
 (Image="*\\winword.exe" OR Image="*\\excel.exe" OR Image="*\\powerpnt.exe" OR Image="*\\onenote.exe")
 (TargetFilename="*.exe" OR TargetFilename="*.dll" OR TargetFilename="*.bat" OR TargetFilename="*.vbs" OR TargetFilename="*.js" OR TargetFilename="*.hta")
-| eval rule_id="SP-110005", mitre_technique="T1566.001", mitre_tactic="Initial Access", severity="CRITICAL", confidence="HIGH"
+| eval rule_id="SP-110005", mitre_technique="T1566.001", mitre_tactic="Initial Access", severity="CRITICAL", confidence=90
 | table _time, host, Image, TargetFilename, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -54,7 +54,7 @@ index=windows EventCode=11
 index=windows EventCode=11
 (Image="*\\winword.exe" OR Image="*\\excel.exe" OR Image="*\\powerpnt.exe")
 (TargetFilename="*\\Start Menu\\Programs\\Startup\\*" OR TargetFilename="*\\Microsoft\\Windows\\Start Menu\\*")
-| eval rule_id="SP-110006", mitre_technique="T1566.001", mitre_tactic="Persistence", severity="CRITICAL", confidence="HIGH"
+| eval rule_id="SP-110006", mitre_technique="T1566.001", mitre_tactic="Persistence", severity="CRITICAL", confidence=90
 | table _time, host, Image, TargetFilename, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -62,7 +62,7 @@ index=windows EventCode=11
 index=windows EventCode=1
 (ParentImage="*\\w3wp.exe" OR ParentImage="*\\httpd.exe" OR ParentImage="*\\nginx.exe" OR ParentImage="*\\tomcat*")
 (Image="*\\cmd.exe" OR Image="*\\powershell.exe" OR Image="*\\wscript.exe" OR Image="*\\whoami.exe")
-| eval rule_id="SP-110007", mitre_technique="T1190", mitre_tactic="Initial Access", severity="CRITICAL", confidence="HIGH"
+| eval rule_id="SP-110007", mitre_technique="T1190", mitre_tactic="Initial Access", severity="CRITICAL", confidence=90
 | table _time, host, ParentImage, Image, CommandLine, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -70,7 +70,7 @@ index=windows EventCode=1
 index=windows EventCode=1
 (ParentImage="*\\AcroRd32.exe" OR ParentImage="*\\Acrobat.exe" OR ParentImage="*\\FoxitPDF*")
 (Image="*\\cmd.exe" OR Image="*\\powershell.exe" OR Image="*\\wscript.exe" OR Image="*\\mshta.exe")
-| eval rule_id="SP-110008", mitre_technique="T1203", mitre_tactic="Initial Access", severity="CRITICAL", confidence="HIGH"
+| eval rule_id="SP-110008", mitre_technique="T1203", mitre_tactic="Initial Access", severity="CRITICAL", confidence=90
 | table _time, host, ParentImage, Image, CommandLine, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -78,14 +78,14 @@ index=windows EventCode=1
 index=windows EventCode=1
 ParentImage="*\\onenote.exe"
 (Image="*\\wscript.exe" OR Image="*\\cmd.exe" OR Image="*\\powershell.exe" OR Image="*\\mshta.exe")
-| eval rule_id="SP-110009", mitre_technique="T1566.001", mitre_tactic="Initial Access", severity="HIGH", confidence="HIGH"
+| eval rule_id="SP-110009", mitre_technique="T1566.001", mitre_tactic="Initial Access", severity="HIGH", confidence=78
 | table _time, host, ParentImage, Image, CommandLine, rule_id, mitre_technique, severity
 | sort -_time
 
 `comment("SP-110010 | T1204.001 | Initial: User executing file from Downloads — direct execution | Severity: MEDIUM | Confidence: MEDIUM")`
 index=windows EventCode=1
 (Image="*\\Downloads\\*.exe" OR Image="*\\Downloads\\*.bat" OR Image="*\\Downloads\\*.vbs" OR Image="*\\Downloads\\*.js")
-| eval rule_id="SP-110010", mitre_technique="T1204.001", mitre_tactic="Initial Access", severity="MEDIUM", confidence="MEDIUM"
+| eval rule_id="SP-110010", mitre_technique="T1204.001", mitre_tactic="Initial Access", severity="MEDIUM", confidence=62
 | table _time, host, user, Image, ParentImage, CommandLine, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -94,7 +94,7 @@ index=windows EventCode=1
 ParentImage="*\\winword.exe"
 Image="*\\cmd.exe"
 CommandLine="*/c*"
-| eval rule_id="SP-110011", mitre_technique="T1566.001", mitre_tactic="Initial Access", severity="HIGH", confidence="HIGH"
+| eval rule_id="SP-110011", mitre_technique="T1566.001", mitre_tactic="Initial Access", severity="HIGH", confidence=78
 | table _time, host, user, ParentImage, Image, CommandLine, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -102,7 +102,7 @@ CommandLine="*/c*"
 index=windows EventCode=1
 (ParentImage="*\\sqlservr.exe" OR ParentImage="*\\mysqld.exe" OR ParentImage="*\\postgres.exe")
 (Image="*\\cmd.exe" OR Image="*\\powershell.exe")
-| eval rule_id="SP-110012", mitre_technique="T1190", mitre_tactic="Initial Access", severity="CRITICAL", confidence="HIGH"
+| eval rule_id="SP-110012", mitre_technique="T1190", mitre_tactic="Initial Access", severity="CRITICAL", confidence=90
 | table _time, host, ParentImage, Image, CommandLine, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -110,7 +110,7 @@ index=windows EventCode=1
 index=windows EventCode=1
 ParentImage="*\\OUTLOOK.EXE"
 (Image="*\\wscript.exe" OR Image="*\\cscript.exe" OR Image="*\\cmd.exe" OR Image="*\\powershell.exe")
-| eval rule_id="SP-110013", mitre_technique="T1566.001", mitre_tactic="Initial Access", severity="HIGH", confidence="HIGH"
+| eval rule_id="SP-110013", mitre_technique="T1566.001", mitre_tactic="Initial Access", severity="HIGH", confidence=78
 | table _time, host, user, ParentImage, Image, CommandLine, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -118,7 +118,7 @@ ParentImage="*\\OUTLOOK.EXE"
 index=windows EventCode=11
 TargetFilename="*:Zone.Identifier*"
 (Image="*\\cmd.exe" OR Image="*\\powershell.exe" OR Image="*\\wscript.exe")
-| eval rule_id="SP-110014", mitre_technique="T1204.002", mitre_tactic="Defense Evasion", severity="HIGH", confidence="MEDIUM"
+| eval rule_id="SP-110014", mitre_technique="T1204.002", mitre_tactic="Defense Evasion", severity="HIGH", confidence=62
 | table _time, host, Image, TargetFilename, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -126,7 +126,7 @@ TargetFilename="*:Zone.Identifier*"
 index=windows EventCode=1
 (ParentImage="*\\excel.exe" OR ParentImage="*\\winword.exe")
 (Image="*\\certutil.exe" OR Image="*\\bitsadmin.exe" OR Image="*\\curl.exe")
-| eval rule_id="SP-110015", mitre_technique="T1566.001", mitre_tactic="Initial Access", severity="CRITICAL", confidence="HIGH"
+| eval rule_id="SP-110015", mitre_technique="T1566.001", mitre_tactic="Initial Access", severity="CRITICAL", confidence=90
 | table _time, host, user, ParentImage, Image, CommandLine, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -134,7 +134,7 @@ index=windows EventCode=1
 index=windows EventCode=1
 (ParentImage="*\\java.exe" OR ParentImage="*\\javaw.exe" OR ParentImage="*\\jre*\\java.exe")
 (Image="*\\cmd.exe" OR Image="*\\powershell.exe" OR Image="*\\wscript.exe")
-| eval rule_id="SP-110016", mitre_technique="T1203", mitre_tactic="Initial Access", severity="CRITICAL", confidence="HIGH"
+| eval rule_id="SP-110016", mitre_technique="T1203", mitre_tactic="Initial Access", severity="CRITICAL", confidence=90
 | table _time, host, ParentImage, Image, CommandLine, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -142,7 +142,7 @@ index=windows EventCode=1
 index=windows EventCode=1
 (ParentImage="*\\winword.exe" OR ParentImage="*\\excel.exe" OR ParentImage="*\\powerpnt.exe")
 Image="*\\mshta.exe"
-| eval rule_id="SP-110017", mitre_technique="T1566.001", mitre_tactic="Initial Access", severity="CRITICAL", confidence="HIGH"
+| eval rule_id="SP-110017", mitre_technique="T1566.001", mitre_tactic="Initial Access", severity="CRITICAL", confidence=90
 | table _time, host, user, ParentImage, Image, CommandLine, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -150,7 +150,7 @@ Image="*\\mshta.exe"
 index=windows EventCode=1
 (ParentImage="*\\winword.exe" OR ParentImage="*\\excel.exe" OR ParentImage="*\\powerpnt.exe")
 Image="*\\regsvr32.exe"
-| eval rule_id="SP-110018", mitre_technique="T1566.001", mitre_tactic="Initial Access", severity="CRITICAL", confidence="HIGH"
+| eval rule_id="SP-110018", mitre_technique="T1566.001", mitre_tactic="Initial Access", severity="CRITICAL", confidence=90
 | table _time, host, user, ParentImage, Image, CommandLine, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -158,7 +158,7 @@ Image="*\\regsvr32.exe"
 index=windows EventCode=1
 (ParentImage="*\\explorer.exe")
 (CommandLine="*\\AppData\\Local\\Temp\\*.exe*" OR CommandLine="*\\mount\\*.exe*")
-| eval rule_id="SP-110019", mitre_technique="T1204.001", mitre_tactic="Initial Access", severity="HIGH", confidence="HIGH"
+| eval rule_id="SP-110019", mitre_technique="T1204.001", mitre_tactic="Initial Access", severity="HIGH", confidence=78
 | table _time, host, user, Image, CommandLine, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -166,7 +166,7 @@ index=windows EventCode=1
 index=windows EventCode=7
 (Image="*\\excel.exe")
 (ImageLoaded="*\\Downloads\\*.xll" OR ImageLoaded="*\\Temp\\*.xll" OR ImageLoaded="*\\AppData\\*.xll")
-| eval rule_id="SP-110020", mitre_technique="T1566.001", mitre_tactic="Initial Access", severity="HIGH", confidence="HIGH"
+| eval rule_id="SP-110020", mitre_technique="T1566.001", mitre_tactic="Initial Access", severity="HIGH", confidence=78
 | table _time, host, Image, ImageLoaded, Signed, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -174,7 +174,7 @@ index=windows EventCode=7
 index=windows EventCode=1
 ParentImage="*\\spoolsv.exe"
 (Image="*\\cmd.exe" OR Image="*\\powershell.exe" OR Image="*\\rundll32.exe")
-| eval rule_id="SP-110021", mitre_technique="T1190", mitre_tactic="Initial Access", severity="CRITICAL", confidence="HIGH"
+| eval rule_id="SP-110021", mitre_technique="T1190", mitre_tactic="Initial Access", severity="CRITICAL", confidence=90
 | table _time, host, ParentImage, Image, CommandLine, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -183,7 +183,7 @@ index=windows EventCode=1
 (ParentImage="*\\winword.exe" OR ParentImage="*\\excel.exe")
 Image="*\\rundll32.exe"
 NOT (CommandLine="*\\Windows\\System32\\*" OR CommandLine="*\\Windows\\SysWOW64\\*")
-| eval rule_id="SP-110022", mitre_technique="T1566.001", mitre_tactic="Initial Access", severity="HIGH", confidence="HIGH"
+| eval rule_id="SP-110022", mitre_technique="T1566.001", mitre_tactic="Initial Access", severity="HIGH", confidence=78
 | table _time, host, user, ParentImage, Image, CommandLine, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -192,7 +192,7 @@ index=windows EventCode=1
 ParentImage="*\\explorer.exe"
 (Image="*\\rundll32.exe" OR Image="*\\shdocvw.dll*")
 (CommandLine="*\\Downloads\\*.url*" OR CommandLine="*\\Temp\\*.url*")
-| eval rule_id="SP-110023", mitre_technique="T1566.002", mitre_tactic="Initial Access", severity="HIGH", confidence="HIGH"
+| eval rule_id="SP-110023", mitre_technique="T1566.002", mitre_tactic="Initial Access", severity="HIGH", confidence=78
 | table _time, host, user, ParentImage, Image, CommandLine, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -200,7 +200,7 @@ ParentImage="*\\explorer.exe"
 index=windows EventCode=1
 (ParentImage="*\\FlashPlayerPlugin*" OR ParentImage="*\\npctrl*" OR ParentImage="*\\plugin-container.exe")
 (Image="*\\cmd.exe" OR Image="*\\powershell.exe" OR Image="*\\wscript.exe")
-| eval rule_id="SP-110024", mitre_technique="T1203", mitre_tactic="Initial Access", severity="CRITICAL", confidence="HIGH"
+| eval rule_id="SP-110024", mitre_technique="T1203", mitre_tactic="Initial Access", severity="CRITICAL", confidence=90
 | table _time, host, ParentImage, Image, CommandLine, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -209,7 +209,7 @@ index=windows EventCode=11
 (Image="*\\winword.exe" OR Image="*\\excel.exe" OR Image="*\\powerpnt.exe")
 (TargetFilename="*\\Temp\\*" OR TargetFilename="*\\ProgramData\\*" OR TargetFilename="*\\Users\\Public\\*")
 (TargetFilename="*.exe" OR TargetFilename="*.dll" OR TargetFilename="*.ps1" OR TargetFilename="*.vbs" OR TargetFilename="*.bat")
-| eval rule_id="SP-110025", mitre_technique="T1566.001", mitre_tactic="Initial Access", severity="HIGH", confidence="HIGH"
+| eval rule_id="SP-110025", mitre_technique="T1566.001", mitre_tactic="Initial Access", severity="HIGH", confidence=78
 | table _time, host, Image, TargetFilename, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -217,7 +217,7 @@ index=windows EventCode=11
 index=windows EventCode=1
 (ParentImage="*\\UMWorkerProcess.exe" OR ParentImage="*\\umService.exe" OR ParentImage="*\\msExchangeMailboxAssistants*")
 (Image="*\\cmd.exe" OR Image="*\\powershell.exe")
-| eval rule_id="SP-110026", mitre_technique="T1190", mitre_tactic="Initial Access", severity="CRITICAL", confidence="HIGH"
+| eval rule_id="SP-110026", mitre_technique="T1190", mitre_tactic="Initial Access", severity="CRITICAL", confidence=90
 | table _time, host, ParentImage, Image, CommandLine, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -225,7 +225,7 @@ index=windows EventCode=1
 index=windows EventCode=1
 ParentImage="*\\VISIO.EXE"
 (Image="*\\cmd.exe" OR Image="*\\powershell.exe" OR Image="*\\wscript.exe")
-| eval rule_id="SP-110027", mitre_technique="T1566.001", mitre_tactic="Initial Access", severity="HIGH", confidence="HIGH"
+| eval rule_id="SP-110027", mitre_technique="T1566.001", mitre_tactic="Initial Access", severity="HIGH", confidence=78
 | table _time, host, user, ParentImage, Image, CommandLine, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -233,7 +233,7 @@ ParentImage="*\\VISIO.EXE"
 index=windows EventCode=1
 (CommandLine="*\\Downloads\\*.lnk*" OR CommandLine="*\\Temp\\*.lnk*" OR ParentCommandLine="*\\AppData\\*.lnk*")
 (Image="*\\cmd.exe" OR Image="*\\powershell.exe" OR Image="*\\wscript.exe" OR Image="*\\mshta.exe")
-| eval rule_id="SP-110028", mitre_technique="T1204.002", mitre_tactic="Initial Access", severity="HIGH", confidence="HIGH"
+| eval rule_id="SP-110028", mitre_technique="T1204.002", mitre_tactic="Initial Access", severity="HIGH", confidence=78
 | table _time, host, user, ParentImage, Image, CommandLine, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -241,7 +241,7 @@ index=windows EventCode=1
 index=windows EventCode=1
 (ParentImage="*\\winword.exe" OR ParentImage="*\\excel.exe" OR ParentImage="*\\outlook.exe")
 (Image="*\\psexec*" OR Image="*\\wmiexec*" OR Image="*\\schtasks.exe" OR Image="*\\sc.exe")
-| eval rule_id="SP-110029", mitre_technique="T1566.001", mitre_tactic="Initial Access", severity="CRITICAL", confidence="HIGH"
+| eval rule_id="SP-110029", mitre_technique="T1566.001", mitre_tactic="Initial Access", severity="CRITICAL", confidence=90
 | table _time, host, user, ParentImage, Image, CommandLine, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -250,7 +250,7 @@ index=windows EventCode=1
 (ParentImage="*\\winword.exe" OR ParentImage="*\\excel.exe" OR ParentImage="*\\outlook.exe")
 Image="*\\net.exe" OR Image="*\\net1.exe"
 CommandLine="*user*" CommandLine="*/add*"
-| eval rule_id="SP-110030", mitre_technique="T1566.001", mitre_tactic="Initial Access", severity="CRITICAL", confidence="HIGH"
+| eval rule_id="SP-110030", mitre_technique="T1566.001", mitre_tactic="Initial Access", severity="CRITICAL", confidence=90
 | table _time, host, user, ParentImage, Image, CommandLine, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -259,14 +259,14 @@ index=windows EventCode=1
 (ParentImage="*\\w3wp.exe" OR ParentImage="*\\aspnet_compiler.exe")
 ParentCommandLine="*sharepoint*" OR ParentCommandLine="*SharePoint*"
 (Image="*\\cmd.exe" OR Image="*\\powershell.exe")
-| eval rule_id="SP-110031", mitre_technique="T1190", mitre_tactic="Initial Access", severity="CRITICAL", confidence="HIGH"
+| eval rule_id="SP-110031", mitre_technique="T1190", mitre_tactic="Initial Access", severity="CRITICAL", confidence=90
 | table _time, host, ParentImage, Image, CommandLine, rule_id, mitre_technique, severity
 | sort -_time
 
 `comment("SP-110032 | T1566.001 | Initial: MS Equation Editor spawning process — CVE-2017-11882 | Severity: CRITICAL | Confidence: HIGH")`
 index=windows EventCode=1
 (ParentImage="*\\eqnedt32.exe" OR ParentImage="*\\EQNEDT32.EXE")
-| eval rule_id="SP-110032", mitre_technique="T1566.001", mitre_tactic="Initial Access", severity="CRITICAL", confidence="HIGH"
+| eval rule_id="SP-110032", mitre_technique="T1566.001", mitre_tactic="Initial Access", severity="CRITICAL", confidence=90
 | table _time, host, user, ParentImage, Image, CommandLine, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -276,7 +276,7 @@ index=windows EventCode=1
 Image="*\\cmd.exe"
 CommandLine="*cmd.exe /c*"
 NOT (ParentCommandLine="*\\Program Files\\*" OR ParentCommandLine="*\\Office\\*")
-| eval rule_id="SP-110033", mitre_technique="T1204.002", mitre_tactic="Initial Access", severity="HIGH", confidence="HIGH"
+| eval rule_id="SP-110033", mitre_technique="T1204.002", mitre_tactic="Initial Access", severity="HIGH", confidence=78
 | table _time, host, user, ParentImage, Image, CommandLine, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -284,7 +284,7 @@ NOT (ParentCommandLine="*\\Program Files\\*" OR ParentCommandLine="*\\Office\\*"
 index=windows EventCode=11
 (Image="*\\chrome.exe" OR Image="*\\msedge.exe" OR Image="*\\firefox.exe")
 (TargetFilename="*\\Downloads\\*.hta" OR TargetFilename="*\\Downloads\\*.scf" OR TargetFilename="*\\Downloads\\*.bat" OR TargetFilename="*\\Downloads\\*.vbs")
-| eval rule_id="SP-110034", mitre_technique="T1566.002", mitre_tactic="Initial Access", severity="HIGH", confidence="HIGH"
+| eval rule_id="SP-110034", mitre_technique="T1566.002", mitre_tactic="Initial Access", severity="HIGH", confidence=78
 | table _time, host, Image, TargetFilename, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -292,7 +292,7 @@ index=windows EventCode=11
 index=windows EventCode=1
 (ParentImage="*\\winword.exe" OR ParentImage="*\\excel.exe" OR ParentImage="*\\outlook.exe")
 (Image="*\\fodhelper.exe" OR Image="*\\eventvwr.exe" OR Image="*\\computerdefaults.exe")
-| eval rule_id="SP-110035", mitre_technique="T1566.001", mitre_tactic="Initial Access", severity="CRITICAL", confidence="HIGH"
+| eval rule_id="SP-110035", mitre_technique="T1566.001", mitre_tactic="Initial Access", severity="CRITICAL", confidence=90
 | table _time, host, user, ParentImage, Image, CommandLine, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -300,7 +300,7 @@ index=windows EventCode=1
 index=windows EventCode=1
 (ParentImage="*\\msdt.exe" OR Image="*\\msdt.exe")
 (Image="*\\cmd.exe" OR Image="*\\powershell.exe" OR Image="*\\wscript.exe")
-| eval rule_id="SP-110036", mitre_technique="T1566.001", mitre_tactic="Initial Access", severity="CRITICAL", confidence="HIGH"
+| eval rule_id="SP-110036", mitre_technique="T1566.001", mitre_tactic="Initial Access", severity="CRITICAL", confidence=90
 | table _time, host, user, ParentImage, Image, CommandLine, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -308,7 +308,7 @@ index=windows EventCode=1
 index=windows EventCode=1
 (Image="*\\Downloads\\*.exe" OR Image="*\\Downloads\\*.com" OR Image="*\\Downloads\\*.scr")
 NOT (ParentImage="*\\msiexec.exe" OR ParentImage="*\\setup*.exe")
-| eval rule_id="SP-110037", mitre_technique="T1204.001", mitre_tactic="Initial Access", severity="HIGH", confidence="MEDIUM"
+| eval rule_id="SP-110037", mitre_technique="T1204.001", mitre_tactic="Initial Access", severity="HIGH", confidence=62
 | table _time, host, user, ParentImage, Image, CommandLine, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -316,7 +316,7 @@ NOT (ParentImage="*\\msiexec.exe" OR ParentImage="*\\setup*.exe")
 index=windows EventCode=1
 (ParentImage="*\\vmware-authd.exe" OR ParentImage="*\\vmtoolsd.exe" OR ParentImage="*\\Citrix\\*")
 (Image="*\\cmd.exe" OR Image="*\\powershell.exe")
-| eval rule_id="SP-110038", mitre_technique="T1190", mitre_tactic="Initial Access", severity="CRITICAL", confidence="HIGH"
+| eval rule_id="SP-110038", mitre_technique="T1190", mitre_tactic="Initial Access", severity="CRITICAL", confidence=90
 | table _time, host, ParentImage, Image, CommandLine, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -325,7 +325,7 @@ index=windows EventCode=1
 (ParentImage="*\\winword.exe" OR ParentImage="*\\excel.exe")
 Image="*\\conhost.exe"
 CommandLine="*0xffffffff*" OR CommandLine="*hidden*"
-| eval rule_id="SP-110039", mitre_technique="T1566.001", mitre_tactic="Initial Access", severity="HIGH", confidence="HIGH"
+| eval rule_id="SP-110039", mitre_technique="T1566.001", mitre_tactic="Initial Access", severity="HIGH", confidence=78
 | table _time, host, user, ParentImage, Image, CommandLine, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -336,6 +336,6 @@ index=windows EventCode=1
 | bin _time span=5m
 | stats dc(Image) as UniqueChildren count as SpawnCount by _time, host, ParentImage
 | where UniqueChildren > 2 OR SpawnCount > 3
-| eval rule_id="SP-110040", mitre_technique="T1566.001", mitre_tactic="Initial Access", severity="CRITICAL", confidence="HIGH"
+| eval rule_id="SP-110040", mitre_technique="T1566.001", mitre_tactic="Initial Access", severity="CRITICAL", confidence=90
 | table _time, host, ParentImage, UniqueChildren, SpawnCount, rule_id, severity
 | sort -_time

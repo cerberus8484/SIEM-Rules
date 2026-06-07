@@ -13,7 +13,7 @@ Sources   : Sysmon Event 3/22, Windows Event 5156
 index=windows EventCode=3
 (DestinationPort!=80 AND DestinationPort!=443 AND DestinationPort!=8080 AND DestinationPort!=8443)
 NOT (DestinationIp="10.*" OR DestinationIp="192.168.*" OR DestinationIp="172.16.*" OR DestinationIp="127.*")
-| eval rule_id="SP-104001", mitre_technique="T1071.001", mitre_tactic="C2", severity="MEDIUM", confidence="MEDIUM"
+| eval rule_id="SP-104001", mitre_technique="T1071.001", mitre_tactic="C2", severity="MEDIUM", confidence=62
 | table _time, host, Image, DestinationIp, DestinationPort, Protocol, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -21,7 +21,7 @@ NOT (DestinationIp="10.*" OR DestinationIp="192.168.*" OR DestinationIp="172.16.
 index=windows EventCode=3
 DestinationPort IN (4444, 4445, 5555, 5554, 1234, 6666, 7777)
 NOT (DestinationIp="10.*" OR DestinationIp="192.168.*" OR DestinationIp="172.16.*")
-| eval rule_id="SP-104002", mitre_technique="T1095", mitre_tactic="C2", severity="HIGH", confidence="HIGH"
+| eval rule_id="SP-104002", mitre_technique="T1095", mitre_tactic="C2", severity="HIGH", confidence=78
 | table _time, host, Image, DestinationIp, DestinationPort, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -29,7 +29,7 @@ NOT (DestinationIp="10.*" OR DestinationIp="192.168.*" OR DestinationIp="172.16.
 index=windows EventCode=3
 (Image="*\\powershell.exe" OR Image="*\\pwsh.exe" OR Image="*\\wscript.exe" OR Image="*\\cscript.exe")
 NOT (DestinationIp="10.*" OR DestinationIp="192.168.*" OR DestinationIp="172.16.*" OR DestinationIp="127.*")
-| eval rule_id="SP-104003", mitre_technique="T1095", mitre_tactic="C2", severity="HIGH", confidence="HIGH"
+| eval rule_id="SP-104003", mitre_technique="T1095", mitre_tactic="C2", severity="HIGH", confidence=78
 | table _time, host, Image, DestinationIp, DestinationPort, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -37,7 +37,7 @@ NOT (DestinationIp="10.*" OR DestinationIp="192.168.*" OR DestinationIp="172.16.
 index=windows EventCode=3
 (Image="*\\mshta.exe" OR Image="*\\wmic.exe" OR Image="*\\certutil.exe" OR Image="*\\bitsadmin.exe")
 NOT (DestinationIp="10.*" OR DestinationIp="192.168.*" OR DestinationIp="172.16.*" OR DestinationIp="127.*")
-| eval rule_id="SP-104004", mitre_technique="T1571", mitre_tactic="C2", severity="HIGH", confidence="HIGH"
+| eval rule_id="SP-104004", mitre_technique="T1571", mitre_tactic="C2", severity="HIGH", confidence=78
 | table _time, host, Image, DestinationIp, DestinationPort, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -45,7 +45,7 @@ NOT (DestinationIp="10.*" OR DestinationIp="192.168.*" OR DestinationIp="172.16.
 index=windows EventCode=22
 QueryType="TXT"
 NOT (QueryName="*google.com" OR QueryName="*microsoft.com" OR QueryName="*windows.com")
-| eval rule_id="SP-104005", mitre_technique="T1071.004", mitre_tactic="C2", severity="HIGH", confidence="HIGH"
+| eval rule_id="SP-104005", mitre_technique="T1071.004", mitre_tactic="C2", severity="HIGH", confidence=78
 | table _time, host, Image, QueryName, QueryType, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -55,7 +55,7 @@ NOT (QueryName="*microsoft.com" OR QueryName="*windows.com" OR QueryName="*offic
 | bin _time span=5m
 | stats count as DnsCount dc(QueryName) as UniqueHosts by _time, host, Image
 | where DnsCount > 50
-| eval rule_id="SP-104006", mitre_technique="T1071.004", mitre_tactic="C2", severity="HIGH", confidence="HIGH"
+| eval rule_id="SP-104006", mitre_technique="T1071.004", mitre_tactic="C2", severity="HIGH", confidence=78
 | table _time, host, Image, DnsCount, UniqueHosts, rule_id, severity
 | sort -_time
 
@@ -63,7 +63,7 @@ NOT (QueryName="*microsoft.com" OR QueryName="*windows.com" OR QueryName="*offic
 index=windows EventCode=3
 DestinationPort IN (9001, 9050, 9051, 9150)
 NOT (DestinationIp="10.*" OR DestinationIp="192.168.*" OR DestinationIp="172.16.*")
-| eval rule_id="SP-104007", mitre_technique="T1571", mitre_tactic="C2", severity="HIGH", confidence="HIGH"
+| eval rule_id="SP-104007", mitre_technique="T1571", mitre_tactic="C2", severity="HIGH", confidence=78
 | table _time, host, Image, DestinationIp, DestinationPort, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -71,7 +71,7 @@ NOT (DestinationIp="10.*" OR DestinationIp="192.168.*" OR DestinationIp="172.16.
 index=windows EventCode=3
 DestinationPort IN (50050, 2222, 31337, 1337, 6379, 8888)
 NOT (DestinationIp="10.*" OR DestinationIp="192.168.*" OR DestinationIp="172.16.*")
-| eval rule_id="SP-104008", mitre_technique="T1071.001", mitre_tactic="C2", severity="CRITICAL", confidence="HIGH"
+| eval rule_id="SP-104008", mitre_technique="T1071.001", mitre_tactic="C2", severity="CRITICAL", confidence=90
 | table _time, host, Image, DestinationIp, DestinationPort, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -83,7 +83,7 @@ NOT (Image="*\\chrome.exe" OR Image="*\\msedge.exe" OR Image="*\\firefox.exe" OR
 | stats count as ConnCount by _time, host, Image, DestinationIp
 | streamstats avg(ConnCount) as AvgConn stdev(ConnCount) as StdevConn by host, Image, DestinationIp
 | where ConnCount > 0 AND StdevConn < 2 AND AvgConn > 1
-| eval rule_id="SP-104009", mitre_technique="T1071.001", mitre_tactic="C2", severity="HIGH", confidence="HIGH"
+| eval rule_id="SP-104009", mitre_technique="T1071.001", mitre_tactic="C2", severity="HIGH", confidence=78
 | table _time, host, Image, DestinationIp, AvgConn, StdevConn, rule_id, severity
 | sort -_time
 
@@ -92,7 +92,7 @@ index=windows EventCode=22
 | eval domain_len=len(QueryName)
 | where domain_len > 50
 NOT (QueryName="*microsoft.com" OR QueryName="*akamai.com" OR QueryName="*cloudfront.net")
-| eval rule_id="SP-104010", mitre_technique="T1001.003", mitre_tactic="C2", severity="HIGH", confidence="MEDIUM"
+| eval rule_id="SP-104010", mitre_technique="T1001.003", mitre_tactic="C2", severity="HIGH", confidence=62
 | table _time, host, Image, QueryName, domain_len, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -101,7 +101,7 @@ index=windows EventCode=22
 | eval subdomain_count=len(QueryName)-len(replace(QueryName,"\.",""))
 | where subdomain_count > 4
 NOT (QueryName="*microsoft.com" OR QueryName="*google.com" OR QueryName="*akamai.net")
-| eval rule_id="SP-104011", mitre_technique="T1071.004", mitre_tactic="C2", severity="HIGH", confidence="MEDIUM"
+| eval rule_id="SP-104011", mitre_technique="T1071.004", mitre_tactic="C2", severity="HIGH", confidence=62
 | table _time, host, Image, QueryName, subdomain_count, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -109,7 +109,7 @@ NOT (QueryName="*microsoft.com" OR QueryName="*google.com" OR QueryName="*akamai
 index=windows EventCode=3
 Protocol="icmp"
 NOT (Image="*\\ping.exe" OR Image="*\\tracert.exe" OR Image="*\\pathping.exe")
-| eval rule_id="SP-104012", mitre_technique="T1095", mitre_tactic="C2", severity="HIGH", confidence="HIGH"
+| eval rule_id="SP-104012", mitre_technique="T1095", mitre_tactic="C2", severity="HIGH", confidence=78
 | table _time, host, Image, DestinationIp, Protocol, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -118,7 +118,7 @@ index=windows EventCode=3
 (Image="*\\powershell.exe" OR Image="*\\cmd.exe" OR Image="*\\wscript.exe")
 DestinationPort IN (80, 443, 8080, 8443)
 NOT (DestinationIp="10.*" OR DestinationIp="192.168.*" OR DestinationIp="172.16.*")
-| eval rule_id="SP-104013", mitre_technique="T1071.001", mitre_tactic="C2", severity="HIGH", confidence="HIGH"
+| eval rule_id="SP-104013", mitre_technique="T1071.001", mitre_tactic="C2", severity="HIGH", confidence=78
 | table _time, host, Image, DestinationIp, DestinationPort, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -127,7 +127,7 @@ index=windows EventCode=3
 (Image="*\\rundll32.exe" OR Image="*\\regsvr32.exe")
 DestinationPort IN (443, 8443)
 NOT (DestinationIp="10.*" OR DestinationIp="192.168.*" OR DestinationIp="172.16.*")
-| eval rule_id="SP-104014", mitre_technique="T1573.002", mitre_tactic="C2", severity="HIGH", confidence="HIGH"
+| eval rule_id="SP-104014", mitre_technique="T1573.002", mitre_tactic="C2", severity="HIGH", confidence=78
 | table _time, host, Image, DestinationIp, DestinationPort, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -136,7 +136,7 @@ index=windows EventCode=3
 (Image="*\\mstsc.exe" OR Image="*\\ssh.exe" OR Image="*\\plink.exe" OR Image="*\\putty.exe")
 NOT DestinationPort IN (22, 3389, 5900)
 NOT (DestinationIp="10.*" OR DestinationIp="192.168.*" OR DestinationIp="172.16.*")
-| eval rule_id="SP-104015", mitre_technique="T1572", mitre_tactic="C2", severity="HIGH", confidence="MEDIUM"
+| eval rule_id="SP-104015", mitre_technique="T1572", mitre_tactic="C2", severity="HIGH", confidence=62
 | table _time, host, Image, DestinationIp, DestinationPort, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -144,7 +144,7 @@ NOT (DestinationIp="10.*" OR DestinationIp="192.168.*" OR DestinationIp="172.16.
 index=windows (EventCode=1 OR EventCode=4688)
 (Image="*\\netsh.exe" OR NewProcessName="*\\netsh.exe")
 CommandLine="*portproxy*" (CommandLine="*add*" OR CommandLine="*v4tov4*")
-| eval rule_id="SP-104016", mitre_technique="T1090.001", mitre_tactic="C2", severity="HIGH", confidence="HIGH"
+| eval rule_id="SP-104016", mitre_technique="T1090.001", mitre_tactic="C2", severity="HIGH", confidence=78
 | table _time, host, user, Image, CommandLine, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -152,7 +152,7 @@ CommandLine="*portproxy*" (CommandLine="*add*" OR CommandLine="*v4tov4*")
 index=windows (EventCode=1 OR EventCode=4688)
 (Image="*\\ssh.exe" OR Image="*\\plink.exe")
 (CommandLine="*-R*" OR CommandLine="*-L*" OR CommandLine="*-D*")
-| eval rule_id="SP-104017", mitre_technique="T1090.002", mitre_tactic="C2", severity="HIGH", confidence="HIGH"
+| eval rule_id="SP-104017", mitre_technique="T1090.002", mitre_tactic="C2", severity="HIGH", confidence=78
 | table _time, host, user, Image, CommandLine, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -160,7 +160,7 @@ index=windows (EventCode=1 OR EventCode=4688)
 index=windows EventCode=3
 Image="*\\regsvr32.exe"
 NOT (DestinationIp="10.*" OR DestinationIp="192.168.*" OR DestinationIp="172.16.*" OR DestinationIp="127.*")
-| eval rule_id="SP-104018", mitre_technique="T1095", mitre_tactic="C2", severity="HIGH", confidence="HIGH"
+| eval rule_id="SP-104018", mitre_technique="T1095", mitre_tactic="C2", severity="HIGH", confidence=78
 | table _time, host, Image, DestinationIp, DestinationPort, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -168,14 +168,14 @@ NOT (DestinationIp="10.*" OR DestinationIp="192.168.*" OR DestinationIp="172.16.
 index=windows EventCode=3
 (Image="*\\certutil.exe")
 NOT (DestinationIp="10.*" OR DestinationIp="192.168.*" OR DestinationIp="172.16.*")
-| eval rule_id="SP-104019", mitre_technique="T1071.001", mitre_tactic="C2", severity="HIGH", confidence="HIGH"
+| eval rule_id="SP-104019", mitre_technique="T1071.001", mitre_tactic="C2", severity="HIGH", confidence=78
 | table _time, host, Image, DestinationIp, DestinationPort, rule_id, mitre_technique, severity
 | sort -_time
 
 `comment("SP-104020 | T1008 | C2: Fallback channel — DNS query for known C2 framework domains | Severity: CRITICAL | Confidence: HIGH")`
 index=windows EventCode=22
 (QueryName="*c2.msf.io*" OR QueryName="*havoc.c2*" OR QueryName="*.onion*" OR QueryName="*sliver*" OR QueryName="*brute-ratel*")
-| eval rule_id="SP-104020", mitre_technique="T1008", mitre_tactic="C2", severity="CRITICAL", confidence="HIGH"
+| eval rule_id="SP-104020", mitre_technique="T1008", mitre_tactic="C2", severity="CRITICAL", confidence=90
 | table _time, host, Image, QueryName, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -187,7 +187,7 @@ NOT (Image="*\\chrome.exe" OR Image="*\\msedge.exe" OR Image="*\\firefox.exe")
 | bin _time span=10m
 | stats count as ConnCount by _time, host, Image, DestinationIp, DestinationPort
 | where ConnCount > 20
-| eval rule_id="SP-104021", mitre_technique="T1071.001", mitre_tactic="C2", severity="MEDIUM", confidence="MEDIUM"
+| eval rule_id="SP-104021", mitre_technique="T1071.001", mitre_tactic="C2", severity="MEDIUM", confidence=62
 | table _time, host, Image, DestinationIp, DestinationPort, ConnCount, rule_id, severity
 | sort -_time
 
@@ -195,7 +195,7 @@ NOT (Image="*\\chrome.exe" OR Image="*\\msedge.exe" OR Image="*\\firefox.exe")
 index=windows EventCode=3
 (Image="*\\wscript.exe" OR Image="*\\cscript.exe")
 NOT (DestinationIp="10.*" OR DestinationIp="192.168.*" OR DestinationIp="172.16.*")
-| eval rule_id="SP-104022", mitre_technique="T1095", mitre_tactic="C2", severity="HIGH", confidence="HIGH"
+| eval rule_id="SP-104022", mitre_technique="T1095", mitre_tactic="C2", severity="HIGH", confidence=78
 | table _time, host, Image, DestinationIp, DestinationPort, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -204,7 +204,7 @@ index=windows EventCode=3
 Image="*\\svchost.exe"
 NOT DestinationPort IN (80, 443, 53, 123, 135, 445, 3389)
 NOT (DestinationIp="10.*" OR DestinationIp="192.168.*" OR DestinationIp="172.16.*")
-| eval rule_id="SP-104023", mitre_technique="T1071.001", mitre_tactic="C2", severity="HIGH", confidence="HIGH"
+| eval rule_id="SP-104023", mitre_technique="T1071.001", mitre_tactic="C2", severity="HIGH", confidence=78
 | table _time, host, Image, DestinationIp, DestinationPort, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -213,7 +213,7 @@ index=windows EventCode=3
 (DestinationPort >= 6881 AND DestinationPort <= 6889)
 NOT (DestinationIp="10.*" OR DestinationIp="192.168.*" OR DestinationIp="172.16.*")
 NOT (Image="*\\qbittorrent*" OR Image="*\\utorrent*" OR Image="*\\bittorrent*")
-| eval rule_id="SP-104024", mitre_technique="T1571", mitre_tactic="C2", severity="MEDIUM", confidence="MEDIUM"
+| eval rule_id="SP-104024", mitre_technique="T1571", mitre_tactic="C2", severity="MEDIUM", confidence=62
 | table _time, host, Image, DestinationIp, DestinationPort, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -221,7 +221,7 @@ NOT (Image="*\\qbittorrent*" OR Image="*\\utorrent*" OR Image="*\\bittorrent*")
 index=windows EventCode=3
 DestinationPort IN (6667, 6668, 6697)
 NOT (DestinationIp="10.*" OR DestinationIp="192.168.*" OR DestinationIp="172.16.*")
-| eval rule_id="SP-104025", mitre_technique="T1571", mitre_tactic="C2", severity="HIGH", confidence="HIGH"
+| eval rule_id="SP-104025", mitre_technique="T1571", mitre_tactic="C2", severity="HIGH", confidence=78
 | table _time, host, Image, DestinationIp, DestinationPort, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -230,7 +230,7 @@ index=windows EventCode=3
 DestinationPort IN (25, 587, 465)
 NOT (Image="*\\thunderbird*" OR Image="*\\outlook.exe" OR Image="*\\mailclient*")
 NOT (DestinationIp="10.*" OR DestinationIp="192.168.*" OR DestinationIp="172.16.*")
-| eval rule_id="SP-104026", mitre_technique="T1071.003", mitre_tactic="C2", severity="HIGH", confidence="HIGH"
+| eval rule_id="SP-104026", mitre_technique="T1071.003", mitre_tactic="C2", severity="HIGH", confidence=78
 | table _time, host, Image, DestinationIp, DestinationPort, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -238,7 +238,7 @@ NOT (DestinationIp="10.*" OR DestinationIp="192.168.*" OR DestinationIp="172.16.
 index=windows EventCode=3
 DestinationPort=445
 NOT (DestinationIp="10.*" OR DestinationIp="192.168.*" OR DestinationIp="172.16.*")
-| eval rule_id="SP-104027", mitre_technique="T1071.002", mitre_tactic="C2", severity="HIGH", confidence="HIGH"
+| eval rule_id="SP-104027", mitre_technique="T1071.002", mitre_tactic="C2", severity="HIGH", confidence=78
 | table _time, host, Image, DestinationIp, DestinationPort, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -247,7 +247,7 @@ index=windows EventCode=3
 DestinationPort IN (51820, 51821, 1194, 1723, 4500, 500)
 NOT (DestinationIp="10.*" OR DestinationIp="192.168.*" OR DestinationIp="172.16.*")
 NOT (Image="*\\vpnclient*" OR Image="*\\wireguard*" OR Image="*\\openvpn*")
-| eval rule_id="SP-104028", mitre_technique="T1572", mitre_tactic="C2", severity="MEDIUM", confidence="MEDIUM"
+| eval rule_id="SP-104028", mitre_technique="T1572", mitre_tactic="C2", severity="MEDIUM", confidence=62
 | table _time, host, Image, DestinationIp, DestinationPort, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -258,7 +258,7 @@ index=windows EventCode=22
 | eval ratio=digit_count/char_count
 | where char_count > 20 AND ratio > 0.3
 NOT (QueryName="*microsoft.com" OR QueryName="*google.com")
-| eval rule_id="SP-104029", mitre_technique="T1071.004", mitre_tactic="C2", severity="HIGH", confidence="HIGH"
+| eval rule_id="SP-104029", mitre_technique="T1071.004", mitre_tactic="C2", severity="HIGH", confidence=78
 | table _time, host, Image, QueryName, char_count, ratio, rule_id, severity
 | sort -_time
 
@@ -267,7 +267,7 @@ index=windows EventCode=3
 (Image="*\\excel.exe" OR Image="*\\winword.exe" OR Image="*\\powerpnt.exe")
 NOT DestinationPort IN (80, 443)
 NOT (DestinationIp="10.*" OR DestinationIp="192.168.*" OR DestinationIp="172.16.*")
-| eval rule_id="SP-104030", mitre_technique="T1573.001", mitre_tactic="C2", severity="HIGH", confidence="HIGH"
+| eval rule_id="SP-104030", mitre_technique="T1573.001", mitre_tactic="C2", severity="HIGH", confidence=78
 | table _time, host, Image, DestinationIp, DestinationPort, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -275,7 +275,7 @@ NOT (DestinationIp="10.*" OR DestinationIp="192.168.*" OR DestinationIp="172.16.
 index=windows EventCode=3
 (Image="*\\bitsadmin.exe" OR Image="*\\bits.exe")
 NOT (DestinationIp="10.*" OR DestinationIp="192.168.*" OR DestinationIp="172.16.*")
-| eval rule_id="SP-104031", mitre_technique="T1071.001", mitre_tactic="C2", severity="HIGH", confidence="HIGH"
+| eval rule_id="SP-104031", mitre_technique="T1071.001", mitre_tactic="C2", severity="HIGH", confidence=78
 | table _time, host, Image, DestinationIp, DestinationPort, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -284,7 +284,7 @@ index=windows EventCode=3
 DestinationPort IN (7070, 5938, 3478, 19302)
 NOT (Image="*\\anydesk*" OR Image="*\\teamviewer*" OR Image="*\\rustdesk*")
 NOT (DestinationIp="10.*" OR DestinationIp="192.168.*" OR DestinationIp="172.16.*")
-| eval rule_id="SP-104032", mitre_technique="T1219", mitre_tactic="C2", severity="HIGH", confidence="MEDIUM"
+| eval rule_id="SP-104032", mitre_technique="T1219", mitre_tactic="C2", severity="HIGH", confidence=62
 | table _time, host, Image, DestinationIp, DestinationPort, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -294,7 +294,7 @@ NOT (DestinationIp="10.*" OR DestinationIp="192.168.*" OR DestinationIp="172.16.
 | bin _time span=10m
 | stats dc(DestinationIp) as UniqueIPs by _time, host
 | where UniqueIPs > 50
-| eval rule_id="SP-104033", mitre_technique="T1071.001", mitre_tactic="C2", severity="HIGH", confidence="MEDIUM"
+| eval rule_id="SP-104033", mitre_technique="T1071.001", mitre_tactic="C2", severity="HIGH", confidence=62
 | table _time, host, UniqueIPs, rule_id, severity
 | sort -_time
 
@@ -302,7 +302,7 @@ NOT (DestinationIp="10.*" OR DestinationIp="192.168.*" OR DestinationIp="172.16.
 index=windows EventCode=3
 DestinationPort IN (31337, 10443, 8888, 9001)
 NOT (DestinationIp="10.*" OR DestinationIp="192.168.*" OR DestinationIp="172.16.*")
-| eval rule_id="SP-104034", mitre_technique="T1090.003", mitre_tactic="C2", severity="CRITICAL", confidence="HIGH"
+| eval rule_id="SP-104034", mitre_technique="T1090.003", mitre_tactic="C2", severity="CRITICAL", confidence=90
 | table _time, host, Image, DestinationIp, DestinationPort, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -313,6 +313,6 @@ NOT (QueryName="*microsoft.com" OR QueryName="*google.com" OR QueryName="*office
 | bin _time span=5m
 | stats count as NxCount dc(QueryName) as UniqueNx by _time, host, Image
 | where NxCount > 20 AND UniqueNx > 15
-| eval rule_id="SP-104035", mitre_technique="T1071.004", mitre_tactic="C2", severity="HIGH", confidence="MEDIUM"
+| eval rule_id="SP-104035", mitre_technique="T1071.004", mitre_tactic="C2", severity="HIGH", confidence=62
 | table _time, host, Image, NxCount, UniqueNx, rule_id, severity
 | sort -_time

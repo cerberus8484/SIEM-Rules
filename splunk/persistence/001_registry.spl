@@ -13,7 +13,7 @@ Sources   : Sysmon Event 13
 index=windows EventCode=13
 (TargetObject="*\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run\\*" OR TargetObject="*\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\RunOnce\\*")
 NOT (Image="*\\msiexec.exe" OR Image="*\\setup.exe" OR Image="*\\install*.exe" OR Image="*\\update*.exe" OR Image="*\\MsiExec.exe")
-| eval rule_id="SP-101001", mitre_technique="T1547.001", mitre_tactic="Persistence", severity="HIGH", confidence="HIGH"
+| eval rule_id="SP-101001", mitre_technique="T1547.001", mitre_tactic="Persistence", severity="HIGH", confidence=78
 | table _time, host, Image, TargetObject, Details, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -21,7 +21,7 @@ NOT (Image="*\\msiexec.exe" OR Image="*\\setup.exe" OR Image="*\\install*.exe" O
 index=windows EventCode=13
 (TargetObject="*\\CurrentVersion\\Run\\*" OR TargetObject="*\\CurrentVersion\\RunOnce\\*")
 (Details="*\\Temp\\*" OR Details="*\\AppData\\*" OR Details="*\\Users\\Public\\*" OR Details="*\\ProgramData\\*")
-| eval rule_id="SP-101002", mitre_technique="T1547.001", mitre_tactic="Persistence", severity="HIGH", confidence="HIGH"
+| eval rule_id="SP-101002", mitre_technique="T1547.001", mitre_tactic="Persistence", severity="HIGH", confidence=78
 | table _time, host, Image, TargetObject, Details, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -29,7 +29,7 @@ index=windows EventCode=13
 index=windows EventCode=13
 (TargetObject="*\\Winlogon\\Userinit*" OR TargetObject="*\\Winlogon\\Shell*")
 NOT (Details="*explorer.exe*" OR Details="*C:\\Windows\\system32\\userinit.exe,*")
-| eval rule_id="SP-101003", mitre_technique="T1547.004", mitre_tactic="Persistence", severity="CRITICAL", confidence="HIGH"
+| eval rule_id="SP-101003", mitre_technique="T1547.004", mitre_tactic="Persistence", severity="CRITICAL", confidence=90
 | table _time, host, Image, TargetObject, Details, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -37,28 +37,28 @@ NOT (Details="*explorer.exe*" OR Details="*C:\\Windows\\system32\\userinit.exe,*
 index=windows EventCode=13
 TargetObject="*\\AppInit_DLLs*"
 NOT Details=""
-| eval rule_id="SP-101004", mitre_technique="T1546.010", mitre_tactic="Persistence", severity="CRITICAL", confidence="HIGH"
+| eval rule_id="SP-101004", mitre_technique="T1546.010", mitre_tactic="Persistence", severity="CRITICAL", confidence=90
 | table _time, host, Image, TargetObject, Details, rule_id, mitre_technique, severity
 | sort -_time
 
 `comment("SP-101005 | T1546.012 | Registry: IFEO Debugger key — accessibility and image hijack | Severity: HIGH | Confidence: HIGH")`
 index=windows EventCode=13
 TargetObject="*\\Image File Execution Options\\*\\Debugger*"
-| eval rule_id="SP-101005", mitre_technique="T1546.012", mitre_tactic="Persistence", severity="HIGH", confidence="HIGH"
+| eval rule_id="SP-101005", mitre_technique="T1546.012", mitre_tactic="Persistence", severity="HIGH", confidence=78
 | table _time, host, Image, TargetObject, Details, rule_id, mitre_technique, severity
 | sort -_time
 
 `comment("SP-101006 | T1553.006 | Registry: SIP/Trust provider subversion — code signing bypass | Severity: CRITICAL | Confidence: HIGH")`
 index=windows EventCode=13
 (TargetObject="*\\CryptSIPDll*" OR TargetObject="*\\Trust Provider*" OR TargetObject="*\\Subject Interface Package*")
-| eval rule_id="SP-101006", mitre_technique="T1553.006", mitre_tactic="Defense Evasion", severity="CRITICAL", confidence="HIGH"
+| eval rule_id="SP-101006", mitre_technique="T1553.006", mitre_tactic="Defense Evasion", severity="CRITICAL", confidence=90
 | table _time, host, Image, TargetObject, Details, rule_id, mitre_technique, severity
 | sort -_time
 
 `comment("SP-101007 | T1547.008 | Registry: LSA Security/Authentication packages — credential hook | Severity: CRITICAL | Confidence: HIGH")`
 index=windows EventCode=13
 (TargetObject="*\\LSA\\Security Packages*" OR TargetObject="*\\LSA\\Authentication Packages*" OR TargetObject="*\\LSA\\Notification Packages*")
-| eval rule_id="SP-101007", mitre_technique="T1547.008", mitre_tactic="Persistence", severity="CRITICAL", confidence="HIGH"
+| eval rule_id="SP-101007", mitre_technique="T1547.008", mitre_tactic="Persistence", severity="CRITICAL", confidence=90
 | table _time, host, Image, TargetObject, Details, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -66,7 +66,7 @@ index=windows EventCode=13
 index=windows EventCode=13
 (TargetObject="*\\Excel\\Addins\\*" OR TargetObject="*\\Word\\Addins\\*" OR TargetObject="*\\Outlook\\Addins\\*")
 NOT (Image="*\\msiexec.exe" OR Image="*\\setup.exe" OR Image="*\\OUTLOOK.EXE" OR Image="*\\WINWORD.EXE")
-| eval rule_id="SP-101008", mitre_technique="T1137.001", mitre_tactic="Persistence", severity="HIGH", confidence="HIGH"
+| eval rule_id="SP-101008", mitre_technique="T1137.001", mitre_tactic="Persistence", severity="HIGH", confidence=78
 | table _time, host, Image, TargetObject, Details, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -74,7 +74,7 @@ NOT (Image="*\\msiexec.exe" OR Image="*\\setup.exe" OR Image="*\\OUTLOOK.EXE" OR
 index=windows EventCode=13
 TargetObject="*\\Control Panel\\Desktop\\SCRNSAVE.EXE*"
 NOT (Details="*.scr*" AND (Details="*\\Windows\\*" OR Details="*\\System32\\*"))
-| eval rule_id="SP-101009", mitre_technique="T1546.002", mitre_tactic="Persistence", severity="HIGH", confidence="HIGH"
+| eval rule_id="SP-101009", mitre_technique="T1546.002", mitre_tactic="Persistence", severity="HIGH", confidence=78
 | table _time, host, Image, TargetObject, Details, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -82,7 +82,7 @@ NOT (Details="*.scr*" AND (Details="*\\Windows\\*" OR Details="*\\System32\\*"))
 index=windows EventCode=13
 TargetObject="*\\HKCU\\*\\CLSID\\*\\InprocServer32*"
 NOT (Image="*\\msiexec.exe" OR Image="*\\regsvr32.exe")
-| eval rule_id="SP-101010", mitre_technique="T1546.015", mitre_tactic="Persistence", severity="HIGH", confidence="HIGH"
+| eval rule_id="SP-101010", mitre_technique="T1546.015", mitre_tactic="Persistence", severity="HIGH", confidence=78
 | table _time, host, Image, TargetObject, Details, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -90,7 +90,7 @@ NOT (Image="*\\msiexec.exe" OR Image="*\\regsvr32.exe")
 index=windows EventCode=13
 TargetObject="*\\Session Manager\\BootExecute*"
 NOT Details="autocheck autochk *"
-| eval rule_id="SP-101011", mitre_technique="T1547.006", mitre_tactic="Persistence", severity="CRITICAL", confidence="HIGH"
+| eval rule_id="SP-101011", mitre_technique="T1547.006", mitre_tactic="Persistence", severity="CRITICAL", confidence=90
 | table _time, host, Image, TargetObject, Details, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -98,14 +98,14 @@ NOT Details="autocheck autochk *"
 index=windows EventCode=13
 (TargetObject="*\\Environment\\ComSpec*" OR TargetObject="*\\Environment\\SystemRoot*" OR TargetObject="*\\Environment\\PATHEXT*")
 NOT (Details="*cmd.exe*" OR Details="*C:\\Windows*")
-| eval rule_id="SP-101012", mitre_technique="T1574.012", mitre_tactic="Defense Evasion", severity="HIGH", confidence="HIGH"
+| eval rule_id="SP-101012", mitre_technique="T1574.012", mitre_tactic="Defense Evasion", severity="HIGH", confidence=78
 | table _time, host, Image, TargetObject, Details, rule_id, mitre_technique, severity
 | sort -_time
 
 `comment("SP-101013 | T1112 | Registry: Cmd.exe AutoRun key — persistent command execution | Severity: HIGH | Confidence: HIGH")`
 index=windows EventCode=13
 (TargetObject="*\\Command Processor\\AutoRun*")
-| eval rule_id="SP-101013", mitre_technique="T1112", mitre_tactic="Defense Evasion", severity="HIGH", confidence="HIGH"
+| eval rule_id="SP-101013", mitre_technique="T1112", mitre_tactic="Defense Evasion", severity="HIGH", confidence=78
 | table _time, host, Image, TargetObject, Details, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -113,7 +113,7 @@ index=windows EventCode=13
 index=windows EventCode=13
 TargetObject="*\\Control\\Print\\Monitors\\*"
 NOT (Details="*\\Windows\\*" OR Details="*\\System32\\*")
-| eval rule_id="SP-101014", mitre_technique="T1547.012", mitre_tactic="Persistence", severity="CRITICAL", confidence="HIGH"
+| eval rule_id="SP-101014", mitre_technique="T1547.012", mitre_tactic="Persistence", severity="CRITICAL", confidence=90
 | table _time, host, Image, TargetObject, Details, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -121,7 +121,7 @@ NOT (Details="*\\Windows\\*" OR Details="*\\System32\\*")
 index=windows EventCode=13
 TargetObject="*\\Terminal Services\\fDenyTSConnections*"
 Details="0"
-| eval rule_id="SP-101015", mitre_technique="T1021.001", mitre_tactic="Lateral Movement", severity="HIGH", confidence="HIGH"
+| eval rule_id="SP-101015", mitre_technique="T1021.001", mitre_tactic="Lateral Movement", severity="HIGH", confidence=78
 | table _time, host, Image, TargetObject, Details, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -129,7 +129,7 @@ Details="0"
 index=windows EventCode=13
 TargetObject="*\\UAC\\ConsentPromptBehaviorAdmin*"
 (Details="0" OR Details="DWORD (0x00000000)")
-| eval rule_id="SP-101016", mitre_technique="T1548.002", mitre_tactic="Privilege Escalation", severity="HIGH", confidence="HIGH"
+| eval rule_id="SP-101016", mitre_technique="T1548.002", mitre_tactic="Privilege Escalation", severity="HIGH", confidence=78
 | table _time, host, Image, TargetObject, Details, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -137,7 +137,7 @@ TargetObject="*\\UAC\\ConsentPromptBehaviorAdmin*"
 index=windows EventCode=13
 TargetObject="*\\FirewallPolicy\\*\\EnableFirewall*"
 (Details="0" OR Details="DWORD (0x00000000)")
-| eval rule_id="SP-101017", mitre_technique="T1562.004", mitre_tactic="Defense Evasion", severity="HIGH", confidence="HIGH"
+| eval rule_id="SP-101017", mitre_technique="T1562.004", mitre_tactic="Defense Evasion", severity="HIGH", confidence=78
 | table _time, host, Image, TargetObject, Details, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -145,7 +145,7 @@ TargetObject="*\\FirewallPolicy\\*\\EnableFirewall*"
 index=windows EventCode=13
 (TargetObject="*\\Windows Defender\\DisableAntiSpyware*" OR TargetObject="*\\Windows Defender\\DisableRealtimeMonitoring*" OR TargetObject="*\\Real-Time Protection\\DisableRealtimeMonitoring*")
 (Details="1" OR Details="DWORD (0x00000001)")
-| eval rule_id="SP-101018", mitre_technique="T1562.001", mitre_tactic="Defense Evasion", severity="CRITICAL", confidence="HIGH"
+| eval rule_id="SP-101018", mitre_technique="T1562.001", mitre_tactic="Defense Evasion", severity="CRITICAL", confidence=90
 | table _time, host, Image, TargetObject, Details, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -153,14 +153,14 @@ index=windows EventCode=13
 index=windows EventCode=13
 TargetObject="*\\NetSh Dll*" OR TargetObject="*\\netsh\\helpers\\*"
 NOT (Details="*\\Windows\\*" OR Details="*\\System32\\*")
-| eval rule_id="SP-101019", mitre_technique="T1546.011", mitre_tactic="Persistence", severity="CRITICAL", confidence="HIGH"
+| eval rule_id="SP-101019", mitre_technique="T1546.011", mitre_tactic="Persistence", severity="CRITICAL", confidence=90
 | table _time, host, Image, TargetObject, Details, rule_id, mitre_technique, severity
 | sort -_time
 
 `comment("SP-101020 | T1546.013 | Registry: PowerShell profile path modification — PS persistence | Severity: HIGH | Confidence: HIGH")`
 index=windows EventCode=13
 (TargetObject="*\\PowerShell\\*\\profile*" OR TargetObject="*\\PowerShell\\*\\PSModulePath*")
-| eval rule_id="SP-101020", mitre_technique="T1546.013", mitre_tactic="Persistence", severity="HIGH", confidence="HIGH"
+| eval rule_id="SP-101020", mitre_technique="T1546.013", mitre_tactic="Persistence", severity="HIGH", confidence=78
 | table _time, host, Image, TargetObject, Details, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -168,7 +168,7 @@ index=windows EventCode=13
 index=windows EventCode=13
 TargetObject="*\\Installer\\AlwaysInstallElevated*"
 (Details="1" OR Details="DWORD (0x00000001)")
-| eval rule_id="SP-101021", mitre_technique="T1548.002", mitre_tactic="Privilege Escalation", severity="HIGH", confidence="HIGH"
+| eval rule_id="SP-101021", mitre_technique="T1548.002", mitre_tactic="Privilege Escalation", severity="HIGH", confidence=78
 | table _time, host, Image, TargetObject, Details, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -176,7 +176,7 @@ TargetObject="*\\Installer\\AlwaysInstallElevated*"
 index=windows EventCode=13
 (TargetObject="*\\Security Center\\*\\DisableNotifications*" OR TargetObject="*\\Security Center\\*\\AntiVirusDisableNotify*")
 Details="1"
-| eval rule_id="SP-101022", mitre_technique="T1112", mitre_tactic="Defense Evasion", severity="MEDIUM", confidence="MEDIUM"
+| eval rule_id="SP-101022", mitre_technique="T1112", mitre_tactic="Defense Evasion", severity="MEDIUM", confidence=62
 | table _time, host, Image, TargetObject, Details, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -184,7 +184,7 @@ Details="1"
 index=windows EventCode=13
 (TargetObject="*\\BITS\\*" OR TargetObject="*\\Background Intelligent Transfer Service\\*")
 NOT (Image="*\\svchost.exe" OR Image="*\\services.exe")
-| eval rule_id="SP-101023", mitre_technique="T1197", mitre_tactic="Persistence", severity="HIGH", confidence="MEDIUM"
+| eval rule_id="SP-101023", mitre_technique="T1197", mitre_tactic="Persistence", severity="HIGH", confidence=62
 | table _time, host, Image, TargetObject, Details, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -193,7 +193,7 @@ index=windows EventCode=13
 (TargetObject="*\\WBEM\\*" OR TargetObject="*\\WMI\\*")
 (TargetObject="*EventFilter*" OR TargetObject="*EventConsumer*")
 NOT (Image="*\\WmiPrvSE.exe" OR Image="*\\svchost.exe")
-| eval rule_id="SP-101024", mitre_technique="T1546.003", mitre_tactic="Persistence", severity="CRITICAL", confidence="HIGH"
+| eval rule_id="SP-101024", mitre_technique="T1546.003", mitre_tactic="Persistence", severity="CRITICAL", confidence=90
 | table _time, host, Image, TargetObject, Details, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -202,6 +202,6 @@ index=windows EventCode=13
 (TargetObject="*\\shell\\open\\command*")
 NOT (Image="*\\msiexec.exe" OR Image="*\\setup.exe")
 (Details="*\\Temp\\*" OR Details="*\\AppData\\*" OR Details="*powershell*" OR Details="*cmd.exe*")
-| eval rule_id="SP-101025", mitre_technique="T1546.001", mitre_tactic="Persistence", severity="HIGH", confidence="HIGH"
+| eval rule_id="SP-101025", mitre_technique="T1546.001", mitre_tactic="Persistence", severity="HIGH", confidence=78
 | table _time, host, Image, TargetObject, Details, rule_id, mitre_technique, severity
 | sort -_time

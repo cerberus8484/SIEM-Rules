@@ -1,0 +1,45 @@
+{
+  "_comment": "TRUE POSITIVE — SP-107001 (Impact): Mass file rename indicating active ransomware encryption",
+  "rule_id": "SP-107001",
+  "expected_result": "ALERT",
+  "severity": "CRITICAL",
+  "confidence": 90,
+  "scenario": "Active ransomware encrypting files: 500+ files renamed with .locked extension within 2 minutes",
+  "mitre": "T1486",
+  "events": [
+    {
+      "sourcetype": "WinEventLog:Sysmon",
+      "EventCode": 11,
+      "host": "FILE-SERVER-01",
+      "description": "FileCreate burst — 523 file rename events in 120 seconds",
+      "sample_targets": [
+        "C:\\Shares\\Finance\\Q3_Report.xlsx.locked",
+        "C:\\Shares\\HR\\salary_data.docx.locked",
+        "C:\\Shares\\Legal\\contracts_2024.pdf.locked"
+      ],
+      "process": "C:\\Windows\\Temp\\update.exe",
+      "time_start": "2024-01-15T03:00:00Z",
+      "time_end": "2024-01-15T03:02:00Z"
+    }
+  ],
+  "aggregation": {
+    "rename_count": 523,
+    "window_seconds": 120,
+    "threshold": 100,
+    "extension_pattern": ".locked",
+    "affected_shares": ["Finance", "HR", "Legal", "Operations"]
+  },
+  "why_tp": [
+    "523 files renamed in 120 seconds — far exceeds normal user behavior",
+    "Consistent extension addition (.locked) — ransomware encryption pattern",
+    "Process is C:\\Windows\\Temp\\update.exe — unusual staging location",
+    "Affects multiple shares simultaneously — ransomware spreading via mapped drives"
+  ],
+  "analyst_action": [
+    "IMMEDIATE: Disconnect FILE-SERVER-01 from network to stop further encryption",
+    "IMMEDIATE: Check which workstation is connected to FILE-SERVER-01 via SMB (find source of update.exe)",
+    "Assess which shares are affected — classify data sensitivity",
+    "Invoke Ransomware Response Playbook (PB-001)",
+    "Do NOT restart or shutdown hosts — preserve forensic memory"
+  ]
+}

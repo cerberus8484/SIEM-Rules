@@ -1,0 +1,51 @@
+{
+  "_comment": "TRUE POSITIVE — SP-770001: VPN Impossible Travel — same user from two geographically impossible locations",
+  "rule_id": "SP-770001",
+  "expected_result": "ALERT",
+  "severity": "HIGH",
+  "confidence": 78,
+  "scenario": "User authenticated to VPN from London at 08:00, then from Shanghai at 08:45 — physically impossible travel",
+  "mitre": "T1078",
+  "events": [
+    {
+      "sourcetype": "cisco:asa",
+      "host": "VPN-GW-EU",
+      "user": "m.mueller",
+      "src_ip": "82.123.45.67",
+      "geo_country": "United Kingdom",
+      "geo_city": "London",
+      "action": "VPN_SESSION_START",
+      "time": "2024-01-15T08:00:00Z"
+    },
+    {
+      "sourcetype": "cisco:asa",
+      "host": "VPN-GW-APAC",
+      "user": "m.mueller",
+      "src_ip": "113.208.77.12",
+      "geo_country": "China",
+      "geo_city": "Shanghai",
+      "action": "VPN_SESSION_START",
+      "time": "2024-01-15T08:45:00Z"
+    }
+  ],
+  "travel_analysis": {
+    "location_1": "London, UK",
+    "location_2": "Shanghai, China",
+    "time_diff_minutes": 45,
+    "distance_km": 9200,
+    "required_speed_kmh": 12267,
+    "commercial_max_kmh": 900,
+    "verdict": "IMPOSSIBLE"
+  },
+  "why_tp": [
+    "London to Shanghai in 45 minutes requires 12,267 km/h — physically impossible",
+    "Two separate VPN sessions active simultaneously for the same user",
+    "Both sessions authenticated successfully — one or both use stolen credentials"
+  ],
+  "analyst_action": [
+    "Terminate both active VPN sessions for m.mueller",
+    "Contact m.mueller out-of-band (phone) to confirm their actual location",
+    "Force password reset and re-enrollment of MFA",
+    "Review all activity from the unauthorized session (commands run, files accessed)"
+  ]
+}

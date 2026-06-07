@@ -1,0 +1,31 @@
+{
+  "_comment": "TRUE POSITIVE — SP-100001: PowerShell -EncodedCommand (T1059.001)",
+  "rule_id": "SP-100001",
+  "expected_result": "ALERT",
+  "severity": "HIGH",
+  "confidence": 78,
+  "scenario": "Attacker executes a Base64-encoded PowerShell payload to evade command-line logging and string-based detection",
+  "mitre": "T1059.001",
+  "event": {
+    "sourcetype": "WinEventLog:Security",
+    "EventCode": 4688,
+    "host": "WORKSTATION-12",
+    "NewProcessName": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
+    "CommandLine": "powershell.exe -NoP -NonI -W hidden -Enc JABzAD0ATgBlAHcALQBPAGIAagBlAGMAdAAgAFMAeQBzAHQAZQBtAC4ATgBlAHQALgBXAGUAYgBDAGwAaQBlAG4AdAA7",
+    "ParentProcessName": "C:\\Windows\\System32\\cmd.exe",
+    "SubjectUserName": "jdoe",
+    "time": "2024-01-15T14:22:11Z"
+  },
+  "why_tp": [
+    "-Enc / -EncodedCommand flag — nearly always used to hide malicious payloads",
+    "-W hidden + -NonI + -NoP combination — standard attacker evasion chain",
+    "Parent process is cmd.exe — likely from a script or macro, not interactive user",
+    "Base64 decodes to New-Object System.Net.WebClient (download cradle)"
+  ],
+  "analyst_action": [
+    "Decode the Base64 payload: [System.Text.Encoding]::Unicode.GetString([System.Convert]::FromBase64String('<payload>'))",
+    "Check if subsequent network connections were made from powershell.exe (DNS, HTTP)",
+    "Review what was downloaded/executed (check child processes of powershell.exe)",
+    "If confirmed malicious: isolate WORKSTATION-12 and review lateral movement"
+  ]
+}

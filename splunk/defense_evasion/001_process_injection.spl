@@ -13,7 +13,7 @@ Sources   : Sysmon Event 1/7/8/10, Windows Event 4688
 index=windows EventCode=8
 NOT (SourceImage="*\\MsMpEng.exe" OR SourceImage="*\\csrss.exe" OR SourceImage="*\\System" OR SourceImage="*\\ntoskrnl.exe")
 NOT (TargetImage="*\\MsMpEng.exe" OR TargetImage="*\\svchost.exe")
-| eval rule_id="SP-102001", mitre_technique="T1055.001", mitre_tactic="Defense Evasion", severity="HIGH", confidence="HIGH"
+| eval rule_id="SP-102001", mitre_technique="T1055.001", mitre_tactic="Defense Evasion", severity="HIGH", confidence=78
 | table _time, host, SourceImage, TargetImage, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -21,14 +21,14 @@ NOT (TargetImage="*\\MsMpEng.exe" OR TargetImage="*\\svchost.exe")
 index=windows EventCode=4104
 (ScriptBlockText="*VirtualAllocEx*" OR ScriptBlockText="*WriteProcessMemory*")
 (ScriptBlockText="*OpenProcess*" OR ScriptBlockText="*CreateRemoteThread*")
-| eval rule_id="SP-102002", mitre_technique="T1055.002", mitre_tactic="Defense Evasion", severity="HIGH", confidence="HIGH"
+| eval rule_id="SP-102002", mitre_technique="T1055.002", mitre_tactic="Defense Evasion", severity="HIGH", confidence=78
 | table _time, host, user, ScriptBlockText, rule_id, mitre_technique, severity
 | sort -_time
 
 `comment("SP-102003 | T1055.012 | Evasion: Process hollowing — NtUnmapViewOfSection API | Severity: CRITICAL | Confidence: HIGH")`
 index=windows EventCode=4104
 (ScriptBlockText="*NtUnmapViewOfSection*" OR ScriptBlockText="*ZwUnmapViewOfSection*")
-| eval rule_id="SP-102003", mitre_technique="T1055.012", mitre_tactic="Defense Evasion", severity="CRITICAL", confidence="HIGH"
+| eval rule_id="SP-102003", mitre_technique="T1055.012", mitre_tactic="Defense Evasion", severity="CRITICAL", confidence=90
 | table _time, host, user, ScriptBlockText, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -36,7 +36,7 @@ index=windows EventCode=4104
 index=windows EventCode=1
 (Image="*\\svchost.exe" OR Image="*\\lsass.exe" OR Image="*\\csrss.exe" OR Image="*\\winlogon.exe")
 NOT (Image="*\\Windows\\System32\\*" OR Image="*\\Windows\\SysWOW64\\*")
-| eval rule_id="SP-102004", mitre_technique="T1036.003", mitre_tactic="Defense Evasion", severity="HIGH", confidence="HIGH"
+| eval rule_id="SP-102004", mitre_technique="T1036.003", mitre_tactic="Defense Evasion", severity="HIGH", confidence=78
 | table _time, host, Image, ParentImage, CommandLine, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -44,7 +44,7 @@ NOT (Image="*\\Windows\\System32\\*" OR Image="*\\Windows\\SysWOW64\\*")
 index=windows EventCode=1
 (Image="*\\svchost.exe" OR Image="*\\explorer.exe" OR Image="*\\csrss.exe" OR Image="*\\winlogon.exe")
 NOT (Image="C:\\Windows\\System32\\*" OR Image="C:\\Windows\\SysWOW64\\*" OR Image="C:\\Windows\\explorer.exe")
-| eval rule_id="SP-102005", mitre_technique="T1036.005", mitre_tactic="Defense Evasion", severity="HIGH", confidence="HIGH"
+| eval rule_id="SP-102005", mitre_technique="T1036.005", mitre_tactic="Defense Evasion", severity="HIGH", confidence=78
 | table _time, host, Image, CommandLine, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -53,21 +53,21 @@ index=windows EventCode=7
 Signed="false"
 NOT (ImageLoaded="*\\Windows\\*" OR ImageLoaded="*\\Program Files\\*")
 NOT (Image="*\\chrome.exe" OR Image="*\\msedge.exe" OR Image="*\\firefox.exe" OR Image="*\\java*")
-| eval rule_id="SP-102006", mitre_technique="T1055.003", mitre_tactic="Defense Evasion", severity="HIGH", confidence="HIGH"
+| eval rule_id="SP-102006", mitre_technique="T1055.003", mitre_tactic="Defense Evasion", severity="HIGH", confidence=78
 | table _time, host, Image, ImageLoaded, Signed, SignatureStatus, rule_id, mitre_technique, severity
 | sort -_time
 
 `comment("SP-102007 | T1562.001 | Evasion: Windows Defender exclusion added — AV bypass | Severity: HIGH | Confidence: HIGH")`
 index=windows EventCode=13
 (TargetObject="*\\Windows Defender\\Exclusions\\Paths\\*" OR TargetObject="*\\Windows Defender\\Exclusions\\Processes\\*" OR TargetObject="*\\Windows Defender\\Exclusions\\Extensions\\*")
-| eval rule_id="SP-102007", mitre_technique="T1562.001", mitre_tactic="Defense Evasion", severity="HIGH", confidence="HIGH"
+| eval rule_id="SP-102007", mitre_technique="T1562.001", mitre_tactic="Defense Evasion", severity="HIGH", confidence=78
 | table _time, host, Image, TargetObject, Details, rule_id, mitre_technique, severity
 | sort -_time
 
 `comment("SP-102008 | T1027 | Evasion: XOR decoding pattern in PS script block | Severity: HIGH | Confidence: HIGH")`
 index=windows EventCode=4104
 (ScriptBlockText="*-bxor*" OR ScriptBlockText="*XOR*" OR ScriptBlockText="*ForEach-Object{$_-bxor*")
-| eval rule_id="SP-102008", mitre_technique="T1027", mitre_tactic="Defense Evasion", severity="HIGH", confidence="HIGH"
+| eval rule_id="SP-102008", mitre_technique="T1027", mitre_tactic="Defense Evasion", severity="HIGH", confidence=78
 | table _time, host, user, ScriptBlockText, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -76,7 +76,7 @@ index=windows (EventCode=1 OR EventCode=4688)
 Image="*\\cmd.exe"
 (CommandLine="*/c del*" OR CommandLine="*/c erase*")
 (CommandLine="*\\Temp\\*" OR CommandLine="*\\AppData\\*" OR CommandLine="*\\ProgramData\\*")
-| eval rule_id="SP-102009", mitre_technique="T1070.004", mitre_tactic="Defense Evasion", severity="MEDIUM", confidence="MEDIUM"
+| eval rule_id="SP-102009", mitre_technique="T1070.004", mitre_tactic="Defense Evasion", severity="MEDIUM", confidence=62
 | table _time, host, user, Image, CommandLine, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -84,7 +84,7 @@ Image="*\\cmd.exe"
 index=windows (EventCode=1 OR EventCode=4688)
 (Image="*\\net.exe" OR Image="*\\sc.exe")
 (CommandLine="*stop*" AND CommandLine="*EventLog*")
-| eval rule_id="SP-102010", mitre_technique="T1562.002", mitre_tactic="Defense Evasion", severity="HIGH", confidence="HIGH"
+| eval rule_id="SP-102010", mitre_technique="T1562.002", mitre_tactic="Defense Evasion", severity="HIGH", confidence=78
 | table _time, host, user, Image, CommandLine, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -92,14 +92,14 @@ index=windows (EventCode=1 OR EventCode=4688)
 index=windows EventCode=7
 Signed="false" SignatureStatus!="Valid"
 NOT (ImageLoaded="*\\Windows\\*" OR ImageLoaded="*\\Program Files\\*")
-| eval rule_id="SP-102011", mitre_technique="T1027.002", mitre_tactic="Defense Evasion", severity="HIGH", confidence="MEDIUM"
+| eval rule_id="SP-102011", mitre_technique="T1027.002", mitre_tactic="Defense Evasion", severity="HIGH", confidence=62
 | table _time, host, Image, ImageLoaded, Signed, rule_id, mitre_technique, severity
 | sort -_time
 
 `comment("SP-102012 | T1055.013 | Evasion: Process doppelgänging — NtCreateSection on file handle | Severity: CRITICAL | Confidence: HIGH")`
 index=windows EventCode=4104
 (ScriptBlockText="*NtCreateSection*" OR ScriptBlockText="*NtCreateTransaction*" OR ScriptBlockText="*doppelganging*" OR ScriptBlockText="*ProcessDoppelganging*")
-| eval rule_id="SP-102012", mitre_technique="T1055.013", mitre_tactic="Defense Evasion", severity="CRITICAL", confidence="HIGH"
+| eval rule_id="SP-102012", mitre_technique="T1055.013", mitre_tactic="Defense Evasion", severity="CRITICAL", confidence=90
 | table _time, host, user, ScriptBlockText, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -108,7 +108,7 @@ index=windows EventCode=1
 ParentImage="*\\taskeng.exe" OR ParentImage="*\\svchost.exe"
 (Image="*\\cmd.exe" OR Image="*\\powershell.exe")
 NOT (CommandLine="*update*" OR CommandLine="*maintenance*")
-| eval rule_id="SP-102013", mitre_technique="T1036.004", mitre_tactic="Defense Evasion", severity="HIGH", confidence="HIGH"
+| eval rule_id="SP-102013", mitre_technique="T1036.004", mitre_tactic="Defense Evasion", severity="HIGH", confidence=78
 | table _time, host, ParentImage, Image, CommandLine, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -116,7 +116,7 @@ NOT (CommandLine="*update*" OR CommandLine="*maintenance*")
 index=windows (EventCode=1 OR EventCode=4688)
 (Image="*\\wevtutil.exe" OR NewProcessName="*\\wevtutil.exe")
 (CommandLine="*cl*" OR CommandLine="*clear-log*")
-| eval rule_id="SP-102014", mitre_technique="T1070.001", mitre_tactic="Defense Evasion", severity="HIGH", confidence="HIGH"
+| eval rule_id="SP-102014", mitre_technique="T1070.001", mitre_tactic="Defense Evasion", severity="HIGH", confidence=78
 | table _time, host, user, Image, CommandLine, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -124,7 +124,7 @@ index=windows (EventCode=1 OR EventCode=4688)
 index=windows (EventCode=1 OR EventCode=4688)
 (Image="*\\MpCmdRun.exe" OR NewProcessName="*\\MpCmdRun.exe")
 (CommandLine="*-RemediationRun*" OR CommandLine="*-SignatureUpdate*" OR CommandLine="*-Restore*")
-| eval rule_id="SP-102015", mitre_technique="T1562.001", mitre_tactic="Defense Evasion", severity="CRITICAL", confidence="HIGH"
+| eval rule_id="SP-102015", mitre_technique="T1562.001", mitre_tactic="Defense Evasion", severity="CRITICAL", confidence=90
 | table _time, host, user, Image, CommandLine, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -132,7 +132,7 @@ index=windows (EventCode=1 OR EventCode=4688)
 index=windows (EventCode=1 OR EventCode=4688)
 (Image="*\\csc.exe" OR NewProcessName="*\\csc.exe")
 (CommandLine="*\\Temp\\*" OR CommandLine="*\\AppData\\*")
-| eval rule_id="SP-102016", mitre_technique="T1027.004", mitre_tactic="Defense Evasion", severity="HIGH", confidence="HIGH"
+| eval rule_id="SP-102016", mitre_technique="T1027.004", mitre_tactic="Defense Evasion", severity="HIGH", confidence=78
 | table _time, host, user, Image, CommandLine, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -140,14 +140,14 @@ index=windows (EventCode=1 OR EventCode=4688)
 index=windows EventCode=4104
 (ScriptBlockText="*NtSetContextThread*" OR ScriptBlockText="*SetContextThread*" OR ScriptBlockText="*SuspendThread*")
 ScriptBlockText="*inject*"
-| eval rule_id="SP-102017", mitre_technique="T1055.008", mitre_tactic="Defense Evasion", severity="HIGH", confidence="HIGH"
+| eval rule_id="SP-102017", mitre_technique="T1055.008", mitre_tactic="Defense Evasion", severity="HIGH", confidence=78
 | table _time, host, user, ScriptBlockText, rule_id, mitre_technique, severity
 | sort -_time
 
 `comment("SP-102018 | T1036.001 | Evasion: Masquerade right-to-left unicode filename | Severity: HIGH | Confidence: HIGH")`
 index=windows (EventCode=1 OR EventCode=11)
 (Image="*‮*" OR TargetFilename="*‮*")
-| eval rule_id="SP-102018", mitre_technique="T1036.001", mitre_tactic="Defense Evasion", severity="HIGH", confidence="HIGH"
+| eval rule_id="SP-102018", mitre_technique="T1036.001", mitre_tactic="Defense Evasion", severity="HIGH", confidence=78
 | table _time, host, Image, TargetFilename, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -155,7 +155,7 @@ index=windows (EventCode=1 OR EventCode=11)
 index=windows (EventCode=1 OR EventCode=4688)
 (Image="*\\netsh.exe" OR NewProcessName="*\\netsh.exe")
 CommandLine="*advfirewall*" CommandLine="*add rule*" (CommandLine="*allow*" OR CommandLine="*enable*")
-| eval rule_id="SP-102019", mitre_technique="T1562.004", mitre_tactic="Defense Evasion", severity="HIGH", confidence="HIGH"
+| eval rule_id="SP-102019", mitre_technique="T1562.004", mitre_tactic="Defense Evasion", severity="HIGH", confidence=78
 | table _time, host, user, Image, CommandLine, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -163,7 +163,7 @@ CommandLine="*advfirewall*" CommandLine="*add rule*" (CommandLine="*allow*" OR C
 index=windows EventCode=4104
 (ScriptBlockText="*LastWriteTime*" OR ScriptBlockText="*CreationTime*" OR ScriptBlockText="*LastAccessTime*")
 (ScriptBlockText="*Set-ItemProperty*" OR ScriptBlockText="*[System.IO.File]::SetLastWriteTime*")
-| eval rule_id="SP-102020", mitre_technique="T1070.006", mitre_tactic="Defense Evasion", severity="HIGH", confidence="HIGH"
+| eval rule_id="SP-102020", mitre_technique="T1070.006", mitre_tactic="Defense Evasion", severity="HIGH", confidence=78
 | table _time, host, user, ScriptBlockText, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -172,7 +172,7 @@ index=windows (EventCode=1 OR EventCode=4688)
 (Image="*\\cmd.exe" OR Image="*\\powershell.exe")
 | eval cmdlen=len(CommandLine)
 | where cmdlen > 1000
-| eval rule_id="SP-102021", mitre_technique="T1027.001", mitre_tactic="Defense Evasion", severity="HIGH", confidence="HIGH"
+| eval rule_id="SP-102021", mitre_technique="T1027.001", mitre_tactic="Defense Evasion", severity="HIGH", confidence=78
 | table _time, host, user, Image, cmdlen, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -180,7 +180,7 @@ index=windows (EventCode=1 OR EventCode=4688)
 index=windows (EventCode=1 OR EventCode=4688)
 (Image="*\\fltMC.exe" OR (Image="*\\sc.exe" AND CommandLine="*stop*"))
 (CommandLine="*sysmon*" OR CommandLine="*SysmonDrv*")
-| eval rule_id="SP-102022", mitre_technique="T1562.006", mitre_tactic="Defense Evasion", severity="CRITICAL", confidence="HIGH"
+| eval rule_id="SP-102022", mitre_technique="T1562.006", mitre_tactic="Defense Evasion", severity="CRITICAL", confidence=90
 | table _time, host, user, Image, CommandLine, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -188,7 +188,7 @@ index=windows (EventCode=1 OR EventCode=4688)
 index=windows EventCode=10
 GrantedAccess="0x10"
 NOT (SourceImage="*\\MsMpEng.exe" OR SourceImage="*\\csrss.exe" OR SourceImage="*\\System")
-| eval rule_id="SP-102023", mitre_technique="T1055.009", mitre_tactic="Defense Evasion", severity="HIGH", confidence="HIGH"
+| eval rule_id="SP-102023", mitre_technique="T1055.009", mitre_tactic="Defense Evasion", severity="HIGH", confidence=78
 | table _time, host, SourceImage, TargetImage, GrantedAccess, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -196,21 +196,21 @@ NOT (SourceImage="*\\MsMpEng.exe" OR SourceImage="*\\csrss.exe" OR SourceImage="
 index=windows EventCode=13
 (TargetObject="*\\ScriptBlockLogging\\EnableScriptBlockLogging*" OR TargetObject="*\\ModuleLogging\\EnableModuleLogging*")
 Details="0"
-| eval rule_id="SP-102024", mitre_technique="T1562.001", mitre_tactic="Defense Evasion", severity="HIGH", confidence="HIGH"
+| eval rule_id="SP-102024", mitre_technique="T1562.001", mitre_tactic="Defense Evasion", severity="HIGH", confidence=78
 | table _time, host, Image, TargetObject, Details, rule_id, mitre_technique, severity
 | sort -_time
 
 `comment("SP-102025 | T1036.007 | Evasion: Double file extension — file.pdf.exe pattern | Severity: HIGH | Confidence: HIGH")`
 index=windows EventCode=1
 (Image="*.pdf.exe" OR Image="*.doc.exe" OR Image="*.xls.exe" OR Image="*.txt.exe" OR Image="*.zip.exe")
-| eval rule_id="SP-102025", mitre_technique="T1036.007", mitre_tactic="Defense Evasion", severity="HIGH", confidence="HIGH"
+| eval rule_id="SP-102025", mitre_technique="T1036.007", mitre_tactic="Defense Evasion", severity="HIGH", confidence=78
 | table _time, host, Image, ParentImage, CommandLine, rule_id, mitre_technique, severity
 | sort -_time
 
 `comment("SP-102026 | T1070.003 | Evasion: PowerShell history clear — Remove-Item ConsoleHost_history | Severity: MEDIUM | Confidence: HIGH")`
 index=windows EventCode=4104
 (ScriptBlockText="*ConsoleHost_history.txt*" AND (ScriptBlockText="*Remove-Item*" OR ScriptBlockText="*del *" OR ScriptBlockText="*Clear-History*"))
-| eval rule_id="SP-102026", mitre_technique="T1070.003", mitre_tactic="Defense Evasion", severity="MEDIUM", confidence="HIGH"
+| eval rule_id="SP-102026", mitre_technique="T1070.003", mitre_tactic="Defense Evasion", severity="MEDIUM", confidence=78
 | table _time, host, user, ScriptBlockText, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -219,14 +219,14 @@ index=windows (EventCode=1 OR EventCode=4688)
 (Image="*\\rundll32.exe" OR NewProcessName="*\\rundll32.exe")
 NOT (CommandLine="*shell32.dll*" OR CommandLine="*syssetup.dll*" OR CommandLine="*url.dll*")
 NOT (CommandLine="*\\Windows\\System32\\*" OR CommandLine="*\\Windows\\SysWOW64\\*")
-| eval rule_id="SP-102027", mitre_technique="T1218.011", mitre_tactic="Defense Evasion", severity="HIGH", confidence="HIGH"
+| eval rule_id="SP-102027", mitre_technique="T1218.011", mitre_tactic="Defense Evasion", severity="HIGH", confidence=78
 | table _time, host, user, Image, CommandLine, rule_id, mitre_technique, severity
 | sort -_time
 
 `comment("SP-102028 | T1027.005 | Evasion: Indicator removal on host — sr.exe or Prefetch deletion | Severity: HIGH | Confidence: HIGH")`
 index=windows (EventCode=1 OR EventCode=4688)
 (CommandLine="*\\Prefetch\\*" AND (CommandLine="*del*" OR CommandLine="*erase*")) OR (Image="*\\cleanmgr.exe" AND CommandLine="*/autoclean*")
-| eval rule_id="SP-102028", mitre_technique="T1027.005", mitre_tactic="Defense Evasion", severity="HIGH", confidence="HIGH"
+| eval rule_id="SP-102028", mitre_technique="T1027.005", mitre_tactic="Defense Evasion", severity="HIGH", confidence=78
 | table _time, host, user, Image, CommandLine, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -234,7 +234,7 @@ index=windows (EventCode=1 OR EventCode=4688)
 index=windows EventCode=4104
 (ScriptBlockText="*SetWindowsHookEx*" OR ScriptBlockText="*CallNextHookEx*")
 ScriptBlockText="*WH_CBT*" OR ScriptBlockText="*WH_MOUSE*" OR ScriptBlockText="*WH_KEYBOARD*"
-| eval rule_id="SP-102029", mitre_technique="T1055.015", mitre_tactic="Defense Evasion", severity="HIGH", confidence="MEDIUM"
+| eval rule_id="SP-102029", mitre_technique="T1055.015", mitre_tactic="Defense Evasion", severity="HIGH", confidence=62
 | table _time, host, user, ScriptBlockText, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -243,7 +243,7 @@ index=windows (EventCode=1 OR EventCode=4688)
 (Image="*\\reg.exe" OR NewProcessName="*\\reg.exe")
 CommandLine="*delete*"
 (CommandLine="*CrowdStrike*" OR CommandLine="*SentinelOne*" OR CommandLine="*Carbon Black*" OR CommandLine="*Sophos*" OR CommandLine="*McAfee*" OR CommandLine="*Symantec*")
-| eval rule_id="SP-102030", mitre_technique="T1562.001", mitre_tactic="Defense Evasion", severity="CRITICAL", confidence="HIGH"
+| eval rule_id="SP-102030", mitre_technique="T1562.001", mitre_tactic="Defense Evasion", severity="CRITICAL", confidence=90
 | table _time, host, user, Image, CommandLine, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -251,14 +251,14 @@ CommandLine="*delete*"
 index=windows (EventCode=1 OR EventCode=4688)
 (Image="*\\mshta.exe" OR NewProcessName="*\\mshta.exe")
 (CommandLine="*http://*" OR CommandLine="*https://*" OR CommandLine="*\\\\*")
-| eval rule_id="SP-102031", mitre_technique="T1218.005", mitre_tactic="Defense Evasion", severity="HIGH", confidence="HIGH"
+| eval rule_id="SP-102031", mitre_technique="T1218.005", mitre_tactic="Defense Evasion", severity="HIGH", confidence=78
 | table _time, host, user, Image, CommandLine, rule_id, mitre_technique, severity
 | sort -_time
 
 `comment("SP-102032 | T1070.004 | Evasion: Secure file deletion — sdelete or cipher /w | Severity: HIGH | Confidence: HIGH")`
 index=windows (EventCode=1 OR EventCode=4688)
 (Image="*\\sdelete*" OR (Image="*\\cipher.exe" AND CommandLine="*/w:*"))
-| eval rule_id="SP-102032", mitre_technique="T1070.004", mitre_tactic="Defense Evasion", severity="HIGH", confidence="HIGH"
+| eval rule_id="SP-102032", mitre_technique="T1070.004", mitre_tactic="Defense Evasion", severity="HIGH", confidence=78
 | table _time, host, user, Image, CommandLine, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -266,7 +266,7 @@ index=windows (EventCode=1 OR EventCode=4688)
 index=windows EventCode=13
 TargetObject="*\\PowerShell\\*\\ExecutionPolicy*"
 (Details="Bypass" OR Details="Unrestricted" OR Details="Undefined")
-| eval rule_id="SP-102033", mitre_technique="T1562.001", mitre_tactic="Defense Evasion", severity="MEDIUM", confidence="HIGH"
+| eval rule_id="SP-102033", mitre_technique="T1562.001", mitre_tactic="Defense Evasion", severity="MEDIUM", confidence=78
 | table _time, host, Image, TargetObject, Details, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -276,7 +276,7 @@ NOT (SourceImage="*\\MsMpEng.exe" OR SourceImage="*\\csrss.exe")
 | bin _time span=1m
 | stats count as InjectCount by _time, host, SourceImage
 | where InjectCount > 5
-| eval rule_id="SP-102034", mitre_technique="T1055.001", mitre_tactic="Defense Evasion", severity="CRITICAL", confidence="HIGH"
+| eval rule_id="SP-102034", mitre_technique="T1055.001", mitre_tactic="Defense Evasion", severity="CRITICAL", confidence=90
 | table _time, host, SourceImage, InjectCount, rule_id, severity
 | sort -_time
 
@@ -284,6 +284,6 @@ NOT (SourceImage="*\\MsMpEng.exe" OR SourceImage="*\\csrss.exe")
 index=windows (EventCode=1 OR EventCode=4688)
 (Image="*\\powershell.exe" OR NewProcessName="*\\powershell.exe")
 CommandLine="*-e*" CommandLine="*-nop*" CommandLine="*-w*" CommandLine="*-NonI*"
-| eval rule_id="SP-102035", mitre_technique="T1027", mitre_tactic="Defense Evasion", severity="CRITICAL", confidence="HIGH"
+| eval rule_id="SP-102035", mitre_technique="T1027", mitre_tactic="Defense Evasion", severity="CRITICAL", confidence=90
 | table _time, host, user, Image, CommandLine, rule_id, mitre_technique, severity
 | sort -_time

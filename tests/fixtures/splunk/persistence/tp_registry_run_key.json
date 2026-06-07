@@ -1,0 +1,32 @@
+{
+  "_comment": "TRUE POSITIVE — SP-101001: Registry Run Key persistence (T1547.001)",
+  "rule_id": "SP-101001",
+  "expected_result": "ALERT",
+  "severity": "HIGH",
+  "confidence": 78,
+  "scenario": "Malware writes a new value to HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run to persist across user logins",
+  "mitre": "T1547.001",
+  "event": {
+    "sourcetype": "WinEventLog:Security",
+    "EventCode": 4657,
+    "host": "LAPTOP-VICTIM-07",
+    "ObjectName": "\\REGISTRY\\USER\\S-1-5-21-1234567890-1234567890-1234567890-1001\\Software\\Microsoft\\Windows\\CurrentVersion\\Run",
+    "ObjectValueName": "WindowsUpdate",
+    "NewValue": "C:\\Users\\victim\\AppData\\Roaming\\svchost32.exe",
+    "SubjectUserName": "victim",
+    "ProcessName": "C:\\Users\\victim\\AppData\\Roaming\\svchost32.exe",
+    "time": "2024-01-15T09:14:33Z"
+  },
+  "why_tp": [
+    "New Run key value written by a non-system process from AppData\\Roaming",
+    "Binary name 'svchost32.exe' masquerades as Windows svchost.exe",
+    "Process writing the key IS the same binary being persisted (self-installation)",
+    "AppData\\Roaming path — writable by user, common malware staging location"
+  ],
+  "analyst_action": [
+    "Hash svchost32.exe and submit to VirusTotal / sandbox",
+    "Check process tree: how was svchost32.exe launched initially?",
+    "Check network connections from svchost32.exe",
+    "Remove the Run key value and terminate the process if malicious"
+  ]
+}

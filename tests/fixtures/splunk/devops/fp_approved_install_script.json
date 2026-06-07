@@ -1,0 +1,27 @@
+{
+  "_comment": "FALSE POSITIVE — SP-720001: Approved install script from vendor documentation",
+  "rule_id": "SP-720001",
+  "expected_result": "NO_ALERT",
+  "scenario": "Development team uses official Homebrew/NVM install script via curl|bash as documented by the vendor",
+  "event": {
+    "sourcetype": "github:audit",
+    "action": "workflow_run.completed",
+    "repository": "contoso/frontend",
+    "step_run": "curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash",
+    "actor": "github-actions[bot]",
+    "ref": "refs/heads/develop",
+    "conclusion": "success",
+    "time": "2024-01-15T10:00:00Z"
+  },
+  "why_fp": [
+    "Source URL is the official NVM GitHub repository (raw.githubusercontent.com/nvm-sh/nvm)",
+    "Version-pinned URL (v0.39.7) — not a floating 'latest' pointer",
+    "Branch is 'develop', not 'main' — does not deploy to production",
+    "Script is widely used and auditable open-source tooling"
+  ],
+  "tuning_recommendation": [
+    "Allowlist approved curl|bash sources: raw.githubusercontent.com/nvm-sh, get.docker.com, sh.rustup.rs",
+    "Add version-pinning requirement: URL must contain a version tag (v[0-9]+\\.[0-9]+)",
+    "Apply stricter alerting only on main/release branches (production deployments)"
+  ]
+}

@@ -1,0 +1,39 @@
+{
+  "_comment": "TRUE POSITIVE — SP-750001: Executive Impersonation / BEC Phishing (T1566.001)",
+  "rule_id": "SP-750001",
+  "expected_result": "ALERT",
+  "severity": "HIGH",
+  "confidence": 82,
+  "scenario": "Attacker sends phishing email with display name 'CEO John Smith' from external Gmail account to finance team — BEC precursor",
+  "mitre": "T1566.001",
+  "event": {
+    "sourcetype": "ms:o365:management",
+    "Operation": "MessageReceived",
+    "SenderAddress": "j.smith.ceo.urgent@gmail.com",
+    "RecipientAddress": "finance.team@contoso.com",
+    "Subject": "URGENT: Wire Transfer Required Today",
+    "SenderDisplayName": "John Smith CEO",
+    "SenderIPAddress": "209.85.220.41",
+    "MessageId": "<CABXyzABC@mail.gmail.com>",
+    "time": "2024-01-15T10:15:00Z"
+  },
+  "detection_signals": {
+    "display_name_match": "CEO.*|Chief Executive.*|John Smith.*CEO",
+    "sender_domain_external": "gmail.com (not @contoso.com)",
+    "subject_urgency_keywords": ["URGENT", "Wire Transfer"],
+    "reply_to_mismatch": false
+  },
+  "why_tp": [
+    "Display name 'John Smith CEO' impersonates the CEO — classic BEC pattern",
+    "Sender domain is gmail.com, not contoso.com — external impersonation",
+    "Subject contains 'Wire Transfer' + 'URGENT' — financial fraud indicators",
+    "Sent to finance.team — targeted selection of likely wire transfer approvers"
+  ],
+  "analyst_action": [
+    "Alert finance.team@contoso.com immediately — do NOT process any wire transfer",
+    "Check if any finance team members replied to or clicked links in this email",
+    "Block sender domain/IP in email security gateway",
+    "Notify CEO (real one) of impersonation attempt",
+    "Submit email headers to security team for full IOC extraction"
+  ]
+}

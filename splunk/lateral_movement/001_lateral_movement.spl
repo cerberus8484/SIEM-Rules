@@ -14,7 +14,7 @@ index=windows EventCode=4624
 LogonType=10
 NOT (SubjectUserName="*$*" OR IpAddress="-")
 NOT (IpAddress="10.*" OR IpAddress="192.168.*" OR IpAddress="172.16.*")
-| eval rule_id="SP-105001", mitre_technique="T1021.001", mitre_tactic="Lateral Movement", severity="HIGH", confidence="HIGH"
+| eval rule_id="SP-105001", mitre_technique="T1021.001", mitre_tactic="Lateral Movement", severity="HIGH", confidence=78
 | table _time, host, AccountName, IpAddress, LogonType, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -23,21 +23,21 @@ index=windows EventCode=4624
 LogonType=3
 NOT (IpAddress="10.*" OR IpAddress="192.168.*" OR IpAddress="172.16.*" OR IpAddress="-" OR IpAddress="::1")
 NOT SubjectUserName="*$*"
-| eval rule_id="SP-105002", mitre_technique="T1021.002", mitre_tactic="Lateral Movement", severity="HIGH", confidence="HIGH"
+| eval rule_id="SP-105002", mitre_technique="T1021.002", mitre_tactic="Lateral Movement", severity="HIGH", confidence=78
 | table _time, host, AccountName, IpAddress, LogonType, rule_id, mitre_technique, severity
 | sort -_time
 
 `comment("SP-105003 | T1021.006 | Lateral: PsExec execution — admin share remote exec | Severity: HIGH | Confidence: HIGH")`
 index=windows EventCode=1
 (Image="*\\psexec.exe" OR Image="*\\psexesvc.exe" OR Image="*\\PSEXESVC.exe")
-| eval rule_id="SP-105003", mitre_technique="T1021.006", mitre_tactic="Lateral Movement", severity="HIGH", confidence="HIGH"
+| eval rule_id="SP-105003", mitre_technique="T1021.006", mitre_tactic="Lateral Movement", severity="HIGH", confidence=78
 | table _time, host, user, ParentImage, Image, CommandLine, rule_id, mitre_technique, severity
 | sort -_time
 
 `comment("SP-105004 | T1021.006 | Lateral: PsExec service file created — remote service marker | Severity: HIGH | Confidence: HIGH")`
 index=windows EventCode=11
 TargetFilename="*\\PSEXESVC.exe"
-| eval rule_id="SP-105004", mitre_technique="T1021.006", mitre_tactic="Lateral Movement", severity="HIGH", confidence="HIGH"
+| eval rule_id="SP-105004", mitre_technique="T1021.006", mitre_tactic="Lateral Movement", severity="HIGH", confidence=78
 | table _time, host, Image, TargetFilename, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -45,7 +45,7 @@ TargetFilename="*\\PSEXESVC.exe"
 index=windows (EventCode=1 OR EventCode=4688)
 (Image="*\\wmic.exe" OR NewProcessName="*\\wmic.exe")
 CommandLine="*/node:*" (CommandLine="*process call create*" OR CommandLine="*os get*" OR CommandLine="*computersystem*")
-| eval rule_id="SP-105005", mitre_technique="T1047", mitre_tactic="Lateral Movement", severity="HIGH", confidence="HIGH"
+| eval rule_id="SP-105005", mitre_technique="T1047", mitre_tactic="Lateral Movement", severity="HIGH", confidence=78
 | table _time, host, user, Image, CommandLine, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -53,7 +53,7 @@ CommandLine="*/node:*" (CommandLine="*process call create*" OR CommandLine="*os 
 index=windows EventCode=4104
 (ScriptBlockText="*New-PSSession*" OR ScriptBlockText="*Enter-PSSession*" OR ScriptBlockText="*Invoke-Command*")
 (ScriptBlockText="*-ComputerName*" OR ScriptBlockText="*-HostName*" OR ScriptBlockText="*-cn *")
-| eval rule_id="SP-105006", mitre_technique="T1021.006", mitre_tactic="Lateral Movement", severity="HIGH", confidence="HIGH"
+| eval rule_id="SP-105006", mitre_technique="T1021.006", mitre_tactic="Lateral Movement", severity="HIGH", confidence=78
 | table _time, host, user, ScriptBlockText, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -61,7 +61,7 @@ index=windows EventCode=4104
 index=windows EventCode=5140
 ShareName IN ("\\\\*\\C$", "\\\\*\\ADMIN$", "\\\\*\\IPC$")
 NOT (SubjectUserName="*$*")
-| eval rule_id="SP-105007", mitre_technique="T1021.002", mitre_tactic="Lateral Movement", severity="HIGH", confidence="HIGH"
+| eval rule_id="SP-105007", mitre_technique="T1021.002", mitre_tactic="Lateral Movement", severity="HIGH", confidence=78
 | table _time, host, SubjectUserName, IpAddress, ShareName, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -69,7 +69,7 @@ NOT (SubjectUserName="*$*")
 index=windows EventCode=5145
 ShareName IN ("\\\\*\\C$", "\\\\*\\ADMIN$")
 AccessMask="0x2" OR AccessMask="0x6"
-| eval rule_id="SP-105008", mitre_technique="T1021.002", mitre_tactic="Lateral Movement", severity="HIGH", confidence="HIGH"
+| eval rule_id="SP-105008", mitre_technique="T1021.002", mitre_tactic="Lateral Movement", severity="HIGH", confidence=78
 | table _time, host, SubjectUserName, IpAddress, ShareName, RelativeTargetName, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -77,7 +77,7 @@ AccessMask="0x2" OR AccessMask="0x6"
 index=windows EventCode=11
 (TargetFilename="*\\SYSVOL\\*" OR TargetFilename="*\\NETLOGON\\*")
 (TargetFilename="*.exe" OR TargetFilename="*.dll" OR TargetFilename="*.ps1")
-| eval rule_id="SP-105009", mitre_technique="T1570", mitre_tactic="Lateral Movement", severity="CRITICAL", confidence="HIGH"
+| eval rule_id="SP-105009", mitre_technique="T1570", mitre_tactic="Lateral Movement", severity="CRITICAL", confidence=90
 | table _time, host, Image, TargetFilename, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -87,7 +87,7 @@ ShareName IN ("\\\\*\\C$", "\\\\*\\ADMIN$")
 | bin _time span=5m
 | stats dc(host) as UniqueHosts count as Attempts by _time, IpAddress, SubjectUserName
 | where UniqueHosts > 3
-| eval rule_id="SP-105010", mitre_technique="T1021.002", mitre_tactic="Lateral Movement", severity="HIGH", confidence="HIGH"
+| eval rule_id="SP-105010", mitre_technique="T1021.002", mitre_tactic="Lateral Movement", severity="HIGH", confidence=78
 | table _time, IpAddress, SubjectUserName, UniqueHosts, Attempts, rule_id, severity
 | sort -_time
 
@@ -96,7 +96,7 @@ index=windows EventCode=3
 Image="*\\ssh.exe"
 DestinationPort=22
 NOT (DestinationIp="10.*" OR DestinationIp="192.168.*" OR DestinationIp="172.16.*")
-| eval rule_id="SP-105011", mitre_technique="T1021.004", mitre_tactic="Lateral Movement", severity="MEDIUM", confidence="MEDIUM"
+| eval rule_id="SP-105011", mitre_technique="T1021.004", mitre_tactic="Lateral Movement", severity="MEDIUM", confidence=62
 | table _time, host, Image, DestinationIp, DestinationPort, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -105,7 +105,7 @@ index=windows EventCode=3
 DestinationPort IN (5900, 5901, 5902, 5903)
 NOT (Image="*\\vncviewer*" OR Image="*\\vnc*")
 NOT (DestinationIp="10.*" OR DestinationIp="192.168.*" OR DestinationIp="172.16.*")
-| eval rule_id="SP-105012", mitre_technique="T1021.005", mitre_tactic="Lateral Movement", severity="HIGH", confidence="HIGH"
+| eval rule_id="SP-105012", mitre_technique="T1021.005", mitre_tactic="Lateral Movement", severity="HIGH", confidence=78
 | table _time, host, Image, DestinationIp, DestinationPort, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -113,7 +113,7 @@ NOT (DestinationIp="10.*" OR DestinationIp="192.168.*" OR DestinationIp="172.16.
 index=windows EventCode=1
 (ParentImage="*\\mmc.exe" OR ParentImage="*\\dllhost.exe")
 (Image="*\\cmd.exe" OR Image="*\\powershell.exe" OR Image="*\\wscript.exe")
-| eval rule_id="SP-105013", mitre_technique="T1021.003", mitre_tactic="Lateral Movement", severity="HIGH", confidence="HIGH"
+| eval rule_id="SP-105013", mitre_technique="T1021.003", mitre_tactic="Lateral Movement", severity="HIGH", confidence=78
 | table _time, host, ParentImage, Image, CommandLine, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -121,7 +121,7 @@ index=windows EventCode=1
 index=windows EventCode=4104
 (ScriptBlockText="*[activator]::CreateInstance*" OR ScriptBlockText="*Type.GetTypeFromProgID*" OR ScriptBlockText="*CreateObject*" OR ScriptBlockText="*Invoke-DCOM*")
 (ScriptBlockText="*-ComputerName*" OR ScriptBlockText="*ShellExecute*")
-| eval rule_id="SP-105014", mitre_technique="T1021.003", mitre_tactic="Lateral Movement", severity="HIGH", confidence="HIGH"
+| eval rule_id="SP-105014", mitre_technique="T1021.003", mitre_tactic="Lateral Movement", severity="HIGH", confidence=78
 | table _time, host, user, ScriptBlockText, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -129,7 +129,7 @@ index=windows EventCode=4104
 index=windows (EventCode=1 OR EventCode=4688)
 (Image="*\\tscon.exe" OR NewProcessName="*\\tscon.exe")
 NOT (User="*SYSTEM*" OR SubjectUserName="*SYSTEM*")
-| eval rule_id="SP-105015", mitre_technique="T1534", mitre_tactic="Lateral Movement", severity="CRITICAL", confidence="HIGH"
+| eval rule_id="SP-105015", mitre_technique="T1534", mitre_tactic="Lateral Movement", severity="CRITICAL", confidence=90
 | table _time, host, user, Image, CommandLine, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -139,7 +139,7 @@ LogonType IN (3, 10)
 | bin _time span=10m
 | stats count as TotalEvents values(EventCode) as EventCodes by _time, host, AccountName, IpAddress
 | where mvfind(EventCodes, "4625") > -1 AND mvfind(EventCodes, "4624") > -1
-| eval rule_id="SP-105016", mitre_technique="T1021.001", mitre_tactic="Lateral Movement", severity="CRITICAL", confidence="HIGH"
+| eval rule_id="SP-105016", mitre_technique="T1021.001", mitre_tactic="Lateral Movement", severity="CRITICAL", confidence=90
 | table _time, host, AccountName, IpAddress, TotalEvents, rule_id, severity
 | sort -_time
 
@@ -147,7 +147,7 @@ LogonType IN (3, 10)
 index=windows (EventCode=1 OR EventCode=4688)
 (Image="*\\sc.exe" OR NewProcessName="*\\sc.exe")
 CommandLine="*\\\\*" (CommandLine="*create*" OR CommandLine="*start*")
-| eval rule_id="SP-105017", mitre_technique="T1021.006", mitre_tactic="Lateral Movement", severity="HIGH", confidence="HIGH"
+| eval rule_id="SP-105017", mitre_technique="T1021.006", mitre_tactic="Lateral Movement", severity="HIGH", confidence=78
 | table _time, host, user, Image, CommandLine, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -155,7 +155,7 @@ CommandLine="*\\\\*" (CommandLine="*create*" OR CommandLine="*start*")
 index=windows EventCode=1
 ParentImage="*\\taskeng.exe" OR ParentImage="*\\svchost.exe" AND ParentCommandLine="*schedule*"
 Image="*\\wmic.exe"
-| eval rule_id="SP-105018", mitre_technique="T1047", mitre_tactic="Lateral Movement", severity="HIGH", confidence="HIGH"
+| eval rule_id="SP-105018", mitre_technique="T1047", mitre_tactic="Lateral Movement", severity="HIGH", confidence=78
 | table _time, host, ParentImage, Image, CommandLine, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -163,7 +163,7 @@ Image="*\\wmic.exe"
 index=windows (EventCode=1 OR EventCode=4688)
 (Image="*\\net.exe" OR Image="*\\net1.exe" OR NewProcessName="*\\net.exe")
 CommandLine="*use*" CommandLine="*\\\\*"
-| eval rule_id="SP-105019", mitre_technique="T1021.002", mitre_tactic="Lateral Movement", severity="HIGH", confidence="HIGH"
+| eval rule_id="SP-105019", mitre_technique="T1021.002", mitre_tactic="Lateral Movement", severity="HIGH", confidence=78
 | table _time, host, user, Image, CommandLine, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -171,7 +171,7 @@ CommandLine="*use*" CommandLine="*\\\\*"
 index=windows (EventCode=1 OR EventCode=4688)
 (Image="*\\nltest.exe" OR NewProcessName="*\\nltest.exe")
 (CommandLine="*/dclist*" OR CommandLine="*/domain_trusts*" OR CommandLine="*/trusted_domains*")
-| eval rule_id="SP-105020", mitre_technique="T1021.006", mitre_tactic="Discovery", severity="HIGH", confidence="HIGH"
+| eval rule_id="SP-105020", mitre_technique="T1021.006", mitre_tactic="Discovery", severity="HIGH", confidence=78
 | table _time, host, user, Image, CommandLine, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -179,14 +179,14 @@ index=windows (EventCode=1 OR EventCode=4688)
 index=windows EventCode=3
 DestinationPort IN (5985, 5986)
 Image="*\\powershell.exe" OR Image="*\\pwsh.exe"
-| eval rule_id="SP-105021", mitre_technique="T1021.006", mitre_tactic="Lateral Movement", severity="HIGH", confidence="HIGH"
+| eval rule_id="SP-105021", mitre_technique="T1021.006", mitre_tactic="Lateral Movement", severity="HIGH", confidence=78
 | table _time, host, Image, DestinationIp, DestinationPort, rule_id, mitre_technique, severity
 | sort -_time
 
 `comment("SP-105022 | T1021.006 | Lateral: Enter-PSSession — interactive remote PowerShell | Severity: HIGH | Confidence: HIGH")`
 index=windows EventCode=4104
 ScriptBlockText="*Enter-PSSession*" ScriptBlockText="*-ComputerName*"
-| eval rule_id="SP-105022", mitre_technique="T1021.006", mitre_tactic="Lateral Movement", severity="HIGH", confidence="HIGH"
+| eval rule_id="SP-105022", mitre_technique="T1021.006", mitre_tactic="Lateral Movement", severity="HIGH", confidence=78
 | table _time, host, user, ScriptBlockText, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -196,21 +196,21 @@ DestinationPort=3389
 | bin _time span=15m
 | stats dc(DestinationIp) as UniqueRdpTargets by _time, host
 | where UniqueRdpTargets > 3
-| eval rule_id="SP-105023", mitre_technique="T1021.001", mitre_tactic="Lateral Movement", severity="HIGH", confidence="HIGH"
+| eval rule_id="SP-105023", mitre_technique="T1021.001", mitre_tactic="Lateral Movement", severity="HIGH", confidence=78
 | table _time, host, UniqueRdpTargets, rule_id, severity
 | sort -_time
 
 `comment("SP-105024 | T1021.002 | Lateral: Impacket tool signatures — SMB lateral movement | Severity: CRITICAL | Confidence: HIGH")`
 index=windows (EventCode=1 OR EventCode=4688 OR EventCode=4104)
 (CommandLine="*impacket*" OR CommandLine="*smbexec*" OR CommandLine="*atexec*" OR CommandLine="*wmiexec*" OR ScriptBlockText="*smbexec*")
-| eval rule_id="SP-105024", mitre_technique="T1021.002", mitre_tactic="Lateral Movement", severity="CRITICAL", confidence="HIGH"
+| eval rule_id="SP-105024", mitre_technique="T1021.002", mitre_tactic="Lateral Movement", severity="CRITICAL", confidence=90
 | table _time, host, user, Image, CommandLine, rule_id, mitre_technique, severity
 | sort -_time
 
 `comment("SP-105025 | T1534 | Lateral: SharpRDP/xfreerdp lateral tool pattern | Severity: CRITICAL | Confidence: HIGH")`
 index=windows (EventCode=1 OR EventCode=4688)
 (Image="*\\SharpRDP*" OR Image="*\\xfreerdp*" OR CommandLine="*SharpRDP*" OR CommandLine="*/v:*" AND CommandLine="*/u:*" AND CommandLine="*/p:*")
-| eval rule_id="SP-105025", mitre_technique="T1534", mitre_tactic="Lateral Movement", severity="CRITICAL", confidence="HIGH"
+| eval rule_id="SP-105025", mitre_technique="T1534", mitre_tactic="Lateral Movement", severity="CRITICAL", confidence=90
 | table _time, host, user, Image, CommandLine, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -218,7 +218,7 @@ index=windows (EventCode=1 OR EventCode=4688)
 index=windows EventCode=1
 ParentImage="*\\wsmprovhost.exe"
 (Image="*\\cmd.exe" OR Image="*\\powershell.exe" OR Image="*\\whoami.exe" OR Image="*\\net.exe")
-| eval rule_id="SP-105026", mitre_technique="T1021.006", mitre_tactic="Lateral Movement", severity="HIGH", confidence="HIGH"
+| eval rule_id="SP-105026", mitre_technique="T1021.006", mitre_tactic="Lateral Movement", severity="HIGH", confidence=78
 | table _time, host, ParentImage, Image, CommandLine, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -229,7 +229,7 @@ NOT SubjectUserName="*$*"
 | bin _time span=5m
 | stats dc(IpAddress) as UniqueIPs by _time, host, AccountName
 | where UniqueIPs > 3
-| eval rule_id="SP-105027", mitre_technique="T1021.002", mitre_tactic="Lateral Movement", severity="HIGH", confidence="HIGH"
+| eval rule_id="SP-105027", mitre_technique="T1021.002", mitre_tactic="Lateral Movement", severity="HIGH", confidence=78
 | table _time, host, AccountName, UniqueIPs, rule_id, severity
 | sort -_time
 
@@ -239,14 +239,14 @@ index=windows (EventCode=4624 OR EventCode=5145)
 LogonType=3 OR AccessMask="0x2"
 | transaction host maxspan=5m
 | where eventcount > 1 AND mvfind(event_type,"logon") > -1 AND mvfind(event_type,"file_access") > -1
-| eval rule_id="SP-105028", mitre_technique="T1570", mitre_tactic="Lateral Movement", severity="HIGH", confidence="HIGH"
+| eval rule_id="SP-105028", mitre_technique="T1570", mitre_tactic="Lateral Movement", severity="HIGH", confidence=78
 | table _time, host, rule_id, severity
 | sort -_time
 
 `comment("SP-105029 | T1021.006 | Lateral: RemCom tool execution — like PsExec variant | Severity: HIGH | Confidence: HIGH")`
 index=windows (EventCode=1 OR EventCode=4688)
 (Image="*\\RemCom*" OR CommandLine="*remcom*" OR Image="*\\remcomsvc*")
-| eval rule_id="SP-105029", mitre_technique="T1021.006", mitre_tactic="Lateral Movement", severity="HIGH", confidence="HIGH"
+| eval rule_id="SP-105029", mitre_technique="T1021.006", mitre_tactic="Lateral Movement", severity="HIGH", confidence=78
 | table _time, host, user, Image, CommandLine, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -255,7 +255,7 @@ index=windows
 ((EventCode=4624 LogonType=10) OR (EventCode=1 (Image="*\\whoami.exe" OR Image="*\\ipconfig.exe" OR Image="*\\net.exe")))
 | transaction host maxspan=10m
 | where eventcount > 1
-| eval rule_id="SP-105030", mitre_technique="T1021.001", mitre_tactic="Lateral Movement", severity="CRITICAL", confidence="HIGH"
+| eval rule_id="SP-105030", mitre_technique="T1021.001", mitre_tactic="Lateral Movement", severity="CRITICAL", confidence=90
 | table _time, host, rule_id, severity
 | sort -_time
 
@@ -263,7 +263,7 @@ index=windows
 index=windows EventCode=4624
 LogonType=3
 NOT SubjectUserName IN ("Administrator", "*$*", "SYSTEM", "ANONYMOUS LOGON", "LOCAL SERVICE", "NETWORK SERVICE")
-| eval rule_id="SP-105031", mitre_technique="T1021.002", mitre_tactic="Lateral Movement", severity="MEDIUM", confidence="MEDIUM"
+| eval rule_id="SP-105031", mitre_technique="T1021.002", mitre_tactic="Lateral Movement", severity="MEDIUM", confidence=62
 | table _time, host, AccountName, IpAddress, LogonType, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -271,7 +271,7 @@ NOT SubjectUserName IN ("Administrator", "*$*", "SYSTEM", "ANONYMOUS LOGON", "LO
 index=windows EventCode=1
 ParentImage="*\\dllhost.exe"
 (Image="*\\cmd.exe" OR Image="*\\powershell.exe")
-| eval rule_id="SP-105032", mitre_technique="T1021.003", mitre_tactic="Lateral Movement", severity="HIGH", confidence="HIGH"
+| eval rule_id="SP-105032", mitre_technique="T1021.003", mitre_tactic="Lateral Movement", severity="HIGH", confidence=78
 | table _time, host, ParentImage, Image, CommandLine, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -279,7 +279,7 @@ ParentImage="*\\dllhost.exe"
 index=windows EventCode=1
 ParentImage="*\\WmiPrvSE.exe"
 (Image="*\\cmd.exe" OR Image="*\\powershell.exe" OR Image="*\\cscript.exe")
-| eval rule_id="SP-105033", mitre_technique="T1047", mitre_tactic="Lateral Movement", severity="HIGH", confidence="HIGH"
+| eval rule_id="SP-105033", mitre_technique="T1047", mitre_tactic="Lateral Movement", severity="HIGH", confidence=78
 | table _time, host, ParentImage, Image, CommandLine, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -287,7 +287,7 @@ ParentImage="*\\WmiPrvSE.exe"
 index=windows (EventCode=1 OR EventCode=4688)
 (Image="*\\at.exe" OR NewProcessName="*\\at.exe")
 CommandLine="*\\\\*"
-| eval rule_id="SP-105034", mitre_technique="T1021.006", mitre_tactic="Lateral Movement", severity="HIGH", confidence="HIGH"
+| eval rule_id="SP-105034", mitre_technique="T1021.006", mitre_tactic="Lateral Movement", severity="HIGH", confidence=78
 | table _time, host, user, Image, CommandLine, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -298,7 +298,7 @@ NOT SubjectUserName="*$*"
 | bin _time span=5m
 | stats count as PipeAccess dc(RelativeTargetName) as UniquePipes by _time, host, SubjectUserName, IpAddress
 | where PipeAccess > 5
-| eval rule_id="SP-105035", mitre_technique="T1021.002", mitre_tactic="Lateral Movement", severity="MEDIUM", confidence="MEDIUM"
+| eval rule_id="SP-105035", mitre_technique="T1021.002", mitre_tactic="Lateral Movement", severity="MEDIUM", confidence=62
 | table _time, host, SubjectUserName, IpAddress, PipeAccess, UniquePipes, rule_id, severity
 | sort -_time
 
@@ -306,7 +306,7 @@ NOT SubjectUserName="*$*"
 index=windows EventCode=1
 Image="*\\cmd.exe"
 CommandLine="*tscon*" (CommandLine="*desktop*" OR CommandLine="*/dest:*")
-| eval rule_id="SP-105036", mitre_technique="T1021.001", mitre_tactic="Lateral Movement", severity="CRITICAL", confidence="HIGH"
+| eval rule_id="SP-105036", mitre_technique="T1021.001", mitre_tactic="Lateral Movement", severity="CRITICAL", confidence=90
 | table _time, host, user, Image, CommandLine, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -314,7 +314,7 @@ CommandLine="*tscon*" (CommandLine="*desktop*" OR CommandLine="*/dest:*")
 index=windows EventCode=4104
 (ScriptBlockText="*Invoke-WMICommand*" OR ScriptBlockText="*Invoke-WmiMethod*" OR ScriptBlockText="*Win32_Process*Create*")
 (ScriptBlockText="*ComputerName*" OR ScriptBlockText="*-cn *")
-| eval rule_id="SP-105037", mitre_technique="T1021.006", mitre_tactic="Lateral Movement", severity="HIGH", confidence="HIGH"
+| eval rule_id="SP-105037", mitre_technique="T1021.006", mitre_tactic="Lateral Movement", severity="HIGH", confidence=78
 | table _time, host, user, ScriptBlockText, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -322,7 +322,7 @@ index=windows EventCode=4104
 index=windows EventCode=4624
 LogonType=9
 NOT (AccountName="*$*" OR IpAddress="-")
-| eval rule_id="SP-105038", mitre_technique="T1534", mitre_tactic="Lateral Movement", severity="CRITICAL", confidence="HIGH"
+| eval rule_id="SP-105038", mitre_technique="T1534", mitre_tactic="Lateral Movement", severity="CRITICAL", confidence=90
 | table _time, host, AccountName, IpAddress, LogonType, rule_id, mitre_technique, severity
 | sort -_time
 
@@ -333,7 +333,7 @@ NOT SubjectUserName="*$*"
 | bin _time span=30m
 | stats dc(host) as UniqueHosts by _time, AccountName, IpAddress
 | where UniqueHosts > 5
-| eval rule_id="SP-105039", mitre_technique="T1021.001", mitre_tactic="Lateral Movement", severity="HIGH", confidence="MEDIUM"
+| eval rule_id="SP-105039", mitre_technique="T1021.001", mitre_tactic="Lateral Movement", severity="HIGH", confidence=62
 | table _time, AccountName, IpAddress, UniqueHosts, rule_id, severity
 | sort -_time
 
@@ -344,6 +344,6 @@ NOT (DestinationIp="10.0.0.0/8" OR DestinationIp="192.168.0.0/16" OR Destination
 | bin _time span=10m
 | stats dc(DestinationIp) as UniqueTargets by _time, host
 | where UniqueTargets > 10
-| eval rule_id="SP-105040", mitre_technique="T1021.006", mitre_tactic="Lateral Movement", severity="CRITICAL", confidence="HIGH"
+| eval rule_id="SP-105040", mitre_technique="T1021.006", mitre_tactic="Lateral Movement", severity="CRITICAL", confidence=90
 | table _time, host, UniqueTargets, rule_id, severity
 | sort -_time

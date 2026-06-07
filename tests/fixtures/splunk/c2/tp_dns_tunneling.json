@@ -1,0 +1,49 @@
+{
+  "_comment": "TRUE POSITIVE — SP-104001: DNS Tunneling / Exfiltration via long subdomains (T1071.004)",
+  "rule_id": "SP-104001",
+  "expected_result": "ALERT",
+  "severity": "MEDIUM",
+  "confidence": 62,
+  "scenario": "Malware uses DNS tunneling to exfiltrate data: encodes payload in subdomain labels of DNS queries",
+  "mitre": "T1071.004",
+  "events": [
+    {
+      "sourcetype": "zeek:dns",
+      "host": "WORKSTATION-DEV-04",
+      "query": "dGhpcyBpcyBhIHRlc3QgcGF5bG9hZCBmb3IgZG5z.c2.evil-domain.com",
+      "query_length": 64,
+      "qtype_name": "TXT",
+      "src_ip": "10.10.20.55",
+      "time": "2024-01-15T11:00:00Z"
+    },
+    {
+      "sourcetype": "zeek:dns",
+      "query": "aGVsbG8gd29ybGQgdGhpcyBpcyBhbm90aGVyIHBheWxvYWQ.c2.evil-domain.com",
+      "query_length": 68,
+      "qtype_name": "TXT",
+      "src_ip": "10.10.20.55",
+      "time": "2024-01-15T11:00:03Z"
+    }
+  ],
+  "detection_signals": {
+    "avg_subdomain_length": 66,
+    "threshold": 50,
+    "query_type": "TXT",
+    "domain_age_days": 3,
+    "queries_per_minute": 20,
+    "entropy_high": true
+  },
+  "why_tp": [
+    "Subdomain labels are 64+ characters — far exceeds normal domain labels",
+    "TXT record queries — DNS tunneling tools prefer TXT for bidirectional comms",
+    "Domain evil-domain.com is 3 days old — fresh domain for C2",
+    "High entropy in subdomain text — Base64-encoded payload confirmed",
+    "20 queries/minute — automated, not human DNS activity"
+  ],
+  "analyst_action": [
+    "Block the domain evil-domain.com in DNS security gateway",
+    "Identify all hosts querying this domain",
+    "Investigate WORKSTATION-DEV-04 for the DNS tunneling malware",
+    "Reconstruct the tunneled data by collecting and decoding all subdomain labels in sequence"
+  ]
+}

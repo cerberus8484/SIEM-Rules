@@ -311,6 +311,9 @@ def validate_rule(rule: ParsedRule) -> list[Issue]:
 def check_bug_placeholders(file_path: Path) -> list[Issue]:
     """Check file for placeholder strings that indicate unfinished rules."""
     issues: list[Issue] = []
+    # analyst_queries intentionally use example.com as user-facing templates — skip
+    if "analyst_queries" in file_path.parts:
+        return issues
     try:
         text = file_path.read_text(encoding="utf-8", errors="replace")
     except Exception:
