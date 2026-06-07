@@ -1,0 +1,265 @@
+-- QR-200001 | Cloud-AWS | Root Account Console Login
+-- MITRE: T1078.004 | Severity: CRITICAL | Confidence: 98
+-- USE CASE: Root-Login ohne MFA — sofortiger Handlungsbedarf
+SELECT
+  DATEFORMAT(devicetime, 'yyyy-MM-dd HH:mm:ss') AS "Zeit",
+  UTF8(payload) AS "Payload",
+  sourceip AS "Quell-IP",
+  username AS "User"
+FROM events
+WHERE logsourcetypename(logsourceid) ILIKE '%CloudTrail%'
+  AND UTF8(payload) ILIKE '%"eventName":"ConsoleLogin"%'
+  AND UTF8(payload) ILIKE '%"type":"Root"%'
+LAST 60 MINUTES
+
+-- QR-200002 | Cloud-AWS | Console Login ohne MFA — IAM User
+-- MITRE: T1078.004 | Severity: HIGH | Confidence: 85
+SELECT
+  DATEFORMAT(devicetime, 'yyyy-MM-dd HH:mm:ss') AS "Zeit",
+  username AS "IAM User",
+  sourceip AS "Quell-IP",
+  UTF8(payload) AS "Payload"
+FROM events
+WHERE logsourcetypename(logsourceid) ILIKE '%CloudTrail%'
+  AND UTF8(payload) ILIKE '%"eventName":"ConsoleLogin"%'
+  AND UTF8(payload) ILIKE '%"MFAUsed":"No"%'
+  AND UTF8(payload) ILIKE '%"type":"IAMUser"%'
+LAST 1440 MINUTES
+
+-- QR-200003 | Cloud-AWS | Brute Force Console Login (> 10 in 10 Min)
+-- MITRE: T1110.001 | Severity: HIGH | Confidence: 80
+SELECT
+  sourceip AS "Quell-IP",
+  username AS "User",
+  COUNT(*) AS "Fehlschläge"
+FROM events
+WHERE logsourcetypename(logsourceid) ILIKE '%CloudTrail%'
+  AND UTF8(payload) ILIKE '%"eventName":"ConsoleLogin"%'
+  AND UTF8(payload) ILIKE '%"Failure"%'
+GROUP BY sourceip, username
+HAVING COUNT(*) > 10
+LAST 10 MINUTES
+
+-- QR-200004 | Cloud-AWS | CloudTrail Logging deaktiviert
+-- MITRE: T1562.008 | Severity: CRITICAL | Confidence: 97
+SELECT
+  DATEFORMAT(devicetime, 'yyyy-MM-dd HH:mm:ss') AS "Zeit",
+  username AS "Actor",
+  sourceip AS "Quell-IP",
+  UTF8(payload) AS "Payload"
+FROM events
+WHERE logsourcetypename(logsourceid) ILIKE '%CloudTrail%'
+  AND UTF8(payload) ILIKE '%"eventName":"StopLogging"%'
+LAST 60 MINUTES
+
+-- QR-200005 | Cloud-AWS | GuardDuty Detector gelöscht
+-- MITRE: T1562.001 | Severity: CRITICAL | Confidence: 97
+SELECT
+  DATEFORMAT(devicetime, 'yyyy-MM-dd HH:mm:ss') AS "Zeit",
+  username AS "Actor",
+  sourceip AS "Quell-IP",
+  UTF8(payload) AS "Payload"
+FROM events
+WHERE logsourcetypename(logsourceid) ILIKE '%CloudTrail%'
+  AND UTF8(payload) ILIKE '%"eventName":"DeleteDetector"%'
+  AND UTF8(payload) ILIKE '%"eventSource":"guardduty.amazonaws.com"%'
+LAST 60 MINUTES
+
+-- QR-200006 | Cloud-AWS | AdministratorAccess Policy angehängt
+-- MITRE: T1098 | Severity: CRITICAL | Confidence: 95
+SELECT
+  DATEFORMAT(devicetime, 'yyyy-MM-dd HH:mm:ss') AS "Zeit",
+  username AS "Actor",
+  sourceip AS "Quell-IP",
+  UTF8(payload) AS "Payload"
+FROM events
+WHERE logsourcetypename(logsourceid) ILIKE '%CloudTrail%'
+  AND (UTF8(payload) ILIKE '%"eventName":"AttachUserPolicy"%'
+    OR UTF8(payload) ILIKE '%"eventName":"AttachRolePolicy"%'
+    OR UTF8(payload) ILIKE '%"eventName":"AttachGroupPolicy"%')
+  AND UTF8(payload) ILIKE '%AdministratorAccess%'
+LAST 60 MINUTES
+
+-- QR-200007 | Cloud-AWS | Root Access Key erstellt
+-- MITRE: T1078.004 | Severity: CRITICAL | Confidence: 99
+SELECT
+  DATEFORMAT(devicetime, 'yyyy-MM-dd HH:mm:ss') AS "Zeit",
+  username AS "Actor",
+  sourceip AS "Quell-IP",
+  UTF8(payload) AS "Payload"
+FROM events
+WHERE logsourcetypename(logsourceid) ILIKE '%CloudTrail%'
+  AND UTF8(payload) ILIKE '%"eventName":"CreateAccessKey"%'
+  AND UTF8(payload) ILIKE '%"type":"Root"%'
+LAST 60 MINUTES
+
+-- QR-200008 | Cloud-AWS | S3 Bucket Public Access gesetzt
+-- MITRE: T1537 | Severity: HIGH | Confidence: 90
+SELECT
+  DATEFORMAT(devicetime, 'yyyy-MM-dd HH:mm:ss') AS "Zeit",
+  username AS "Actor",
+  sourceip AS "Quell-IP",
+  UTF8(payload) AS "Payload"
+FROM events
+WHERE logsourcetypename(logsourceid) ILIKE '%CloudTrail%'
+  AND (UTF8(payload) ILIKE '%"eventName":"PutBucketAcl"%'
+    OR UTF8(payload) ILIKE '%"eventName":"PutBucketPublicAccessBlock"%')
+  AND (UTF8(payload) ILIKE '%public-read%'
+    OR UTF8(payload) ILIKE '%public-read-write%'
+    OR UTF8(payload) ILIKE '"false"' )
+LAST 1440 MINUTES
+
+-- QR-200009 | Cloud-AWS | Security Group 0.0.0.0/0 geöffnet
+-- MITRE: T1562.007 | Severity: HIGH | Confidence: 85
+SELECT
+  DATEFORMAT(devicetime, 'yyyy-MM-dd HH:mm:ss') AS "Zeit",
+  username AS "Actor",
+  sourceip AS "Quell-IP",
+  UTF8(payload) AS "Payload"
+FROM events
+WHERE logsourcetypename(logsourceid) ILIKE '%CloudTrail%'
+  AND UTF8(payload) ILIKE '%"eventName":"AuthorizeSecurityGroupIngress"%'
+  AND (UTF8(payload) ILIKE '%0.0.0.0/0%'
+    OR UTF8(payload) ILIKE '%::/0%')
+LAST 1440 MINUTES
+
+-- QR-200010 | Cloud-AWS | KMS Key für Löschung vorgemerkt
+-- MITRE: T1485 | Severity: CRITICAL | Confidence: 90
+SELECT
+  DATEFORMAT(devicetime, 'yyyy-MM-dd HH:mm:ss') AS "Zeit",
+  username AS "Actor",
+  sourceip AS "Quell-IP",
+  UTF8(payload) AS "Payload"
+FROM events
+WHERE logsourcetypename(logsourceid) ILIKE '%CloudTrail%'
+  AND UTF8(payload) ILIKE '%"eventName":"ScheduleKeyDeletion"%'
+LAST 60 MINUTES
+
+-- QR-200011 | Cloud-AWS | Secrets Manager — Secret ausgelesen
+-- MITRE: T1552.001 | Severity: HIGH | Confidence: 80
+SELECT
+  DATEFORMAT(devicetime, 'yyyy-MM-dd HH:mm:ss') AS "Zeit",
+  username AS "Actor",
+  sourceip AS "Quell-IP",
+  UTF8(payload) AS "Payload"
+FROM events
+WHERE logsourcetypename(logsourceid) ILIKE '%CloudTrail%'
+  AND UTF8(payload) ILIKE '%"eventName":"GetSecretValue"%'
+  AND UTF8(payload) ILIKE '%secretsmanager.amazonaws.com%'
+LAST 1440 MINUTES
+
+-- QR-200012 | Cloud-AWS | VPC Flow Logs deaktiviert
+-- MITRE: T1562.008 | Severity: HIGH | Confidence: 95
+SELECT
+  DATEFORMAT(devicetime, 'yyyy-MM-dd HH:mm:ss') AS "Zeit",
+  username AS "Actor",
+  sourceip AS "Quell-IP",
+  UTF8(payload) AS "Payload"
+FROM events
+WHERE logsourcetypename(logsourceid) ILIKE '%CloudTrail%'
+  AND UTF8(payload) ILIKE '%"eventName":"DeleteFlowLogs"%'
+LAST 60 MINUTES
+
+-- QR-200013 | Cloud-AWS | AWS Config Recorder gestoppt
+-- MITRE: T1562.001 | Severity: CRITICAL | Confidence: 97
+SELECT
+  DATEFORMAT(devicetime, 'yyyy-MM-dd HH:mm:ss') AS "Zeit",
+  username AS "Actor",
+  sourceip AS "Quell-IP",
+  UTF8(payload) AS "Payload"
+FROM events
+WHERE logsourcetypename(logsourceid) ILIKE '%CloudTrail%'
+  AND UTF8(payload) ILIKE '%"eventName":"StopConfigurationRecorder"%'
+LAST 60 MINUTES
+
+-- QR-200014 | Cloud-AWS | MFA-Gerät deaktiviert oder gelöscht
+-- MITRE: T1556 | Severity: HIGH | Confidence: 92
+SELECT
+  DATEFORMAT(devicetime, 'yyyy-MM-dd HH:mm:ss') AS "Zeit",
+  username AS "Actor",
+  sourceip AS "Quell-IP",
+  UTF8(payload) AS "Payload"
+FROM events
+WHERE logsourcetypename(logsourceid) ILIKE '%CloudTrail%'
+  AND (UTF8(payload) ILIKE '%"eventName":"DeleteVirtualMFADevice"%'
+    OR UTF8(payload) ILIKE '%"eventName":"DeactivateMFADevice"%')
+LAST 1440 MINUTES
+
+-- QR-200015 | Cloud-AWS | SSM SendCommand — Remote Code Execution
+-- MITRE: T1651 | Severity: HIGH | Confidence: 75
+SELECT
+  DATEFORMAT(devicetime, 'yyyy-MM-dd HH:mm:ss') AS "Zeit",
+  username AS "Actor",
+  sourceip AS "Quell-IP",
+  UTF8(payload) AS "Payload"
+FROM events
+WHERE logsourcetypename(logsourceid) ILIKE '%CloudTrail%'
+  AND UTF8(payload) ILIKE '%"eventName":"SendCommand"%'
+  AND UTF8(payload) ILIKE '%ssm.amazonaws.com%'
+LAST 1440 MINUTES
+
+-- QR-200016 | Cloud-AWS | RDS Snapshot öffentlich
+-- MITRE: T1537 | Severity: CRITICAL | Confidence: 92
+SELECT
+  DATEFORMAT(devicetime, 'yyyy-MM-dd HH:mm:ss') AS "Zeit",
+  username AS "Actor",
+  sourceip AS "Quell-IP",
+  UTF8(payload) AS "Payload"
+FROM events
+WHERE logsourcetypename(logsourceid) ILIKE '%CloudTrail%'
+  AND UTF8(payload) ILIKE '%"eventName":"ModifyDBSnapshotAttribute"%'
+  AND (UTF8(payload) ILIKE '%public%'
+    OR UTF8(payload) ILIKE '%all%')
+LAST 1440 MINUTES
+
+-- QR-200017 | Cloud-AWS | AssumeRole über Account-Grenzen hinweg
+-- MITRE: T1548 | Severity: HIGH | Confidence: 75
+SELECT
+  DATEFORMAT(devicetime, 'yyyy-MM-dd HH:mm:ss') AS "Zeit",
+  username AS "Actor",
+  sourceip AS "Quell-IP",
+  UTF8(payload) AS "Details"
+FROM events
+WHERE logsourcetypename(logsourceid) ILIKE '%CloudTrail%'
+  AND UTF8(payload) ILIKE '%"eventName":"AssumeRole"%'
+  AND UTF8(payload) ILIKE '%"type":"IAMUser"%'
+LAST 1440 MINUTES
+
+-- QR-200018 | Cloud-AWS | Route53 Record geändert (DNS Hijack)
+-- MITRE: T1584.002 | Severity: HIGH | Confidence: 80
+SELECT
+  DATEFORMAT(devicetime, 'yyyy-MM-dd HH:mm:ss') AS "Zeit",
+  username AS "Actor",
+  sourceip AS "Quell-IP",
+  UTF8(payload) AS "Payload"
+FROM events
+WHERE logsourcetypename(logsourceid) ILIKE '%CloudTrail%'
+  AND UTF8(payload) ILIKE '%"eventName":"ChangeResourceRecordSets"%'
+  AND UTF8(payload) ILIKE '%route53.amazonaws.com%'
+LAST 1440 MINUTES
+
+-- QR-200019 | Cloud-AWS | IAM Passwort-Policy abgeschwächt
+-- MITRE: T1556 | Severity: HIGH | Confidence: 90
+SELECT
+  DATEFORMAT(devicetime, 'yyyy-MM-dd HH:mm:ss') AS "Zeit",
+  username AS "Actor",
+  sourceip AS "Quell-IP",
+  UTF8(payload) AS "Payload"
+FROM events
+WHERE logsourcetypename(logsourceid) ILIKE '%CloudTrail%'
+  AND UTF8(payload) ILIKE '%"eventName":"UpdateAccountPasswordPolicy"%'
+LAST 1440 MINUTES
+
+-- QR-200020 | Cloud-AWS | Impact-Chain: GuardDuty + CloudTrail + Config deaktiviert
+-- MITRE: T1562 | Severity: CRITICAL | Confidence: 95
+SELECT
+  username AS "Actor",
+  COUNT(DISTINCT UTF8(payload)) AS "Anzahl_Aktionen"
+FROM events
+WHERE logsourcetypename(logsourceid) ILIKE '%CloudTrail%'
+  AND (UTF8(payload) ILIKE '%"eventName":"DeleteDetector"%'
+    OR UTF8(payload) ILIKE '%"eventName":"StopLogging"%'
+    OR UTF8(payload) ILIKE '%"eventName":"StopConfigurationRecorder"%')
+GROUP BY username
+HAVING COUNT(DISTINCT UTF8(payload)) >= 2
+LAST 60 MINUTES

@@ -1,0 +1,115 @@
+
+`comment("SP-201001 | Cloud-Azure | Global Administrator Rolle vergeben")`
+index=azure sourcetype="azure:aad:audit" operationName="Add member to role" "properties.targetResources{}.displayName"="Global Administrator"
+| eval rule_id="SP-201001", tactic="Privilege Escalation", technique="T1098.003", severity="CRITICAL", confidence=97
+| table _time, "properties.initiatedBy.user.userPrincipalName", "properties.targetResources{}.userPrincipalName", callerIpAddress
+
+`comment("SP-201002 | Cloud-Azure | MFA-Requirement für Nutzer deaktiviert")`
+index=azure sourcetype="azure:aad:audit" operationName="Update user" "properties.modifiedProperties{}.displayName"="StrongAuthenticationRequirements"
+| eval rule_id="SP-201002", tactic="Persistence", technique="T1556", severity="CRITICAL", confidence=95
+| table _time, "properties.initiatedBy.user.userPrincipalName", "properties.targetResources{}.userPrincipalName", callerIpAddress
+
+`comment("SP-201003 | Cloud-Azure | Conditional Access Policy geändert oder gelöscht")`
+index=azure sourcetype="azure:aad:audit" (operationName="Update conditional access policy" OR operationName="Delete conditional access policy")
+| eval rule_id="SP-201003", tactic="Defense Evasion", technique="T1556", severity="HIGH", confidence=92
+| table _time, operationName, "properties.initiatedBy.user.userPrincipalName", callerIpAddress, "properties.targetResources{}.displayName"
+
+`comment("SP-201004 | Cloud-Azure | Neuer Service Principal / App Registration erstellt")`
+index=azure sourcetype="azure:aad:audit" (operationName="Add service principal" OR operationName="Add application")
+| eval rule_id="SP-201004", tactic="Persistence", technique="T1136.003", severity="MEDIUM", confidence=70
+| table _time, operationName, "properties.initiatedBy.user.userPrincipalName", "properties.targetResources{}.displayName", callerIpAddress
+
+`comment("SP-201005 | Cloud-Azure | OAuth App-Consent von Nutzer gewährt (Admin-Scope)")`
+index=azure sourcetype="azure:aad:audit" operationName="Consent to application"
+| where match(properties, "(?i)mail\.read|calendars\.read\|files\.read|user\.read\.all|directory\.read\.all")
+| eval rule_id="SP-201005", tactic="Persistence", technique="T1528", severity="HIGH", confidence=80
+| table _time, "properties.initiatedBy.user.userPrincipalName", "properties.targetResources{}.displayName", callerIpAddress, properties
+
+`comment("SP-201006 | Cloud-Azure | Passwort-Spray — viele Fehlschläge von einer IP")`
+index=azure sourcetype="azure:aad:signin" properties.status.errorCode=50126
+| bin _time span=5m
+| stats dc("properties.userPrincipalName") as uniqueUsers count by _time, callerIpAddress
+| where uniqueUsers >= 10
+| eval rule_id="SP-201006", tactic="Credential Access", technique="T1110.003", severity="CRITICAL", confidence=90
+
+`comment("SP-201007 | Cloud-Azure | Unmögliche Reise — Login von zwei Standorten in kurzer Zeit")`
+index=azure sourcetype="azure:aad:signin" properties.conditionalAccessStatus!=notApplied
+| eventstats latest(callerIpAddress) as prevIP latest(_time) as prevTime by "properties.userPrincipalName"
+| where callerIpAddress != prevIP AND (_time - prevTime) < 3600
+| eval rule_id="SP-201007", tactic="Initial Access", technique="T1078.004", severity="HIGH", confidence=75
+| table _time, "properties.userPrincipalName", callerIpAddress, prevIP, "properties.location.city"
+
+`comment("SP-201008 | Cloud-Azure | Token-Diebstahl — Sign-in ohne bekanntes Gerät mit Refresh Token")`
+index=azure sourcetype="azure:aad:signin" "properties.authenticationMethodsUsed"=refreshToken "properties.deviceDetail.deviceId"=""
+| eval rule_id="SP-201008", tactic="Credential Access", technique="T1528", severity="HIGH", confidence=78
+| table _time, "properties.userPrincipalName", callerIpAddress, "properties.clientAppUsed", "properties.location.city"
+
+`comment("SP-201009 | Cloud-Azure | Privileged Identity Management (PIM) Aktivierung außerhalb Geschäftszeiten")`
+index=azure sourcetype="azure:aad:audit" operationName="Add eligible member to role in PIM completed"
+| eval hour=tonumber(strftime(_time, "%H"))
+| where hour < 7 OR hour > 19
+| eval rule_id="SP-201009", tactic="Privilege Escalation", technique="T1098.003", severity="HIGH", confidence=72
+| table _time, hour, "properties.initiatedBy.user.userPrincipalName", "properties.targetResources{}.displayName", callerIpAddress
+
+`comment("SP-201010 | Cloud-Azure | Neuer Federated Identity Credential erstellt (Backdoor)")`
+index=azure sourcetype="azure:aad:audit" operationName="Update application - Certificates and secrets management"
+| eval rule_id="SP-201010", tactic="Persistence", technique="T1550.001", severity="HIGH", confidence=82
+| table _time, "properties.initiatedBy.user.userPrincipalName", "properties.targetResources{}.displayName", callerIpAddress
+
+`comment("SP-201011 | Cloud-Azure | Nutzer-Account deaktiviert dann sofort reaktiviert (Covering Tracks)")`
+index=azure sourcetype="azure:aad:audit" (operationName="Disable account" OR operationName="Enable account")
+| transaction "properties.targetResources{}.userPrincipalName" maxspan=10m
+| where eventcount >= 2
+| eval rule_id="SP-201011", tactic="Defense Evasion", technique="T1070", severity="MEDIUM", confidence=65
+| table _time, "properties.targetResources{}.userPrincipalName", "properties.initiatedBy.user.userPrincipalName"
+
+`comment("SP-201012 | Cloud-Azure | Massenhafte Passwort-Resets durch einen Admin")`
+index=azure sourcetype="azure:aad:audit" (operationName="Reset user password" OR operationName="Change user password")
+| bin _time span=10m
+| stats count dc("properties.targetResources{}.userPrincipalName") as targets by _time, "properties.initiatedBy.user.userPrincipalName"
+| where targets > 10
+| eval rule_id="SP-201012", tactic="Impact", technique="T1531", severity="HIGH", confidence=80
+
+`comment("SP-201013 | Cloud-Azure | Guest User hinzugefügt (External Access)")`
+index=azure sourcetype="azure:aad:audit" operationName="Invite external user" OR operationName="Add user"
+| where match("properties.targetResources{}.userPrincipalName", "#EXT#")
+| eval rule_id="SP-201013", tactic="Initial Access", technique="T1078.004", severity="MEDIUM", confidence=60
+| table _time, "properties.initiatedBy.user.userPrincipalName", "properties.targetResources{}.userPrincipalName", callerIpAddress
+
+`comment("SP-201014 | Cloud-Azure | App-Berechtigung mit hohem Scope gewährt (app2app)")`
+index=azure sourcetype="azure:aad:audit" operationName="Add app role assignment to service principal"
+| where match(properties, "(?i)application.*mail|directory.*all|user.*all|full_access_as_app")
+| eval rule_id="SP-201014", tactic="Persistence", technique="T1528", severity="HIGH", confidence=82
+| table _time, "properties.initiatedBy.user.userPrincipalName", "properties.targetResources{}.displayName", callerIpAddress
+
+`comment("SP-201015 | Cloud-Azure | Azure AD Connect / Sync Konfiguration geändert")`
+index=azure sourcetype="azure:aad:audit" (operationName="Update DirSync enabled" OR operationName="Set DirSync")
+| eval rule_id="SP-201015", tactic="Persistence", technique="T1556.007", severity="CRITICAL", confidence=90
+| table _time, operationName, "properties.initiatedBy.user.userPrincipalName", callerIpAddress
+
+`comment("SP-201016 | Cloud-Azure | Login von Anonymous/Tor-IP laut Azure Risky Sign-in")`
+index=azure sourcetype="azure:aad:signin" "properties.riskEventTypes{}"="anonymizedIPAddress" OR "properties.riskState"="atRisk"
+| eval rule_id="SP-201016", tactic="Initial Access", technique="T1078.004", severity="HIGH", confidence=85
+| table _time, "properties.userPrincipalName", callerIpAddress, "properties.riskEventTypes{}", "properties.riskLevelDuringSignIn"
+
+`comment("SP-201017 | Cloud-Azure | Device-Join in Azure AD von unbekanntem System")`
+index=azure sourcetype="azure:aad:audit" operationName="Register device"
+| where NOT match("properties.targetResources{}.displayName", "(?i)corp|domain|company-")
+| eval rule_id="SP-201017", tactic="Persistence", technique="T1098", severity="MEDIUM", confidence=60
+| table _time, "properties.initiatedBy.user.userPrincipalName", "properties.targetResources{}.displayName", callerIpAddress
+
+`comment("SP-201018 | Cloud-Azure | Named Location (Whitelist IP) geändert")`
+index=azure sourcetype="azure:aad:audit" (operationName="Update named location" OR operationName="Add named location")
+| eval rule_id="SP-201018", tactic="Defense Evasion", technique="T1562", severity="HIGH", confidence=85
+| table _time, operationName, "properties.initiatedBy.user.userPrincipalName", callerIpAddress
+
+`comment("SP-201019 | Cloud-Azure | Sign-in in Legacy-Auth-Protokoll (SMTP Auth, IMAP)")`
+index=azure sourcetype="azure:aad:signin" "properties.clientAppUsed" IN ("SMTP Auth", "IMAP4", "POP3", "Exchange ActiveSync", "Outlook 2010")
+| eval rule_id="SP-201019", tactic="Initial Access", technique="T1078", severity="MEDIUM", confidence=68
+| table _time, "properties.userPrincipalName", "properties.clientAppUsed", callerIpAddress, "properties.location.city"
+
+`comment("SP-201020 | Cloud-Azure | High-Privilege Roles direkt (nicht via PIM) zugewiesen")`
+index=azure sourcetype="azure:aad:audit" operationName="Add member to role"
+| where NOT match(operationName, "(?i)PIM|eligible|activate") AND match("properties.targetResources{}.displayName", "(?i)Global Admin|Security Admin|Exchange Admin|SharePoint Admin|Privileged Auth")
+| eval rule_id="SP-201020", tactic="Privilege Escalation", technique="T1098.003", severity="CRITICAL", confidence=95
+| table _time, "properties.initiatedBy.user.userPrincipalName", "properties.targetResources{}.displayName", callerIpAddress

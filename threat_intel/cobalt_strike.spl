@@ -1,0 +1,74 @@
+
+`comment("SP-600001 | ThreatIntel-CS | Cobalt Strike Named Pipe — Standard-Signaturen")`
+index=windows (EventCode=17 OR EventCode=18)
+| where match(PipeName, "(?i)(MSSE-[0-9]+-server|postex_[0-9]+|msagent_[0-9]+|status_[0-9]+|mojo\.[0-9]+\.[0-9]+\.[0-9]+|SearchTextHarvester|DserNamePipe|spoolss|netlogon|samr|lsarpc|ntsvcs|scerpc|browser)")
+| eval rule_id="SP-600001", tactic="Command and Control", technique="T1071", severity="CRITICAL", confidence=92
+| table _time, host, Image, PipeName, EventCode
+
+`comment("SP-600002 | ThreatIntel-CS | Cobalt Strike Default Beacon HTTP User-Agent")`
+index=windows EventCode=3
+| where match(UserAgent, "(?i)(Mozilla/5\.0 \(compatible; MSIE [0-9]+\.[0-9]+; Windows NT [0-9]+\.[0-9]+; Trident/[0-9]+\.[0-9]+\))")
+| eval rule_id="SP-600002", tactic="Command and Control", technique="T1071.001", severity="HIGH", confidence=78
+| table _time, host, Image, DestinationIp, DestinationPort, UserAgent
+
+`comment("SP-600003 | ThreatIntel-CS | Cobalt Strike Teamserver Default Port 50050")`
+index=network (sourcetype="cisco:asa" OR sourcetype="paloalto:firewall" OR sourcetype="zeek:conn")
+| where dport=50050 AND NOT match(src, "^(10\.|192\.168\.|172\.(1[6-9]|2[0-9]|3[01])\.)")
+| eval rule_id="SP-600003", tactic="Command and Control", technique="T1571", severity="CRITICAL", confidence=90
+| table _time, host, src, dst, dport, proto
+
+`comment("SP-600004 | ThreatIntel-CS | Cobalt Strike Artifact Kit — Payload-Staging aus Temp")`
+index=windows EventCode=1
+| where match(Image, "(?i)^(C:\\Windows\\Temp\\|C:\\Users\\.*\\AppData\\Local\\Temp\\).*\.(exe|dll|bat)$") AND match(ParentImage, "(?i)(rundll32|regsvr32|mshta|wscript|cscript|powershell|cmd)")
+| eval rule_id="SP-600004", tactic="Defense Evasion", technique="T1055", severity="CRITICAL", confidence=88
+| table _time, host, ParentImage, Image, CommandLine
+
+`comment("SP-600005 | ThreatIntel-CS | Cobalt Strike Process Injection via CreateRemoteThread")`
+index=windows EventCode=8
+| where match(TargetImage, "(?i)(svchost|explorer|lsass|winlogon|csrss|spoolsv|services)")
+AND NOT match(SourceImage, "(?i)(MsMpEng|SecurityHealthService|SentinelOne|CrowdStrike|Sophos)")
+| eval rule_id="SP-600005", tactic="Defense Evasion", technique="T1055.003", severity="CRITICAL", confidence=90
+| table _time, host, SourceImage, TargetImage, StartModule, StartFunction
+
+`comment("SP-600006 | ThreatIntel-CS | Cobalt Strike PPID-Spoofing — unerwarteter Parent")`
+index=windows EventCode=1
+| where match(ParentImage, "(?i)explorer\.exe") AND match(Image, "(?i)(rundll32|regsvr32|mshta|wscript|powershell)") AND match(CommandLine, "(?i)(-e |-enc |-EncodedCommand|IEX|http|DownloadString)")
+| eval rule_id="SP-600006", tactic="Defense Evasion", technique="T1134.004", severity="HIGH", confidence=85
+| table _time, host, ParentImage, Image, CommandLine
+
+`comment("SP-600007 | ThreatIntel-CS | Cobalt Strike Jump psexec (T1570)")`
+index=windows (EventCode=7045 OR EventCode=4697)
+| where match(ServiceFileName, "(?i)(\\\\ADMIN\$\\\\[0-9a-f]{8}\.exe|\\\\[A-Z]\$\\\\windows\\\\[0-9a-f]{8})")
+| eval rule_id="SP-600007", tactic="Lateral Movement", technique="T1570", severity="CRITICAL", confidence=92
+| table _time, host, ServiceName, ServiceFileName, SubjectUserName
+
+`comment("SP-600008 | ThreatIntel-CS | Cobalt Strike Malleable-C2 — HTTP URI mit zufälligem Ressourcenpfad")`
+index=network (sourcetype="bluecoat:proxysg" OR sourcetype="squid" OR sourcetype="zeek:http")
+| where match(uri_path, "^/[A-Za-z0-9]{4,8}\.(jpg|gif|png|ico|css|js)$") AND method="GET" AND cs_bytes < 200 AND sc_bytes BETWEEN 100 AND 500
+| eval rule_id="SP-600008", tactic="Command and Control", technique="T1071.001", severity="HIGH", confidence=75
+| table _time, host, src, cs_host, uri_path, cs_bytes, sc_bytes
+
+`comment("SP-600009 | ThreatIntel-CS | Cobalt Strike Token Impersonation (SeDebugPrivilege + Delegation)")`
+index=windows EventCode=4672
+| where match(PrivilegeList, "(?i)(SeDebugPrivilege|SeImpersonatePrivilege|SeAssignPrimaryTokenPrivilege)")
+AND NOT match(SubjectUserName, "(?i)(SYSTEM|LOCAL SERVICE|NETWORK SERVICE|.*\$)") AND NOT match(SubjectUserName, "(?i)(Administrator).*@.*corp")
+| eval rule_id="SP-600009", tactic="Privilege Escalation", technique="T1134", severity="HIGH", confidence=80
+| table _time, host, SubjectUserName, PrivilegeList
+
+`comment("SP-600010 | ThreatIntel-CS | Cobalt Strike Execute-Assembly — clr.dll in ungewöhnlichem Prozess geladen")`
+index=windows EventCode=7
+| where match(ImageLoaded, "(?i)clr\.dll|clrjit\.dll") AND NOT match(Image, "(?i)(powershell|dotnet|msbuild|csc|vbc|jsc|microsoft\.build)")
+| eval rule_id="SP-600010", tactic="Defense Evasion", technique="T1055.004", severity="HIGH", confidence=82
+| table _time, host, Image, ImageLoaded, ProcessId
+
+`comment("SP-600011 | ThreatIntel-CS | Cobalt Strike Screenshot / Keylogger via GetForegroundWindow")`
+index=windows EventCode=10
+| where match(CallTrace, "(?i)(GetForegroundWindow|GetWindowText|SendInput|SetWindowsHookEx)")
+| eval rule_id="SP-600011", tactic="Collection", technique="T1056", severity="HIGH", confidence=78
+| table _time, host, SourceImage, TargetImage, GrantedAccess, CallTrace
+
+`comment("SP-600012 | ThreatIntel-CS | Cobalt Strike SMB Beacon — named pipe über SMB zu lateralem Host")`
+index=windows EventCode IN (17,18)
+| where match(PipeName, "(?i)(\\\\\\\\[A-Za-z0-9-]+\\\\pipe\\\\MSSE|\\\\\\\\[A-Za-z0-9-]+\\\\pipe\\\\postex)")
+| eval rule_id="SP-600012", tactic="Lateral Movement / C2", technique="T1021.002", severity="CRITICAL", confidence=92
+| table _time, host, Image, PipeName, EventCode

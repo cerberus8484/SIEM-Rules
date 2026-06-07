@@ -1,0 +1,211 @@
+-- QR-201001 | Cloud-Azure | Global Administrator Rolle zugewiesen
+-- MITRE: T1098.003 | Severity: CRITICAL | Confidence: 97
+SELECT
+  DATEFORMAT(devicetime, 'yyyy-MM-dd HH:mm:ss') AS "Zeit",
+  username AS "Actor",
+  sourceip AS "Quell-IP",
+  UTF8(payload) AS "Payload"
+FROM events
+WHERE logsourcetypename(logsourceid) ILIKE '%Azure%'
+  AND UTF8(payload) ILIKE '%Add member to role%'
+  AND UTF8(payload) ILIKE '%Global Administrator%'
+LAST 1440 MINUTES
+
+-- QR-201002 | Cloud-Azure | MFA-Requirement für User deaktiviert
+-- MITRE: T1556 | Severity: CRITICAL | Confidence: 95
+SELECT
+  DATEFORMAT(devicetime, 'yyyy-MM-dd HH:mm:ss') AS "Zeit",
+  username AS "Actor",
+  sourceip AS "Quell-IP",
+  UTF8(payload) AS "Payload"
+FROM events
+WHERE logsourcetypename(logsourceid) ILIKE '%Azure%'
+  AND UTF8(payload) ILIKE '%Update user%'
+  AND UTF8(payload) ILIKE '%StrongAuthenticationRequirements%'
+LAST 1440 MINUTES
+
+-- QR-201003 | Cloud-Azure | Conditional Access Policy geändert oder gelöscht
+-- MITRE: T1556 | Severity: HIGH | Confidence: 92
+SELECT
+  DATEFORMAT(devicetime, 'yyyy-MM-dd HH:mm:ss') AS "Zeit",
+  username AS "Actor",
+  sourceip AS "Quell-IP",
+  UTF8(payload) AS "Payload"
+FROM events
+WHERE logsourcetypename(logsourceid) ILIKE '%Azure%'
+  AND (UTF8(payload) ILIKE '%Update conditional access policy%'
+    OR UTF8(payload) ILIKE '%Delete conditional access policy%')
+LAST 1440 MINUTES
+
+-- QR-201004 | Cloud-Azure | Passwort-Spray — viele verschiedene Accounts von einer IP
+-- MITRE: T1110.003 | Severity: CRITICAL | Confidence: 90
+SELECT
+  sourceip AS "Quell-IP",
+  COUNT(DISTINCT username) AS "Verschiedene_User",
+  COUNT(*) AS "Fehlschläge"
+FROM events
+WHERE logsourcetypename(logsourceid) ILIKE '%Azure%'
+  AND (UTF8(payload) ILIKE '%50126%'
+    OR UTF8(payload) ILIKE '%AADSTS50126%'
+    OR UTF8(payload) ILIKE '%InvalidUserNameOrPassword%')
+GROUP BY sourceip
+HAVING COUNT(DISTINCT username) >= 10
+LAST 10 MINUTES
+
+-- QR-201005 | Cloud-Azure | Neuer Service Principal / App erstellt
+-- MITRE: T1136.003 | Severity: MEDIUM | Confidence: 70
+SELECT
+  DATEFORMAT(devicetime, 'yyyy-MM-dd HH:mm:ss') AS "Zeit",
+  username AS "Actor",
+  sourceip AS "Quell-IP",
+  UTF8(payload) AS "Payload"
+FROM events
+WHERE logsourcetypename(logsourceid) ILIKE '%Azure%'
+  AND (UTF8(payload) ILIKE '%Add service principal%'
+    OR UTF8(payload) ILIKE '%Add application%')
+LAST 1440 MINUTES
+
+-- QR-201006 | Cloud-Azure | OAuth App Consent mit hohem Scope
+-- MITRE: T1528 | Severity: HIGH | Confidence: 88
+SELECT
+  DATEFORMAT(devicetime, 'yyyy-MM-dd HH:mm:ss') AS "Zeit",
+  username AS "Actor",
+  sourceip AS "Quell-IP",
+  UTF8(payload) AS "Payload"
+FROM events
+WHERE logsourcetypename(logsourceid) ILIKE '%Azure%'
+  AND UTF8(payload) ILIKE '%Consent to application%'
+  AND (UTF8(payload) ILIKE '%Mail.ReadWrite%'
+    OR UTF8(payload) ILIKE '%Files.ReadWrite.All%'
+    OR UTF8(payload) ILIKE '%full_access_as_app%'
+    OR UTF8(payload) ILIKE '%Directory.ReadWrite.All%')
+LAST 1440 MINUTES
+
+-- QR-201007 | Cloud-Azure | PIM Privileged Role Aktivierung außerhalb Geschäftszeiten
+-- MITRE: T1098.003 | Severity: HIGH | Confidence: 72
+SELECT
+  DATEFORMAT(devicetime, 'yyyy-MM-dd HH:mm:ss') AS "Zeit",
+  username AS "Actor",
+  sourceip AS "Quell-IP",
+  UTF8(payload) AS "Payload",
+  EXTRACT(HOUR FROM devicetime) AS "Stunde"
+FROM events
+WHERE logsourcetypename(logsourceid) ILIKE '%Azure%'
+  AND UTF8(payload) ILIKE '%eligible member to role in PIM%'
+  AND (EXTRACT(HOUR FROM devicetime) < 7 OR EXTRACT(HOUR FROM devicetime) > 19)
+LAST 1440 MINUTES
+
+-- QR-201008 | Cloud-Azure | Sign-in mit Legacy-Protokoll (IMAP/SMTP/POP3)
+-- MITRE: T1078 | Severity: MEDIUM | Confidence: 68
+SELECT
+  DATEFORMAT(devicetime, 'yyyy-MM-dd HH:mm:ss') AS "Zeit",
+  username AS "User",
+  sourceip AS "Quell-IP",
+  UTF8(payload) AS "Payload"
+FROM events
+WHERE logsourcetypename(logsourceid) ILIKE '%Azure%'
+  AND (UTF8(payload) ILIKE '%SMTP Auth%'
+    OR UTF8(payload) ILIKE '%IMAP4%'
+    OR UTF8(payload) ILIKE '%POP3%'
+    OR UTF8(payload) ILIKE '%Exchange ActiveSync%')
+  AND UTF8(payload) ILIKE '%UserLoggedIn%'
+LAST 1440 MINUTES
+
+-- QR-201009 | Cloud-Azure | Massenhafte Passwort-Resets durch einen Admin
+-- MITRE: T1531 | Severity: HIGH | Confidence: 80
+SELECT
+  username AS "Admin",
+  COUNT(DISTINCT UTF8(payload)) AS "Anzahl_Resets"
+FROM events
+WHERE logsourcetypename(logsourceid) ILIKE '%Azure%'
+  AND (UTF8(payload) ILIKE '%Reset user password%'
+    OR UTF8(payload) ILIKE '%Change user password%')
+GROUP BY username
+HAVING COUNT(DISTINCT UTF8(payload)) > 10
+LAST 60 MINUTES
+
+-- QR-201010 | Cloud-Azure | Risky Sign-in — anonymisierte IP laut Azure AD
+-- MITRE: T1078.004 | Severity: HIGH | Confidence: 85
+SELECT
+  DATEFORMAT(devicetime, 'yyyy-MM-dd HH:mm:ss') AS "Zeit",
+  username AS "User",
+  sourceip AS "Quell-IP",
+  UTF8(payload) AS "Payload"
+FROM events
+WHERE logsourcetypename(logsourceid) ILIKE '%Azure%'
+  AND (UTF8(payload) ILIKE '%anonymizedIPAddress%'
+    OR UTF8(payload) ILIKE '%riskState":"atRisk%'
+    OR UTF8(payload) ILIKE '%riskLevelDuringSignIn":"high%')
+LAST 1440 MINUTES
+
+-- QR-201011 | Cloud-Azure | Neue Mailbox-Delegation gesetzt
+-- MITRE: T1098 | Severity: MEDIUM | Confidence: 70
+SELECT
+  DATEFORMAT(devicetime, 'yyyy-MM-dd HH:mm:ss') AS "Zeit",
+  username AS "Actor",
+  sourceip AS "Quell-IP",
+  UTF8(payload) AS "Payload"
+FROM events
+WHERE logsourcetypename(logsourceid) ILIKE '%Azure%'
+  AND (UTF8(payload) ILIKE '%Add-MailboxPermission%'
+    OR UTF8(payload) ILIKE '%Add-RecipientPermission%')
+  AND (UTF8(payload) ILIKE '%FullAccess%'
+    OR UTF8(payload) ILIKE '%SendAs%')
+LAST 1440 MINUTES
+
+-- QR-201012 | Cloud-Azure | Named Location (IP Whitelist) geändert
+-- MITRE: T1562 | Severity: HIGH | Confidence: 85
+SELECT
+  DATEFORMAT(devicetime, 'yyyy-MM-dd HH:mm:ss') AS "Zeit",
+  username AS "Actor",
+  sourceip AS "Quell-IP",
+  UTF8(payload) AS "Payload"
+FROM events
+WHERE logsourcetypename(logsourceid) ILIKE '%Azure%'
+  AND (UTF8(payload) ILIKE '%Update named location%'
+    OR UTF8(payload) ILIKE '%Add named location%'
+    OR UTF8(payload) ILIKE '%Delete named location%')
+LAST 1440 MINUTES
+
+-- QR-201013 | Cloud-Azure | Externes Gastnutzer-Konto eingeladen
+-- MITRE: T1078.004 | Severity: MEDIUM | Confidence: 60
+SELECT
+  DATEFORMAT(devicetime, 'yyyy-MM-dd HH:mm:ss') AS "Zeit",
+  username AS "Actor",
+  sourceip AS "Quell-IP",
+  UTF8(payload) AS "Ziel"
+FROM events
+WHERE logsourcetypename(logsourceid) ILIKE '%Azure%'
+  AND UTF8(payload) ILIKE '%Invite external user%'
+LAST 1440 MINUTES
+
+-- QR-201014 | Cloud-Azure | Azure AD Connect Sync konfiguriert
+-- MITRE: T1556.007 | Severity: CRITICAL | Confidence: 90
+SELECT
+  DATEFORMAT(devicetime, 'yyyy-MM-dd HH:mm:ss') AS "Zeit",
+  username AS "Actor",
+  sourceip AS "Quell-IP",
+  UTF8(payload) AS "Payload"
+FROM events
+WHERE logsourcetypename(logsourceid) ILIKE '%Azure%'
+  AND (UTF8(payload) ILIKE '%Update DirSync enabled%'
+    OR UTF8(payload) ILIKE '%Set DirSync%')
+LAST 1440 MINUTES
+
+-- QR-201015 | Cloud-Azure | Privileged Role direkt zugewiesen (ohne PIM)
+-- MITRE: T1098.003 | Severity: CRITICAL | Confidence: 95
+SELECT
+  DATEFORMAT(devicetime, 'yyyy-MM-dd HH:mm:ss') AS "Zeit",
+  username AS "Actor",
+  sourceip AS "Quell-IP",
+  UTF8(payload) AS "Payload"
+FROM events
+WHERE logsourcetypename(logsourceid) ILIKE '%Azure%'
+  AND UTF8(payload) ILIKE '%Add member to role%'
+  AND (UTF8(payload) ILIKE '%Global Admin%'
+    OR UTF8(payload) ILIKE '%Security Admin%'
+    OR UTF8(payload) ILIKE '%Exchange Admin%'
+    OR UTF8(payload) ILIKE '%Privileged Authentication%')
+  AND UTF8(payload) NOT ILIKE '%PIM%'
+  AND UTF8(payload) NOT ILIKE '%eligible%'
+LAST 1440 MINUTES

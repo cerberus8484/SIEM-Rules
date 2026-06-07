@@ -1,0 +1,55 @@
+/* WZ-203001 | Cloud-GCP | Service Account Key erstellt
+   MITRE: T1098 | Severity: HIGH | Confidence: 85 */
+rule.groups: "gcp" AND data.gcp.protoPayload.methodName: "google.iam.admin.v1.CreateServiceAccountKey"
+
+/* WZ-203002 | Cloud-GCP | Owner/Editor IAM Rolle vergeben
+   MITRE: T1098 | Severity: CRITICAL | Confidence: 92 */
+rule.groups: "gcp" AND data.gcp.protoPayload.methodName: "SetIamPolicy" AND (data.gcp.protoPayload.request.policy.bindings.role: "roles/owner" OR data.gcp.protoPayload.request.policy.bindings.role: "roles/editor")
+
+/* WZ-203003 | Cloud-GCP | Cloud Logging Sink gelöscht
+   MITRE: T1562.008 | Severity: HIGH | Confidence: 90 */
+rule.groups: "gcp" AND data.gcp.protoPayload.methodName: (*DeleteSink* OR *ConfigServiceV2.DeleteSink*)
+
+/* WZ-203004 | Cloud-GCP | GCS Bucket öffentlich gemacht
+   MITRE: T1537 | Severity: HIGH | Confidence: 92 */
+rule.groups: "gcp" AND data.gcp.protoPayload.methodName: "storage.setIamPermissions" AND (data.gcp.protoPayload.request.policy.bindings.members: "allUsers" OR data.gcp.protoPayload.request.policy.bindings.members: "allAuthenticatedUsers")
+
+/* WZ-203005 | Cloud-GCP | KMS Crypto Key Version zerstört
+   MITRE: T1485 | Severity: CRITICAL | Confidence: 95 */
+rule.groups: "gcp" AND data.gcp.protoPayload.methodName: *DestroyCryptoKeyVersion*
+
+/* WZ-203006 | Cloud-GCP | SSH Key in Compute Metadaten gesetzt
+   MITRE: T1098.004 | Severity: HIGH | Confidence: 88 */
+rule.groups: "gcp" AND data.gcp.protoPayload.methodName: (*setMetadata* OR *setCommonInstanceMetadata*) AND (data.gcp.protoPayload.request: *ssh-rsa* OR data.gcp.protoPayload.request: *ssh-ed25519*)
+
+/* WZ-203007 | Cloud-GCP | Firewall Regel 0.0.0.0/0 erstellt
+   MITRE: T1562.007 | Severity: HIGH | Confidence: 85 */
+rule.groups: "gcp" AND data.gcp.protoPayload.methodName: *compute.firewalls.insert* AND (data.gcp.protoPayload.request: *0.0.0.0/0* OR data.gcp.protoPayload.request: *::/0*)
+
+/* WZ-203008 | Cloud-GCP | Service Account Impersonation
+   MITRE: T1548 | Severity: HIGH | Confidence: 80 */
+rule.groups: "gcp" AND data.gcp.protoPayload.methodName: ("GenerateAccessToken" OR "SignBlob" OR "SignJwt")
+
+/* WZ-203009 | Cloud-GCP | Organisations-Policy entfernt
+   MITRE: T1562 | Severity: CRITICAL | Confidence: 90 */
+rule.groups: "gcp" AND data.gcp.protoPayload.methodName: "SetOrgPolicy" AND (data.gcp.protoPayload.request: *restoreDefault* OR data.gcp.protoPayload.request: *reset*)
+
+/* WZ-203010 | Cloud-GCP | Secret Manager Secret ausgelesen
+   MITRE: T1552.001 | Severity: HIGH | Confidence: 78 */
+rule.groups: "gcp" AND data.gcp.protoPayload.methodName: "AccessSecretVersion"
+
+/* WZ-203011 | Cloud-GCP | Cloud Function erstellt oder aktualisiert
+   MITRE: T1648 | Severity: MEDIUM | Confidence: 65 */
+rule.groups: "gcp" AND data.gcp.protoPayload.methodName: (*CreateFunction* OR *UpdateFunction*)
+
+/* WZ-203012 | Cloud-GCP | GCS Bucket Versioning deaktiviert
+   MITRE: T1490 | Severity: HIGH | Confidence: 80 */
+rule.groups: "gcp" AND data.gcp.protoPayload.methodName: "storage.buckets.update" AND data.gcp.protoPayload.request: *versioning*false*
+
+/* WZ-203013 | Cloud-GCP | Pub/Sub Push auf externe URL
+   MITRE: T1048 | Severity: HIGH | Confidence: 80 */
+rule.groups: "gcp" AND data.gcp.protoPayload.methodName: (*CreateSubscription* OR *ModifyPushConfig*) AND NOT data.gcp.protoPayload.request: *googleapis.com*
+
+/* WZ-203014 | Cloud-GCP | Massenhafte List/Get API Calls — Enumeration
+   MITRE: T1580 | Severity: HIGH | Confidence: 80 */
+rule.groups: "gcp" AND (data.gcp.protoPayload.methodName: *.list* OR data.gcp.protoPayload.methodName: *.get*) AND rule.level >= 7

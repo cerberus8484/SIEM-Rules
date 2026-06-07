@@ -1,0 +1,105 @@
+
+`comment("SP-400001 | Network-Firewall | Firewall-Regel für bekannten C2-Port erstellt")`
+index=network sourcetype IN ("cisco:asa", "paloalto:firewall", "fortinet:firewall", "checkpoint:firewall")
+| where match(_raw, "(?i)(rule added|policy added|permit|allow)") AND match(_raw, "(?i)(4444|5555|50050|8888|1337)")
+| eval rule_id="SP-400001", tactic="Command and Control", technique="T1571", severity="HIGH", confidence=82
+| table _time, host, src, dst, dport, _raw
+
+`comment("SP-400002 | Network-Firewall | Ausgehende Verbindung zu bekannten Tor-Ports")`
+index=network (sourcetype="cisco:asa" OR sourcetype="paloalto:firewall" OR sourcetype="netflow")
+| where (dport IN (9001,9050,9150,9151) OR match(_raw, "(?i)\.onion"))
+| eval rule_id="SP-400002", tactic="Command and Control", technique="T1090.003", severity="HIGH", confidence=90
+| table _time, host, src, dst, dport, bytes_out, _raw
+
+`comment("SP-400003 | Network-Firewall | Massenhafte ausgehende Verbindungen (Port Scan)")`
+index=network (sourcetype="cisco:asa" OR sourcetype="paloalto:firewall")
+| where action IN ("deny","block") AND src_type!="internal"
+| bin _time span=1m
+| stats dc(dst) as unique_dst by _time, src
+| where unique_dst > 50
+| eval rule_id="SP-400003", tactic="Discovery", technique="T1046", severity="HIGH", confidence=85
+
+`comment("SP-400004 | Network-Firewall | Firewall-Regeländerung außerhalb Wartungsfenster")`
+index=network (sourcetype="cisco:asa" OR sourcetype="paloalto:firewall")
+| where match(_raw, "(?i)(configuration change|policy modified|rule added|rule deleted)")
+| eval hour=tonumber(strftime(_time, "%H"))
+| where hour < 6 OR hour > 21
+| eval rule_id="SP-400004", tactic="Defense Evasion", technique="T1562.004", severity="HIGH", confidence=78
+| table _time, hour, host, user, _raw
+
+`comment("SP-400005 | Network-Firewall | DMZ → Internes Netz direkt (East-West Lateral)")`
+index=network (sourcetype="cisco:asa" OR sourcetype="paloalto:firewall")
+| where match(src_zone, "(?i)dmz") AND match(dst_zone, "(?i)internal|trust|lan")
+| where NOT match(_raw, "(?i)deny|block|drop")
+| eval rule_id="SP-400005", tactic="Lateral Movement", technique="T1021", severity="HIGH", confidence=80
+| table _time, host, src, dst, dport, action, _raw
+
+`comment("SP-400006 | Network-Firewall | Ausgehende SMB Verbindungen (445) nach extern")`
+index=network (sourcetype="cisco:asa" OR sourcetype="paloalto:firewall")
+| where (dport=445 OR dport=139) AND NOT match(dst, "^(10\.|192\.168\.|172\.(1[6-9]|2[0-9]|3[01])\.)") AND NOT match(_raw, "deny|block")
+| eval rule_id="SP-400006", tactic="Lateral Movement / Exfiltration", technique="T1021.002", severity="HIGH", confidence=88
+| table _time, host, src, dst, dport, bytes_out, _raw
+
+`comment("SP-400007 | Network-Firewall | Große Datenmenge ausgehend (>1GB in 1h)")`
+index=network (sourcetype="cisco:asa" OR sourcetype="paloalto:firewall" OR sourcetype="netflow")
+| where action NOT IN ("deny","block","drop")
+| bin _time span=1h
+| stats sum(bytes_out) as total_bytes by _time, src, dst
+| where total_bytes > 1073741824
+| eval rule_id="SP-400007", tactic="Exfiltration", technique="T1041", severity="HIGH", confidence=80
+| eval total_gb=round(total_bytes/1073741824,2)
+
+`comment("SP-400008 | Network-Firewall | ICMP Tunnel — große ICMP Pakete (>512 Byte)")`
+index=network (sourcetype="cisco:asa" OR sourcetype="paloalto:firewall" OR sourcetype="netflow")
+| where proto="icmp" AND bytes > 512
+| bin _time span=5m
+| stats count sum(bytes) as total_bytes by _time, src, dst
+| where count > 10
+| eval rule_id="SP-400008", tactic="Command and Control", technique="T1095", severity="HIGH", confidence=78
+
+`comment("SP-400009 | Network-Firewall | Verbindung zu dynamischen DNS (DDNS) Domains")`
+index=network (sourcetype="cisco:asa" OR sourcetype="paloalto:firewall")
+| where match(dst_hostname, "(?i)\.dyndns\.|\.no-ip\.|\.ddns\.|\.hopto\.|\.zapto\.|\.serveblog\.|\.myftp\.")
+| eval rule_id="SP-400009", tactic="Command and Control", technique="T1568.001", severity="HIGH", confidence=82
+| table _time, host, src, dst_hostname, dst, dport, _raw
+
+`comment("SP-400010 | Network-Firewall | IPv6 Tunneling über IPv4 (6in4, Teredo)")`
+index=network (sourcetype="cisco:asa" OR sourcetype="paloalto:firewall")
+| where (proto=41 OR dport=3544 OR match(_raw, "(?i)teredo|6in4|isatap"))
+| eval rule_id="SP-400010", tactic="Command and Control", technique="T1572", severity="MEDIUM", confidence=70
+| table _time, host, src, dst, proto, dport, _raw
+
+`comment("SP-400011 | Network-Firewall | Verbindungen zu kurz lebenden IP-Ranges (Bulletproof Hosting)")`
+index=network (sourcetype="cisco:asa" OR sourcetype="paloalto:firewall")
+| where match(dst, "^(185\.(220|193|244|161)\.|193\.(32|148|9)\.|91\.(92|108|132)\.|45\.(142|153|154)\.)") AND NOT match(_raw, "deny|block")
+| eval rule_id="SP-400011", tactic="Command and Control", technique="T1583.003", severity="HIGH", confidence=80
+| table _time, host, src, dst, dport, bytes_out, _raw
+
+`comment("SP-400012 | Network-Firewall | Port-Hopping C2 Beaconing — gleiche Ziel-IP auf verschiedenen Ports")`
+index=network (sourcetype="cisco:asa" OR sourcetype="paloalto:firewall")
+| where NOT match(dst, "^(10\.|192\.168\.|172\.)")
+| bin _time span=10m
+| stats dc(dport) as unique_ports count by _time, src, dst
+| where unique_ports > 5 AND count > 20
+| eval rule_id="SP-400012", tactic="Command and Control", technique="T1571", severity="HIGH", confidence=80
+
+`comment("SP-400013 | Network-Firewall | Verbindung zu RDP (3389) von extern nach intern")`
+index=network (sourcetype="cisco:asa" OR sourcetype="paloalto:firewall")
+| where dport=3389 AND NOT match(src, "^(10\.|192\.168\.|172\.(1[6-9]|2[0-9]|3[01])\.)") AND NOT match(_raw, "deny|block")
+| eval rule_id="SP-400013", tactic="Initial Access / Lateral Movement", technique="T1021.001", severity="HIGH", confidence=85
+| table _time, host, src, dst, dport, _raw
+
+`comment("SP-400014 | Network-Firewall | Hochvolumige DNS Exfiltration — viele Subdomains einer Domain")`
+index=network (sourcetype="cisco:asa" OR sourcetype="paloalto:firewall")
+| where dport=53
+| rex field=dst_hostname "(?:[^.]+\.){3,}(?P<root_domain>[^.]+\.[^.]+)$"
+| bin _time span=5m
+| stats dc(dst_hostname) as subdomains count by _time, src, root_domain
+| where subdomains > 30
+| eval rule_id="SP-400014", tactic="Exfiltration / C2", technique="T1048.003", severity="HIGH", confidence=85
+
+`comment("SP-400015 | Network-Firewall | VPN-Verbindung von Land mit hohem Risiko")`
+index=network sourcetype="vpn" OR sourcetype="ssl:vpn"
+| where match(_raw, "(?i)(login|auth|connect)") AND match(src_country, "(?i)NK|North Korea|RU|Russia|IR|Iran|CN|China")
+| eval rule_id="SP-400015", tactic="Initial Access", technique="T1133", severity="HIGH", confidence=72
+| table _time, host, src, src_country, user, _raw

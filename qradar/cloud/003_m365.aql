@@ -1,0 +1,149 @@
+-- QR-202001 | Cloud-M365 | Mailbox Forwarding Rule erstellt (Exfiltration)
+-- MITRE: T1114.003 | Severity: HIGH | Confidence: 92
+SELECT
+  DATEFORMAT(devicetime, 'yyyy-MM-dd HH:mm:ss') AS "Zeit",
+  username AS "Actor",
+  sourceip AS "Quell-IP",
+  UTF8(payload) AS "Payload"
+FROM events
+WHERE logsourcetypename(logsourceid) ILIKE '%Office 365%'
+  AND (UTF8(payload) ILIKE '%New-InboxRule%'
+    OR UTF8(payload) ILIKE '%Set-InboxRule%')
+  AND (UTF8(payload) ILIKE '%ForwardTo%'
+    OR UTF8(payload) ILIKE '%RedirectTo%'
+    OR UTF8(payload) ILIKE '%ForwardAsAttachmentTo%')
+LAST 1440 MINUTES
+
+-- QR-202002 | Cloud-M365 | Externe Mailweiterleitung via Transport Rule
+-- MITRE: T1048 | Severity: CRITICAL | Confidence: 95
+SELECT
+  DATEFORMAT(devicetime, 'yyyy-MM-dd HH:mm:ss') AS "Zeit",
+  username AS "Actor",
+  sourceip AS "Quell-IP",
+  UTF8(payload) AS "Payload"
+FROM events
+WHERE logsourcetypename(logsourceid) ILIKE '%Office 365%'
+  AND (UTF8(payload) ILIKE '%New-TransportRule%'
+    OR UTF8(payload) ILIKE '%Set-TransportRule%')
+  AND (UTF8(payload) ILIKE '%@gmail.com%'
+    OR UTF8(payload) ILIKE '%@yahoo.com%'
+    OR UTF8(payload) ILIKE '%@protonmail%'
+    OR UTF8(payload) ILIKE '%@tutanota%')
+LAST 1440 MINUTES
+
+-- QR-202003 | Cloud-M365 | Massendownload aus SharePoint / OneDrive
+-- MITRE: T1039 | Severity: HIGH | Confidence: 82
+SELECT
+  username AS "User",
+  sourceip AS "Quell-IP",
+  COUNT(*) AS "Anzahl_Downloads"
+FROM events
+WHERE logsourcetypename(logsourceid) ILIKE '%Office 365%'
+  AND UTF8(payload) ILIKE '%FileDownloaded%'
+  AND (UTF8(payload) ILIKE '%SharePoint%'
+    OR UTF8(payload) ILIKE '%OneDriveForBusiness%')
+GROUP BY username, sourceip
+HAVING COUNT(*) > 100
+LAST 30 MINUTES
+
+-- QR-202004 | Cloud-M365 | Admin-Rolle zugewiesen
+-- MITRE: T1098.003 | Severity: CRITICAL | Confidence: 97
+SELECT
+  DATEFORMAT(devicetime, 'yyyy-MM-dd HH:mm:ss') AS "Zeit",
+  username AS "Actor",
+  sourceip AS "Quell-IP",
+  UTF8(payload) AS "Payload"
+FROM events
+WHERE logsourcetypename(logsourceid) ILIKE '%Office 365%'
+  AND UTF8(payload) ILIKE '%Add member to role%'
+  AND (UTF8(payload) ILIKE '%Global Admin%'
+    OR UTF8(payload) ILIKE '%Exchange Admin%'
+    OR UTF8(payload) ILIKE '%Security Admin%')
+LAST 1440 MINUTES
+
+-- QR-202005 | Cloud-M365 | OAuth App mit hohem Scope genehmigt
+-- MITRE: T1528 | Severity: HIGH | Confidence: 88
+SELECT
+  DATEFORMAT(devicetime, 'yyyy-MM-dd HH:mm:ss') AS "Zeit",
+  username AS "User",
+  sourceip AS "Quell-IP",
+  UTF8(payload) AS "Payload"
+FROM events
+WHERE logsourcetypename(logsourceid) ILIKE '%Office 365%'
+  AND UTF8(payload) ILIKE '%Consent to application%'
+  AND (UTF8(payload) ILIKE '%Mail.ReadWrite%'
+    OR UTF8(payload) ILIKE '%Files.ReadWrite.All%'
+    OR UTF8(payload) ILIKE '%full_access_as_app%')
+LAST 1440 MINUTES
+
+-- QR-202006 | Cloud-M365 | Safe Attachments / Safe Links deaktiviert
+-- MITRE: T1562 | Severity: CRITICAL | Confidence: 92
+SELECT
+  DATEFORMAT(devicetime, 'yyyy-MM-dd HH:mm:ss') AS "Zeit",
+  username AS "Actor",
+  sourceip AS "Quell-IP",
+  UTF8(payload) AS "Payload"
+FROM events
+WHERE logsourcetypename(logsourceid) ILIKE '%Office 365%'
+  AND (UTF8(payload) ILIKE '%Set-SafeAttachmentPolicy%'
+    OR UTF8(payload) ILIKE '%Set-SafeLinksPolicy%')
+  AND (UTF8(payload) ILIKE '%Disable%'
+    OR UTF8(payload) ILIKE '%Action%Allow%')
+LAST 1440 MINUTES
+
+-- QR-202007 | Cloud-M365 | Massenhafte E-Mail-Löschungen
+-- MITRE: T1070.008 | Severity: HIGH | Confidence: 80
+SELECT
+  username AS "User",
+  sourceip AS "Quell-IP",
+  COUNT(*) AS "Anzahl_Loeschungen"
+FROM events
+WHERE logsourcetypename(logsourceid) ILIKE '%Office 365%'
+  AND (UTF8(payload) ILIKE '%HardDelete%'
+    OR UTF8(payload) ILIKE '%MoveToDeletedItems%')
+  AND UTF8(payload) ILIKE '%Exchange%'
+GROUP BY username, sourceip
+HAVING COUNT(*) > 100
+LAST 30 MINUTES
+
+-- QR-202008 | Cloud-M365 | DLP Policy deaktiviert
+-- MITRE: T1562 | Severity: HIGH | Confidence: 90
+SELECT
+  DATEFORMAT(devicetime, 'yyyy-MM-dd HH:mm:ss') AS "Zeit",
+  username AS "Actor",
+  sourceip AS "Quell-IP",
+  UTF8(payload) AS "Payload"
+FROM events
+WHERE logsourcetypename(logsourceid) ILIKE '%Office 365%'
+  AND (UTF8(payload) ILIKE '%Remove-DlpCompliancePolicy%'
+    OR UTF8(payload) ILIKE '%Set-DlpCompliancePolicy%')
+LAST 1440 MINUTES
+
+-- QR-202009 | Cloud-M365 | Mailbox Audit Logging deaktiviert
+-- MITRE: T1562.008 | Severity: HIGH | Confidence: 92
+SELECT
+  DATEFORMAT(devicetime, 'yyyy-MM-dd HH:mm:ss') AS "Zeit",
+  username AS "Actor",
+  sourceip AS "Quell-IP",
+  UTF8(payload) AS "Payload"
+FROM events
+WHERE logsourcetypename(logsourceid) ILIKE '%Office 365%'
+  AND UTF8(payload) ILIKE '%Set-Mailbox%'
+  AND (UTF8(payload) ILIKE '%AuditEnabled%false%'
+    OR UTF8(payload) ILIKE '%AuditEnabled%$false%')
+LAST 1440 MINUTES
+
+-- QR-202010 | Cloud-M365 | EWS API Massenzugriff auf Postfächer
+-- MITRE: T1114.002 | Severity: HIGH | Confidence: 83
+SELECT
+  username AS "User",
+  sourceip AS "Quell-IP",
+  COUNT(*) AS "Anzahl_Zugriffe"
+FROM events
+WHERE logsourcetypename(logsourceid) ILIKE '%Office 365%'
+  AND UTF8(payload) ILIKE '%MailItemsAccessed%'
+  AND (UTF8(payload) ILIKE '%EWS%'
+    OR UTF8(payload) ILIKE '%ExchangeWebServices%')
+GROUP BY username, sourceip
+HAVING COUNT(*) > 100
+LAST 30 MINUTES

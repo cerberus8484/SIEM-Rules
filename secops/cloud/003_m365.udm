@@ -1,0 +1,47 @@
+// GS-202001 | Cloud-M365 | Mailbox Forwarding Rule erstellt
+// MITRE: T1114.003 | Severity: HIGH | Confidence: 92
+metadata.product_name = "Microsoft 365" AND (metadata.product_event_type = "New-InboxRule" OR metadata.product_event_type = "Set-InboxRule") AND (about.labels["ForwardTo"] != "" OR about.labels["RedirectTo"] != "")
+
+// GS-202002 | Cloud-M365 | Externe Mailweiterleitung via Transport Rule
+// MITRE: T1048 | Severity: CRITICAL | Confidence: 95
+metadata.product_name = "Microsoft 365" AND (metadata.product_event_type = "New-TransportRule" OR metadata.product_event_type = "Set-TransportRule") AND about.labels["Workload"] = "Exchange" AND target.user.email_addresses ~ "(?i)@gmail|@yahoo|@proton|@tutanota"
+
+// GS-202003 | Cloud-M365 | Admin-Rolle zugewiesen
+// MITRE: T1098.003 | Severity: CRITICAL | Confidence: 97
+metadata.product_name = "Microsoft 365" AND metadata.product_event_type = "Add member to role." AND (about.labels["roleName"] ~ "Global Admin" OR about.labels["roleName"] ~ "Exchange Admin" OR about.labels["roleName"] ~ "Security Admin")
+
+// GS-202004 | Cloud-M365 | OAuth App Consent mit hohem Scope
+// MITRE: T1528 | Severity: HIGH | Confidence: 88
+metadata.product_name = "Microsoft 365" AND metadata.product_event_type = "Consent to application" AND (about.labels["scope"] ~ "Mail.ReadWrite" OR about.labels["scope"] ~ "Files.ReadWrite.All" OR about.labels["scope"] ~ "full_access_as_app")
+
+// GS-202005 | Cloud-M365 | Safe Attachments / Safe Links deaktiviert
+// MITRE: T1562 | Severity: CRITICAL | Confidence: 92
+metadata.product_name = "Microsoft 365" AND (metadata.product_event_type = "Set-SafeAttachmentPolicy" OR metadata.product_event_type = "Set-SafeLinksPolicy") AND about.labels["Workload"] = "Exchange"
+
+// GS-202006 | Cloud-M365 | DLP Policy gelöscht
+// MITRE: T1562 | Severity: HIGH | Confidence: 90
+metadata.product_name = "Microsoft 365" AND (metadata.product_event_type = "Remove-DlpCompliancePolicy" OR metadata.product_event_type = "Set-DlpCompliancePolicy")
+
+// GS-202007 | Cloud-M365 | Mailbox Audit Logging deaktiviert
+// MITRE: T1562.008 | Severity: HIGH | Confidence: 92
+metadata.product_name = "Microsoft 365" AND metadata.product_event_type = "Set-Mailbox" AND about.labels["AuditEnabled"] = "False"
+
+// GS-202008 | Cloud-M365 | Neue Mailbox-Delegation (FullAccess / SendAs)
+// MITRE: T1098 | Severity: MEDIUM | Confidence: 70
+metadata.product_name = "Microsoft 365" AND (metadata.product_event_type = "Add-MailboxPermission" OR metadata.product_event_type = "Add-RecipientPermission") AND (about.labels["AccessRights"] = "FullAccess" OR about.labels["AccessRights"] = "SendAs")
+
+// GS-202009 | Cloud-M365 | EWS API Massenzugriff auf Postfächer
+// MITRE: T1114.002 | Severity: HIGH | Confidence: 83
+metadata.product_name = "Microsoft 365" AND metadata.product_event_type = "MailItemsAccessed" AND (about.labels["ClientInfoString"] ~ "EWS" OR about.labels["ClientInfoString"] ~ "ExchangeWebServices") AND NOT about.labels["ClientInfoString"] ~ "(?i)Outlook|Microsoft"
+
+// GS-202010 | Cloud-M365 | Login aus unbekanntem Land
+// MITRE: T1078.004 | Severity: MEDIUM | Confidence: 68
+metadata.product_name = "Microsoft 365" AND metadata.event_type = "USER_LOGIN" AND NOT principal.location.country_or_region ~ "(?i)Germany|Austria|Switzerland|DE|AT|CH"
+
+// GS-202011 | Cloud-M365 | Power Automate Flow mit externem Webhook
+// MITRE: T1048 | Severity: HIGH | Confidence: 80
+metadata.product_name = "Microsoft 365" AND (metadata.product_event_type = "CreateFlow" OR metadata.product_event_type = "EditFlow") AND about.labels["Workload"] = "MicrosoftFlow" AND target.url ~ "(?i)ngrok|requestbin|pipedream"
+
+// GS-202012 | Cloud-M365 | Compliance Search gestartet (E-Mail-Suche)
+// MITRE: T1114 | Severity: MEDIUM | Confidence: 65
+metadata.product_name = "Microsoft 365" AND (metadata.product_event_type = "SearchStarted" OR metadata.product_event_type = "New-ComplianceSearch") AND about.labels["Workload"] = "SecurityComplianceCenter"

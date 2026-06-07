@@ -1,0 +1,59 @@
+/* WZ-301001 | Linux-PrivEsc | SUID-Binary Missbrauch (GTFOBins)
+   MITRE: T1548.001 | Severity: HIGH | Confidence: 85 */
+rule.groups: "linux" AND data.audit.key: "privileged" AND (data.audit.exe: */find OR data.audit.exe: */bash OR data.audit.exe: */python* OR data.audit.exe: */perl OR data.audit.exe: */vim OR data.audit.exe: */nmap OR data.audit.exe: */awk)
+
+/* WZ-301002 | Linux-PrivEsc | sudo -l Auflistung
+   MITRE: T1548.003 | Severity: LOW | Confidence: 55 */
+rule.groups: "linux" AND full_log: *sudo* AND full_log: (*TTY* OR *COMMAND* OR *may run*)
+
+/* WZ-301003 | Linux-PrivEsc | /etc/sudoers modifiziert
+   MITRE: T1548.003 | Severity: CRITICAL | Confidence: 95 */
+rule.groups: "linux" AND syscheck.path: "/etc/sudoers" AND syscheck.event: "modified"
+
+/* WZ-301004 | Linux-PrivEsc | setcap mit gefährlichen Capabilities
+   MITRE: T1548.001 | Severity: HIGH | Confidence: 88 */
+rule.groups: "linux" AND data.audit.exe: *setcap* AND (full_log: *cap_setuid* OR full_log: *cap_sys_admin* OR full_log: *cap_net_admin*)
+
+/* WZ-301005 | Linux-PrivEsc | pkexec / polkit Exploit-Pattern
+   MITRE: T1068 | Severity: CRITICAL | Confidence: 88 */
+rule.groups: "linux" AND (data.audit.exe: *pkexec* OR data.audit.exe: *polkit*) AND (full_log: */bin/bash* OR full_log: */tmp* OR full_log: *HISTFILE*)
+
+/* WZ-301006 | Linux-PrivEsc | Python / Perl als Root ausgeführt (sudo escape)
+   MITRE: T1548.003 | Severity: HIGH | Confidence: 82 */
+rule.groups: "linux" AND data.audit.auid: "0" AND (data.audit.exe: */python* OR data.audit.exe: */perl OR data.audit.exe: */ruby) AND NOT data.audit.uid: "0"
+
+/* WZ-301007 | Linux-PrivEsc | Neuer UID=0 User angelegt
+   MITRE: T1136.001 | Severity: CRITICAL | Confidence: 95 */
+rule.groups: "linux" AND (data.audit.exe: *useradd* OR data.audit.exe: *usermod*) AND full_log: *uid=0*
+
+/* WZ-301008 | Linux-PrivEsc | Brute Force su nach Root
+   MITRE: T1548.003 | Severity: HIGH | Confidence: 80 */
+rule.groups: "linux" AND full_log: (*authentication failure* OR *FAILED*) AND full_log: *su* AND rule.level >= 5
+
+/* WZ-301009 | Linux-PrivEsc | Docker Gruppe Mitgliedschaft gesetzt
+   MITRE: T1611 | Severity: HIGH | Confidence: 82 */
+rule.groups: "linux" AND (full_log: *usermod*docker* OR full_log: *gpasswd*docker* OR data.audit.exe: *usermod*) AND full_log: *docker*
+
+/* WZ-301010 | Linux-PrivEsc | nsenter für Container-Escape
+   MITRE: T1611 | Severity: CRITICAL | Confidence: 85 */
+rule.groups: "linux" AND data.audit.exe: *nsenter* AND (full_log: *--pid=1* OR full_log: *host* OR full_log: */proc/1*)
+
+/* WZ-301011 | Linux-PrivEsc | /proc/PID/mem Manipulation
+   MITRE: T1055 | Severity: CRITICAL | Confidence: 88 */
+rule.groups: "linux" AND data.audit.file.name: */proc/*/mem AND syscheck.event: "modified"
+
+/* WZ-301012 | Linux-PrivEsc | kernel Module von unüblichem Pfad geladen
+   MITRE: T1014 | Severity: CRITICAL | Confidence: 92 */
+rule.groups: "linux" AND (data.audit.exe: *insmod* OR data.audit.exe: *modprobe*) AND NOT (full_log: */lib/modules/* OR full_log: */usr/lib/modules/*)
+
+/* WZ-301013 | Linux-PrivEsc | Dirty Pipe syscall Pattern (memfd_create)
+   MITRE: T1068 | Severity: CRITICAL | Confidence: 80 */
+rule.groups: "linux" AND data.audit.syscall: "356" AND NOT data.audit.uid: "0"
+
+/* WZ-301014 | Linux-PrivEsc | chroot Jail Break Versuch
+   MITRE: T1611 | Severity: HIGH | Confidence: 78 */
+rule.groups: "linux" AND (data.audit.exe: */chroot* OR full_log: *chroot*) AND NOT data.audit.uid: "0"
+
+/* WZ-301015 | Linux-PrivEsc | Capability-Bit auf Binary gesetzt (cap_sys_ptrace)
+   MITRE: T1548.001 | Severity: HIGH | Confidence: 82 */
+rule.groups: "linux" AND full_log: *cap_sys_ptrace* AND data.audit.key: *cap*

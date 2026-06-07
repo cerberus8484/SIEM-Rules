@@ -1,0 +1,93 @@
+
+`comment("SP-500001 | Web-Attack | SQL Injection in HTTP-Request")`
+index=web (sourcetype="access_combined" OR sourcetype="iis" OR sourcetype="nginx:plus:access")
+| where match(uri_query, "(?i)(union.*select|select.*from|insert.*into|drop.*table|1=1|' or '|--\+|;--|\bor\b.*=|xp_cmdshell|exec.*\(|INFORMATION_SCHEMA)")
+| eval rule_id="SP-500001", tactic="Initial Access", technique="T1190", severity="CRITICAL", confidence=88
+| table _time, host, src, status, uri_query, useragent, _raw
+
+`comment("SP-500002 | Web-Attack | Directory Traversal / Path Traversal")`
+index=web (sourcetype="access_combined" OR sourcetype="iis" OR sourcetype="nginx:plus:access")
+| where match(uri_path, "(?i)(\.\./|\.\.\\\\|%2e%2e%2f|%2e%2e/|\\.\\./|%252e)")
+| eval rule_id="SP-500002", tactic="Initial Access", technique="T1190", severity="HIGH", confidence=85
+| table _time, host, src, status, uri_path, useragent, _raw
+
+`comment("SP-500003 | Web-Attack | XSS-Versuch in Request-Parameter")`
+index=web (sourcetype="access_combined" OR sourcetype="iis" OR sourcetype="nginx:plus:access")
+| where match(uri_query, "(?i)(<script|javascript:|onerror=|onload=|alert\(|img.*src.*onerror|<svg.*onload|<iframe|document\.cookie|eval\()")
+| eval rule_id="SP-500003", tactic="Initial Access", technique="T1190", severity="HIGH", confidence=82
+| table _time, host, src, status, uri_query, useragent, _raw
+
+`comment("SP-500004 | Web-Attack | Web Shell Zugriff (bekannte Web Shell Pattern)")`
+index=web (sourcetype="access_combined" OR sourcetype="iis" OR sourcetype="nginx:plus:access")
+| where match(uri_path, "(?i)(cmd\.php|shell\.php|c99\.php|r57\.php|webshell|wso\.php|backdoor|uploads.*\.php|eval\.php|pass\.php|b374k|p0wny)") OR match(uri_query, "(?i)(cmd=|command=|exec=|system=|passthru=)")
+| eval rule_id="SP-500004", tactic="Execution", technique="T1505.003", severity="CRITICAL", confidence=92
+| table _time, host, src, status, uri_path, uri_query, useragent, _raw
+
+`comment("SP-500005 | Web-Attack | Log4Shell Exploit (CVE-2021-44228)")`
+index=web (sourcetype="access_combined" OR sourcetype="iis" OR sourcetype="nginx:plus:access")
+| where match(_raw, "(?i)(\$\{jndi:|jndi:ldap|jndi:rmi|jndi:dns|jndi:iiop|\$\{lower:|lower:J|${::-j}|%24%7Bjndi)")
+| eval rule_id="SP-500005", tactic="Initial Access", technique="T1190", severity="CRITICAL", confidence=95
+| table _time, host, src, status, uri_path, useragent, _raw
+
+`comment("SP-500006 | Web-Attack | Spring4Shell Exploit (CVE-2022-22965)")`
+index=web (sourcetype="access_combined" OR sourcetype="iis" OR sourcetype="nginx:plus:access")
+| where method="POST" AND match(uri_path, "(?i)(/ROOT/|\.do|\.action|spring)") AND match(_raw, "(?i)(class\.module\.classLoader|ClassLoader|getRuntime|exec\()")
+| eval rule_id="SP-500006", tactic="Initial Access", technique="T1190", severity="CRITICAL", confidence=90
+| table _time, host, src, status, uri_path, useragent, _raw
+
+`comment("SP-500007 | Web-Attack | File Upload mit gefährlicher Erweiterung")`
+index=web (sourcetype="access_combined" OR sourcetype="iis" OR sourcetype="nginx:plus:access")
+| where method="POST" AND match(uri_path, "(?i)(upload|files|img|images)") AND match(_raw, "(?i)(\.php|\.phtml|\.php3|\.php5|\.phar|\.asp|\.aspx|\.ashx|\.jsp|\.cfm|\.cgi)") AND status IN (200,201)
+| eval rule_id="SP-500007", tactic="Persistence", technique="T1505.003", severity="CRITICAL", confidence=88
+| table _time, host, src, status, uri_path, useragent, _raw
+
+`comment("SP-500008 | Web-Attack | SSRF — Zugriff auf interne Metadaten-Endpunkte")`
+index=web (sourcetype="access_combined" OR sourcetype="iis" OR sourcetype="nginx:plus:access")
+| where match(uri_query, "(?i)(http://169\.254\.169\.254|http://metadata\.google\.|http://169\.254|file:///|dict://|gopher://|ftp://127\.|http://localhost|http://0\.0\.0\.0)")
+| eval rule_id="SP-500008", tactic="Discovery", technique="T1552.005", severity="CRITICAL", confidence=92
+| table _time, host, src, status, uri_query, useragent, _raw
+
+`comment("SP-500009 | Web-Attack | Command Injection in URL Parameter")`
+index=web (sourcetype="access_combined" OR sourcetype="iis" OR sourcetype="nginx:plus:access")
+| where match(uri_query, "(?i)(\|ls|\|id|\|cat|\|whoami|\|cmd|;ls;|;id;|&&id|&&cat|\$\(id\)|\`id\`|%7C|%60|%3B)")
+| eval rule_id="SP-500009", tactic="Execution", technique="T1059", severity="CRITICAL", confidence=88
+| table _time, host, src, status, uri_query, useragent, _raw
+
+`comment("SP-500010 | Web-Attack | Scanner-Erkennung — hohe Request-Rate von einer IP")`
+index=web (sourcetype="access_combined" OR sourcetype="iis" OR sourcetype="nginx:plus:access")
+| bin _time span=1m
+| stats count dc(uri_path) as unique_paths by _time, src
+| where count > 300 OR unique_paths > 100
+| eval rule_id="SP-500010", tactic="Reconnaissance", technique="T1595.002", severity="MEDIUM", confidence=80
+
+`comment("SP-500011 | Web-Attack | API Auth-Bypass — fehlende oder manipulierte Bearer-Token")`
+index=web (sourcetype="access_combined" OR sourcetype="iis")
+| where match(uri_path, "(?i)/api/|/v1/|/v2/|/graphql") AND NOT match(_raw, "(?i)(Authorization:|Bearer |X-API-Key:)") AND status=200
+| eval rule_id="SP-500011", tactic="Initial Access", technique="T1190", severity="HIGH", confidence=78
+| table _time, host, src, status, uri_path, useragent, _raw
+
+`comment("SP-500012 | Web-Attack | PHP Wrapper Exploit (php://input, php://filter)")`
+index=web (sourcetype="access_combined" OR sourcetype="iis")
+| where match(uri_query, "(?i)(php://input|php://filter|data://|expect://|zip://|phar://)")
+| eval rule_id="SP-500012", tactic="Execution", technique="T1190", severity="CRITICAL", confidence=92
+| table _time, host, src, status, uri_query, useragent, _raw
+
+`comment("SP-500013 | Web-Attack | Massenhafter 404 von einer IP — Wordlist Scan")`
+index=web (sourcetype="access_combined" OR sourcetype="iis" OR sourcetype="nginx:plus:access")
+| where status=404
+| bin _time span=1m
+| stats count by _time, src
+| where count > 100
+| eval rule_id="SP-500013", tactic="Reconnaissance", technique="T1595.002", severity="MEDIUM", confidence=82
+
+`comment("SP-500014 | Web-Attack | Exchange ProxyShell (CVE-2021-34473 / 34523)")`
+index=web (sourcetype="access_combined" OR sourcetype="iis" OR sourcetype="ms:exchange")
+| where match(uri_path, "(?i)(/autodiscover/|/EWS/|/owa/|/mapi/)") AND match(uri_query, "(?i)(X-AnchorMailbox|/autodiscover\.json|proxyToken=)")
+| eval rule_id="SP-500014", tactic="Initial Access", technique="T1190", severity="CRITICAL", confidence=90
+| table _time, host, src, status, uri_path, uri_query, useragent, _raw
+
+`comment("SP-500015 | Web-Attack | OGNL Injection (Confluence CVE-2022-26134)")`
+index=web (sourcetype="access_combined" OR sourcetype="iis")
+| where match(uri_path, "(?i)/pages/|confluence") AND match(_raw, "(?i)(\$\{|ognl|%24%7B|#@java|#root\[)")
+| eval rule_id="SP-500015", tactic="Initial Access", technique="T1190", severity="CRITICAL", confidence=92
+| table _time, host, src, status, uri_path, useragent, _raw

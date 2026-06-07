@@ -1,0 +1,55 @@
+// GS-203001 | Cloud-GCP | Service Account Key erstellt
+// MITRE: T1098 | Severity: HIGH | Confidence: 85
+metadata.product_name = "GCP Cloud Audit" AND metadata.product_event_type = "google.iam.admin.v1.CreateServiceAccountKey"
+
+// GS-203002 | Cloud-GCP | Owner/Editor IAM Rolle vergeben
+// MITRE: T1098 | Severity: CRITICAL | Confidence: 92
+metadata.product_name = "GCP Cloud Audit" AND metadata.product_event_type = "SetIamPolicy" AND (about.labels["role"] = "roles/owner" OR about.labels["role"] = "roles/editor")
+
+// GS-203003 | Cloud-GCP | Cloud Logging Sink gelöscht
+// MITRE: T1562.008 | Severity: HIGH | Confidence: 90
+metadata.product_name = "GCP Cloud Audit" AND (metadata.product_event_type = "google.logging.v2.ConfigServiceV2.DeleteSink" OR metadata.product_event_type ~ "DeleteSink")
+
+// GS-203004 | Cloud-GCP | GCS Bucket öffentlich gemacht
+// MITRE: T1537 | Severity: HIGH | Confidence: 92
+metadata.product_name = "GCP Cloud Audit" AND metadata.product_event_type = "storage.setIamPermissions" AND (about.labels["member"] = "allUsers" OR about.labels["member"] = "allAuthenticatedUsers")
+
+// GS-203005 | Cloud-GCP | KMS Crypto Key Version zerstört
+// MITRE: T1485 | Severity: CRITICAL | Confidence: 95
+metadata.product_name = "GCP Cloud Audit" AND metadata.product_event_type ~ "DestroyCryptoKeyVersion"
+
+// GS-203006 | Cloud-GCP | SSH Key in Compute Metadaten gesetzt
+// MITRE: T1098.004 | Severity: HIGH | Confidence: 88
+metadata.product_name = "GCP Cloud Audit" AND (metadata.product_event_type ~ "setMetadata" OR metadata.product_event_type ~ "setCommonInstanceMetadata") AND about.labels["sshKey"] != ""
+
+// GS-203007 | Cloud-GCP | Firewall Regel 0.0.0.0/0 erstellt
+// MITRE: T1562.007 | Severity: HIGH | Confidence: 85
+metadata.product_name = "GCP Cloud Audit" AND metadata.product_event_type ~ "compute.firewalls.insert" AND (about.labels["sourceRange"] = "0.0.0.0/0" OR about.labels["sourceRange"] = "::/0")
+
+// GS-203008 | Cloud-GCP | Service Account Impersonation
+// MITRE: T1548 | Severity: HIGH | Confidence: 80
+metadata.product_name = "GCP Cloud Audit" AND (metadata.product_event_type = "GenerateAccessToken" OR metadata.product_event_type = "SignBlob" OR metadata.product_event_type = "SignJwt")
+
+// GS-203009 | Cloud-GCP | Organisations-Policy entfernt
+// MITRE: T1562 | Severity: CRITICAL | Confidence: 90
+metadata.product_name = "GCP Cloud Audit" AND metadata.product_event_type = "SetOrgPolicy" AND (about.labels["constraint"] ~ "restoreDefault" OR about.labels["reset"] = "true")
+
+// GS-203010 | Cloud-GCP | Secret Manager Secret ausgelesen
+// MITRE: T1552.001 | Severity: HIGH | Confidence: 78
+metadata.product_name = "GCP Cloud Audit" AND metadata.product_event_type = "AccessSecretVersion"
+
+// GS-203011 | Cloud-GCP | Cloud Function erstellt oder aktualisiert
+// MITRE: T1648 | Severity: MEDIUM | Confidence: 65
+metadata.product_name = "GCP Cloud Audit" AND (metadata.product_event_type ~ "CreateFunction" OR metadata.product_event_type ~ "UpdateFunction")
+
+// GS-203012 | Cloud-GCP | GCS Bucket Versioning deaktiviert
+// MITRE: T1490 | Severity: HIGH | Confidence: 80
+metadata.product_name = "GCP Cloud Audit" AND metadata.product_event_type = "storage.buckets.update" AND about.labels["versioning"] = "false"
+
+// GS-203013 | Cloud-GCP | Pub/Sub Push auf externe URL konfiguriert
+// MITRE: T1048 | Severity: HIGH | Confidence: 80
+metadata.product_name = "GCP Cloud Audit" AND (metadata.product_event_type ~ "CreateSubscription" OR metadata.product_event_type ~ "ModifyPushConfig") AND NOT target.url ~ "\\.googleapis\\.com"
+
+// GS-203014 | Cloud-GCP | EC2-Compute Instance mit SA-Scope gestartet
+// MITRE: T1098 | Severity: HIGH | Confidence: 72
+metadata.product_name = "GCP Cloud Audit" AND metadata.product_event_type = "v1.compute.instances.insert" AND about.labels["serviceAccountScope"] ~ "cloud-platform"

@@ -1,0 +1,162 @@
+-- QR-203001 | Cloud-GCP | Service Account Key erstellt
+-- MITRE: T1098 | Severity: HIGH | Confidence: 85
+SELECT
+  DATEFORMAT(devicetime, 'yyyy-MM-dd HH:mm:ss') AS "Zeit",
+  username AS "Actor",
+  sourceip AS "Quell-IP",
+  UTF8(payload) AS "Payload"
+FROM events
+WHERE logsourcetypename(logsourceid) ILIKE '%GCP%'
+  AND UTF8(payload) ILIKE '%CreateServiceAccountKey%'
+LAST 1440 MINUTES
+
+-- QR-203002 | Cloud-GCP | Owner/Editor IAM Rolle vergeben
+-- MITRE: T1098 | Severity: CRITICAL | Confidence: 92
+SELECT
+  DATEFORMAT(devicetime, 'yyyy-MM-dd HH:mm:ss') AS "Zeit",
+  username AS "Actor",
+  sourceip AS "Quell-IP",
+  UTF8(payload) AS "Payload"
+FROM events
+WHERE logsourcetypename(logsourceid) ILIKE '%GCP%'
+  AND UTF8(payload) ILIKE '%SetIamPolicy%'
+  AND (UTF8(payload) ILIKE '%roles/owner%'
+    OR UTF8(payload) ILIKE '%roles/editor%')
+LAST 1440 MINUTES
+
+-- QR-203003 | Cloud-GCP | Cloud Logging Sink gelöscht
+-- MITRE: T1562.008 | Severity: HIGH | Confidence: 90
+SELECT
+  DATEFORMAT(devicetime, 'yyyy-MM-dd HH:mm:ss') AS "Zeit",
+  username AS "Actor",
+  sourceip AS "Quell-IP",
+  UTF8(payload) AS "Payload"
+FROM events
+WHERE logsourcetypename(logsourceid) ILIKE '%GCP%'
+  AND (UTF8(payload) ILIKE '%DeleteSink%'
+    OR UTF8(payload) ILIKE '%ConfigServiceV2.DeleteSink%')
+LAST 60 MINUTES
+
+-- QR-203004 | Cloud-GCP | GCS Bucket für alle User öffentlich
+-- MITRE: T1537 | Severity: HIGH | Confidence: 92
+SELECT
+  DATEFORMAT(devicetime, 'yyyy-MM-dd HH:mm:ss') AS "Zeit",
+  username AS "Actor",
+  sourceip AS "Quell-IP",
+  UTF8(payload) AS "Payload"
+FROM events
+WHERE logsourcetypename(logsourceid) ILIKE '%GCP%'
+  AND UTF8(payload) ILIKE '%setIamPermissions%'
+  AND (UTF8(payload) ILIKE '%allUsers%'
+    OR UTF8(payload) ILIKE '%allAuthenticatedUsers%')
+LAST 1440 MINUTES
+
+-- QR-203005 | Cloud-GCP | KMS Key zerstört
+-- MITRE: T1485 | Severity: CRITICAL | Confidence: 95
+SELECT
+  DATEFORMAT(devicetime, 'yyyy-MM-dd HH:mm:ss') AS "Zeit",
+  username AS "Actor",
+  sourceip AS "Quell-IP",
+  UTF8(payload) AS "Payload"
+FROM events
+WHERE logsourcetypename(logsourceid) ILIKE '%GCP%'
+  AND UTF8(payload) ILIKE '%DestroyCryptoKeyVersion%'
+LAST 60 MINUTES
+
+-- QR-203006 | Cloud-GCP | SSH Key in Compute Metadaten gesetzt
+-- MITRE: T1098.004 | Severity: HIGH | Confidence: 88
+SELECT
+  DATEFORMAT(devicetime, 'yyyy-MM-dd HH:mm:ss') AS "Zeit",
+  username AS "Actor",
+  sourceip AS "Quell-IP",
+  UTF8(payload) AS "Payload"
+FROM events
+WHERE logsourcetypename(logsourceid) ILIKE '%GCP%'
+  AND (UTF8(payload) ILIKE '%setMetadata%'
+    OR UTF8(payload) ILIKE '%setCommonInstanceMetadata%')
+  AND (UTF8(payload) ILIKE '%ssh-rsa%'
+    OR UTF8(payload) ILIKE '%ssh-ed25519%')
+LAST 1440 MINUTES
+
+-- QR-203007 | Cloud-GCP | Firewall Regel 0.0.0.0/0 erstellt
+-- MITRE: T1562.007 | Severity: HIGH | Confidence: 85
+SELECT
+  DATEFORMAT(devicetime, 'yyyy-MM-dd HH:mm:ss') AS "Zeit",
+  username AS "Actor",
+  sourceip AS "Quell-IP",
+  UTF8(payload) AS "Payload"
+FROM events
+WHERE logsourcetypename(logsourceid) ILIKE '%GCP%'
+  AND UTF8(payload) ILIKE '%compute.firewalls.insert%'
+  AND (UTF8(payload) ILIKE '%0.0.0.0/0%'
+    OR UTF8(payload) ILIKE '%::/0%')
+LAST 1440 MINUTES
+
+-- QR-203008 | Cloud-GCP | Service Account Impersonation (Token Generierung)
+-- MITRE: T1548 | Severity: HIGH | Confidence: 80
+SELECT
+  DATEFORMAT(devicetime, 'yyyy-MM-dd HH:mm:ss') AS "Zeit",
+  username AS "Actor",
+  sourceip AS "Quell-IP",
+  UTF8(payload) AS "Payload"
+FROM events
+WHERE logsourcetypename(logsourceid) ILIKE '%GCP%'
+  AND (UTF8(payload) ILIKE '%GenerateAccessToken%'
+    OR UTF8(payload) ILIKE '%SignBlob%'
+    OR UTF8(payload) ILIKE '%SignJwt%')
+LAST 1440 MINUTES
+
+-- QR-203009 | Cloud-GCP | Organisations-Policy entfernt
+-- MITRE: T1562 | Severity: CRITICAL | Confidence: 90
+SELECT
+  DATEFORMAT(devicetime, 'yyyy-MM-dd HH:mm:ss') AS "Zeit",
+  username AS "Actor",
+  sourceip AS "Quell-IP",
+  UTF8(payload) AS "Payload"
+FROM events
+WHERE logsourcetypename(logsourceid) ILIKE '%GCP%'
+  AND UTF8(payload) ILIKE '%SetOrgPolicy%'
+  AND (UTF8(payload) ILIKE '%restoreDefault%'
+    OR UTF8(payload) ILIKE '%reset%')
+LAST 1440 MINUTES
+
+-- QR-203010 | Cloud-GCP | Secret Manager Secret ausgelesen
+-- MITRE: T1552.001 | Severity: HIGH | Confidence: 78
+SELECT
+  DATEFORMAT(devicetime, 'yyyy-MM-dd HH:mm:ss') AS "Zeit",
+  username AS "Actor",
+  sourceip AS "Quell-IP",
+  UTF8(payload) AS "Payload"
+FROM events
+WHERE logsourcetypename(logsourceid) ILIKE '%GCP%'
+  AND UTF8(payload) ILIKE '%AccessSecretVersion%'
+LAST 1440 MINUTES
+
+-- QR-203011 | Cloud-GCP | Massenhafte List/Get API Calls — Enumeration
+-- MITRE: T1580 | Severity: HIGH | Confidence: 80
+SELECT
+  username AS "Actor",
+  sourceip AS "Quell-IP",
+  COUNT(*) AS "Anzahl_Calls"
+FROM events
+WHERE logsourcetypename(logsourceid) ILIKE '%GCP%'
+  AND (UTF8(payload) ILIKE '%.list%'
+    OR UTF8(payload) ILIKE '%.get%'
+    OR UTF8(payload) ILIKE '%.describe%')
+GROUP BY username, sourceip
+HAVING COUNT(*) > 200
+LAST 5 MINUTES
+
+-- QR-203012 | Cloud-GCP | GCS Bucket Versioning deaktiviert
+-- MITRE: T1490 | Severity: HIGH | Confidence: 80
+SELECT
+  DATEFORMAT(devicetime, 'yyyy-MM-dd HH:mm:ss') AS "Zeit",
+  username AS "Actor",
+  sourceip AS "Quell-IP",
+  UTF8(payload) AS "Payload"
+FROM events
+WHERE logsourcetypename(logsourceid) ILIKE '%GCP%'
+  AND UTF8(payload) ILIKE '%storage.buckets.update%'
+  AND (UTF8(payload) ILIKE '%versioning%false%'
+    OR UTF8(payload) ILIKE '%Disabled%')
+LAST 1440 MINUTES

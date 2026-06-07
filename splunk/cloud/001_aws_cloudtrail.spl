@@ -1,0 +1,195 @@
+
+`comment("SP-200001 | Cloud-AWS | Root Account Console Login — kein MFA")`
+index=aws sourcetype="aws:cloudtrail" eventName=ConsoleLogin "userIdentity.type"=Root
+| eval rule_id="SP-200001", tactic="Initial Access", technique="T1078.004", severity="CRITICAL", confidence=98
+| table _time, awsRegion, sourceIPAddress, userAgent, "additionalEventData.MFAUsed", "responseElements.ConsoleLogin"
+
+`comment("SP-200002 | Cloud-AWS | Console Login ohne MFA — IAM User")`
+index=aws sourcetype="aws:cloudtrail" eventName=ConsoleLogin "additionalEventData.MFAUsed"=No "userIdentity.type"=IAMUser
+| eval rule_id="SP-200002", tactic="Initial Access", technique="T1078.004", severity="HIGH", confidence=85
+| table _time, "userIdentity.userName", sourceIPAddress, awsRegion, userAgent
+
+`comment("SP-200003 | Cloud-AWS | Brute Force Console Login — mehr als 10 Fehlschläge in 10 Minuten")`
+index=aws sourcetype="aws:cloudtrail" eventName=ConsoleLogin errorCode=Failure
+| bin _time span=10m
+| stats count by _time, sourceIPAddress, "userIdentity.userName"
+| where count > 10
+| eval rule_id="SP-200003", tactic="Credential Access", technique="T1110.001", severity="HIGH", confidence=80
+
+`comment("SP-200004 | Cloud-AWS | CloudTrail Logging deaktiviert (Blind Spot)")`
+index=aws sourcetype="aws:cloudtrail" eventName=StopLogging
+| eval rule_id="SP-200004", tactic="Defense Evasion", technique="T1562.008", severity="CRITICAL", confidence=97
+| table _time, "userIdentity.arn", "userIdentity.type", sourceIPAddress, awsRegion, requestParameters
+
+`comment("SP-200005 | Cloud-AWS | GuardDuty Detector gelöscht")`
+index=aws sourcetype="aws:cloudtrail" eventName=DeleteDetector eventSource="guardduty.amazonaws.com"
+| eval rule_id="SP-200005", tactic="Defense Evasion", technique="T1562.001", severity="CRITICAL", confidence=97
+| table _time, "userIdentity.arn", sourceIPAddress, awsRegion, requestParameters
+
+`comment("SP-200006 | Cloud-AWS | Neuer IAM Admin User erstellt")`
+index=aws sourcetype="aws:cloudtrail" (eventName=CreateUser OR eventName=AttachUserPolicy)
+| eval adminPolicy=if(match('requestParameters.policyArn', "AdministratorAccess"), "yes", "no")
+| where adminPolicy="yes" OR eventName=CreateUser
+| eval rule_id="SP-200006", tactic="Persistence", technique="T1136.003", severity="CRITICAL", confidence=90
+| table _time, eventName, "userIdentity.arn", "requestParameters.userName", "requestParameters.policyArn", sourceIPAddress
+
+`comment("SP-200007 | Cloud-AWS | AdministratorAccess Policy an Rolle/User angehängt")`
+index=aws sourcetype="aws:cloudtrail" (eventName=AttachUserPolicy OR eventName=AttachRolePolicy OR eventName=AttachGroupPolicy) "requestParameters.policyArn"="*AdministratorAccess*"
+| eval rule_id="SP-200007", tactic="Privilege Escalation", technique="T1098", severity="CRITICAL", confidence=95
+| table _time, eventName, "userIdentity.arn", "requestParameters.userName", "requestParameters.roleName", sourceIPAddress
+
+`comment("SP-200008 | Cloud-AWS | Access Key für Root Account erstellt")`
+index=aws sourcetype="aws:cloudtrail" eventName=CreateAccessKey "userIdentity.type"=Root
+| eval rule_id="SP-200008", tactic="Persistence", technique="T1078.004", severity="CRITICAL", confidence=99
+| table _time, "userIdentity.arn", sourceIPAddress, awsRegion, responseElements
+
+`comment("SP-200009 | Cloud-AWS | Neuer Access Key erstellt (Persistenz)")`
+index=aws sourcetype="aws:cloudtrail" eventName=CreateAccessKey "userIdentity.type"!=Root
+| eval rule_id="SP-200009", tactic="Persistence", technique="T1098", severity="MEDIUM", confidence=70
+| table _time, "userIdentity.userName", "requestParameters.userName", sourceIPAddress, awsRegion, "responseElements.accessKey.accessKeyId"
+
+`comment("SP-200010 | Cloud-AWS | AssumeRole von unbekanntem externem Account")`
+index=aws sourcetype="aws:cloudtrail" eventName=AssumeRole
+| eval callerAccount=mvindex(split('userIdentity.arn', ":"), 4)
+| eval targetAccount=mvindex(split('requestParameters.roleArn', ":"), 4)
+| where callerAccount != targetAccount
+| eval rule_id="SP-200010", tactic="Privilege Escalation", technique="T1548", severity="HIGH", confidence=75
+| table _time, "userIdentity.arn", callerAccount, targetAccount, "requestParameters.roleArn", sourceIPAddress
+
+`comment("SP-200011 | Cloud-AWS | S3 Bucket ACL auf Public gesetzt")`
+index=aws sourcetype="aws:cloudtrail" eventName=PutBucketAcl
+| where match(requestParameters, "(?i)(public-read|public-read-write|authenticated-read)")
+| eval rule_id="SP-200011", tactic="Exfiltration", technique="T1537", severity="HIGH", confidence=90
+| table _time, "userIdentity.arn", "requestParameters.bucketName", requestParameters, sourceIPAddress
+
+`comment("SP-200012 | Cloud-AWS | S3 Bucket Public Access Block deaktiviert")`
+index=aws sourcetype="aws:cloudtrail" eventName=PutBucketPublicAccessBlock
+| where match(requestParameters, "(?i)false")
+| eval rule_id="SP-200012", tactic="Exfiltration", technique="T1537", severity="HIGH", confidence=88
+| table _time, "userIdentity.arn", "requestParameters.bucketName", requestParameters, sourceIPAddress
+
+`comment("SP-200013 | Cloud-AWS | Security Group Ingress 0.0.0.0/0 geöffnet")`
+index=aws sourcetype="aws:cloudtrail" eventName=AuthorizeSecurityGroupIngress
+| where match(requestParameters, "0\.0\.0\.0/0|::/0")
+| eval rule_id="SP-200013", tactic="Defense Evasion", technique="T1562.007", severity="HIGH", confidence=85
+| table _time, "userIdentity.arn", "requestParameters.groupId", requestParameters, sourceIPAddress, awsRegion
+
+`comment("SP-200014 | Cloud-AWS | VPC Flow Logs deaktiviert")`
+index=aws sourcetype="aws:cloudtrail" eventName=DeleteFlowLogs
+| eval rule_id="SP-200014", tactic="Defense Evasion", technique="T1562.008", severity="HIGH", confidence=95
+| table _time, "userIdentity.arn", requestParameters, sourceIPAddress, awsRegion
+
+`comment("SP-200015 | Cloud-AWS | KMS Key für Löschung vorgemerkt")`
+index=aws sourcetype="aws:cloudtrail" eventName=ScheduleKeyDeletion
+| eval rule_id="SP-200015", tactic="Impact", technique="T1485", severity="CRITICAL", confidence=90
+| table _time, "userIdentity.arn", "requestParameters.keyId", "requestParameters.pendingWindowInDays", sourceIPAddress
+
+`comment("SP-200016 | Cloud-AWS | Secrets Manager Secret ausgelesen")`
+index=aws sourcetype="aws:cloudtrail" eventName=GetSecretValue eventSource="secretsmanager.amazonaws.com"
+| eval rule_id="SP-200016", tactic="Credential Access", technique="T1552.001", severity="HIGH", confidence=80
+| table _time, "userIdentity.arn", "requestParameters.secretId", sourceIPAddress, userAgent, awsRegion
+
+`comment("SP-200017 | Cloud-AWS | IAM Passwort-Policy abgeschwächt")`
+index=aws sourcetype="aws:cloudtrail" eventName=UpdateAccountPasswordPolicy
+| eval rule_id="SP-200017", tactic="Defense Evasion", technique="T1556", severity="HIGH", confidence=90
+| table _time, "userIdentity.arn", requestParameters, sourceIPAddress
+
+`comment("SP-200018 | Cloud-AWS | MFA-Gerät gelöscht oder deaktiviert")`
+index=aws sourcetype="aws:cloudtrail" (eventName=DeleteVirtualMFADevice OR eventName=DeactivateMFADevice)
+| eval rule_id="SP-200018", tactic="Persistence", technique="T1556", severity="HIGH", confidence=92
+| table _time, eventName, "userIdentity.arn", "requestParameters.userName", "requestParameters.serialNumber", sourceIPAddress
+
+`comment("SP-200019 | Cloud-AWS | AWS Config Recorder gestoppt")`
+index=aws sourcetype="aws:cloudtrail" eventName=StopConfigurationRecorder
+| eval rule_id="SP-200019", tactic="Defense Evasion", technique="T1562.001", severity="CRITICAL", confidence=97
+| table _time, "userIdentity.arn", requestParameters, sourceIPAddress, awsRegion
+
+`comment("SP-200020 | Cloud-AWS | CloudWatch Alarm gelöscht")`
+index=aws sourcetype="aws:cloudtrail" eventName=DeleteAlarms eventSource="monitoring.amazonaws.com"
+| eval rule_id="SP-200020", tactic="Defense Evasion", technique="T1562.001", severity="HIGH", confidence=85
+| table _time, "userIdentity.arn", "requestParameters.alarmNames", sourceIPAddress, awsRegion
+
+`comment("SP-200021 | Cloud-AWS | Lambda-Funktion erstellt oder Code aktualisiert")`
+index=aws sourcetype="aws:cloudtrail" (eventName=CreateFunction OR eventName=UpdateFunctionCode) eventSource="lambda.amazonaws.com"
+| eval rule_id="SP-200021", tactic="Execution", technique="T1648", severity="MEDIUM", confidence=65
+| table _time, "userIdentity.arn", "requestParameters.functionName", "requestParameters.runtime", sourceIPAddress
+
+`comment("SP-200022 | Cloud-AWS | EC2 UserData-Script bei Launch (Code Execution)")`
+index=aws sourcetype="aws:cloudtrail" eventName=RunInstances
+| where match(requestParameters, "userData")
+| eval rule_id="SP-200022", tactic="Execution", technique="T1059", severity="MEDIUM", confidence=60
+| table _time, "userIdentity.arn", "requestParameters.instanceType", awsRegion, sourceIPAddress, requestParameters
+
+`comment("SP-200023 | Cloud-AWS | SSM SendCommand — Remote Code Execution")`
+index=aws sourcetype="aws:cloudtrail" eventName=SendCommand eventSource="ssm.amazonaws.com"
+| eval rule_id="SP-200023", tactic="Execution", technique="T1651", severity="HIGH", confidence=75
+| table _time, "userIdentity.arn", "requestParameters.documentName", "requestParameters.instanceIds", sourceIPAddress
+
+`comment("SP-200024 | Cloud-AWS | RDS Snapshot öffentlich gemacht")`
+index=aws sourcetype="aws:cloudtrail" eventName=ModifyDBSnapshotAttribute
+| where match(requestParameters, "(?i)public")
+| eval rule_id="SP-200024", tactic="Exfiltration", technique="T1537", severity="CRITICAL", confidence=92
+| table _time, "userIdentity.arn", "requestParameters.dbSnapshotIdentifier", requestParameters, sourceIPAddress
+
+`comment("SP-200025 | Cloud-AWS | IAM Inline Policy mit Wildcard-Permissions")`
+index=aws sourcetype="aws:cloudtrail" (eventName=PutUserPolicy OR eventName=PutRolePolicy OR eventName=PutGroupPolicy)
+| where match(requestParameters, '"Action"\s*:\s*"\*"') OR match(requestParameters, '"Resource"\s*:\s*"\*"')
+| eval rule_id="SP-200025", tactic="Privilege Escalation", technique="T1098", severity="CRITICAL", confidence=88
+| table _time, eventName, "userIdentity.arn", requestParameters, sourceIPAddress
+
+`comment("SP-200026 | Cloud-AWS | API-Calls von Tor-Exit-Node")`
+index=aws sourcetype="aws:cloudtrail"
+[search index=threat sourcetype=tor_exits | fields ip | rename ip as sourceIPAddress]
+| eval rule_id="SP-200026", tactic="Command and Control", technique="T1090.003", severity="HIGH", confidence=85
+| table _time, eventName, "userIdentity.arn", sourceIPAddress, awsRegion
+
+`comment("SP-200027 | Cloud-AWS | Massenhafte API-Aufrufe — Enumeration (>100 Calls in 5 Min)")`
+index=aws sourcetype="aws:cloudtrail" errorCode=AccessDenied
+| bin _time span=5m
+| stats count dc(eventName) as uniqueEvents by _time, "userIdentity.arn", sourceIPAddress
+| where count > 100 OR uniqueEvents > 20
+| eval rule_id="SP-200027", tactic="Discovery", technique="T1580", severity="HIGH", confidence=82
+
+`comment("SP-200028 | Cloud-AWS | GetCallerIdentity — Recon-Abfrage")`
+index=aws sourcetype="aws:cloudtrail" eventName=GetCallerIdentity
+| eval rule_id="SP-200028", tactic="Discovery", technique="T1526", severity="LOW", confidence=55
+| table _time, "userIdentity.type", "userIdentity.arn", sourceIPAddress, userAgent, awsRegion
+
+`comment("SP-200029 | Cloud-AWS | IAM User-Erstellung OHNE sofortige MFA-Aktivierung")`
+index=aws sourcetype="aws:cloudtrail" eventName=CreateUser
+| join type=left "responseElements.user.userName" [search index=aws sourcetype="aws:cloudtrail" eventName=CreateVirtualMFADevice | eval joinKey="responseElements.user.userName" | table joinKey]
+| where isnull(joinKey)
+| eval rule_id="SP-200029", tactic="Persistence", technique="T1136.003", severity="MEDIUM", confidence=72
+
+`comment("SP-200030 | Cloud-AWS | EC2 Snapshot öffentlich gemacht")`
+index=aws sourcetype="aws:cloudtrail" eventName=ModifySnapshotAttribute
+| where match(requestParameters, "(?i)public|all")
+| eval rule_id="SP-200030", tactic="Exfiltration", technique="T1537", severity="HIGH", confidence=90
+| table _time, "userIdentity.arn", "requestParameters.snapshotId", requestParameters, sourceIPAddress
+
+`comment("SP-200031 | Cloud-AWS | Route53 Hosted Zone Record geändert (DNS Hijack)")`
+index=aws sourcetype="aws:cloudtrail" (eventName=ChangeResourceRecordSets OR eventName=DeleteHostedZone) eventSource="route53.amazonaws.com"
+| eval rule_id="SP-200031", tactic="Impact", technique="T1584.002", severity="HIGH", confidence=80
+| table _time, "userIdentity.arn", "requestParameters.hostedZoneId", requestParameters, sourceIPAddress
+
+`comment("SP-200032 | Cloud-AWS | WAF-Regeln gelöscht oder deaktiviert")`
+index=aws sourcetype="aws:cloudtrail" (eventName=DeleteWebACL OR eventName=DeleteRule OR eventName=UpdateWebACL) eventSource="waf.amazonaws.com" OR eventSource="wafv2.amazonaws.com"
+| eval rule_id="SP-200032", tactic="Defense Evasion", technique="T1562", severity="HIGH", confidence=88
+| table _time, eventName, "userIdentity.arn", requestParameters, sourceIPAddress, awsRegion
+
+`comment("SP-200033 | Cloud-AWS | EKS Cluster-Konfiguration geändert")`
+index=aws sourcetype="aws:cloudtrail" (eventName=UpdateClusterConfig OR eventName=CreateAccessEntry) eventSource="eks.amazonaws.com"
+| eval rule_id="SP-200033", tactic="Privilege Escalation", technique="T1098", severity="HIGH", confidence=78
+| table _time, eventName, "userIdentity.arn", "requestParameters.name", requestParameters, sourceIPAddress
+
+`comment("SP-200034 | Cloud-AWS | Organizations Service Control Policy entfernt")`
+index=aws sourcetype="aws:cloudtrail" (eventName=DetachPolicy OR eventName=DeletePolicy) eventSource="organizations.amazonaws.com"
+| eval rule_id="SP-200034", tactic="Defense Evasion", technique="T1562", severity="CRITICAL", confidence=90
+| table _time, eventName, "userIdentity.arn", "requestParameters.policyId", "requestParameters.targetId", sourceIPAddress
+
+`comment("SP-200035 | Cloud-AWS | Vollständige Impact-Chain: GuardDuty + Config + CloudTrail deaktiviert in 1h")`
+index=aws sourcetype="aws:cloudtrail" (eventName=DeleteDetector OR eventName=StopLogging OR eventName=StopConfigurationRecorder)
+| bin _time span=1h
+| stats dc(eventName) as uniqueActions values(eventName) as actions by _time, "userIdentity.arn"
+| where uniqueActions >= 2
+| eval rule_id="SP-200035", tactic="Defense Evasion", technique="T1562", severity="CRITICAL", confidence=95

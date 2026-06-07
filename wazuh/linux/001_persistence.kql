@@ -1,0 +1,59 @@
+/* WZ-300001 | Linux-Persistence | Neuer Crontab-Eintrag für User
+   MITRE: T1053.003 | Severity: MEDIUM | Confidence: 72 */
+rule.groups: "linux" AND (data.audit.key: "cron_write" OR full_log: *crontab*) AND syscheck.event: "added"
+
+/* WZ-300002 | Linux-Persistence | systemd Service Unit erstellt
+   MITRE: T1543.002 | Severity: MEDIUM | Confidence: 70 */
+rule.groups: "linux" AND data.audit.execve.a0: *systemctl* AND (data.audit.execve.a1: *enable* OR data.audit.execve.a1: *daemon-reload*)
+
+/* WZ-300003 | Linux-Persistence | systemd Unit in /tmp oder /dev/shm
+   MITRE: T1543.002 | Severity: CRITICAL | Confidence: 92 */
+rule.groups: "linux" AND (syscheck.path: "/tmp/*.service" OR syscheck.path: "/dev/shm/*.service") AND syscheck.event: "added"
+
+/* WZ-300004 | Linux-Persistence | Änderung an ~/.bashrc oder ~/.profile
+   MITRE: T1546.004 | Severity: HIGH | Confidence: 80 */
+rule.groups: "linux" AND syscheck.event: "modified" AND (syscheck.path: */.bashrc OR syscheck.path: */.bash_profile OR syscheck.path: */.profile OR syscheck.path: */.zshrc)
+
+/* WZ-300005 | Linux-Persistence | Neues Script in /etc/profile.d
+   MITRE: T1546.004 | Severity: HIGH | Confidence: 85 */
+rule.groups: "linux" AND syscheck.path: "/etc/profile.d/*" AND syscheck.event: "added"
+
+/* WZ-300006 | Linux-Persistence | SUID Binary gesetzt (nicht in Standardpfaden)
+   MITRE: T1548.001 | Severity: HIGH | Confidence: 85 */
+rule.groups: "linux" AND data.audit.key: "setuid" AND NOT (data.audit.exe: /usr/bin* OR data.audit.exe: /bin* OR data.audit.exe: /sbin*)
+
+/* WZ-300007 | Linux-Persistence | Neuer SSH Authorized Key hinzugefügt
+   MITRE: T1098.004 | Severity: HIGH | Confidence: 90 */
+rule.groups: "linux" AND syscheck.path: *authorized_keys AND syscheck.event: ("added" OR "modified")
+
+/* WZ-300008 | Linux-Persistence | sshd_config geändert
+   MITRE: T1556.004 | Severity: CRITICAL | Confidence: 92 */
+rule.groups: "linux" AND syscheck.path: "/etc/ssh/sshd_config" AND syscheck.event: "modified"
+
+/* WZ-300009 | Linux-Persistence | Neuer User angelegt
+   MITRE: T1136.001 | Severity: HIGH | Confidence: 88 */
+rule.groups: "linux" AND (full_log: *useradd* OR full_log: *adduser*) AND full_log: *new*
+
+/* WZ-300010 | Linux-Persistence | /etc/sudoers geändert
+   MITRE: T1548.003 | Severity: CRITICAL | Confidence: 95 */
+rule.groups: "linux" AND syscheck.path: ("/etc/sudoers" OR "/etc/sudoers.d/*") AND syscheck.event: "modified"
+
+/* WZ-300011 | Linux-Persistence | LD_PRELOAD / ld.so.preload gesetzt
+   MITRE: T1574.006 | Severity: CRITICAL | Confidence: 92 */
+rule.groups: "linux" AND (syscheck.path: "/etc/ld.so.preload" OR full_log: *LD_PRELOAD*) AND syscheck.event: ("added" OR "modified")
+
+/* WZ-300012 | Linux-Persistence | Init-Script in /etc/init.d angelegt
+   MITRE: T1037.004 | Severity: HIGH | Confidence: 82 */
+rule.groups: "linux" AND syscheck.path: "/etc/init.d/*" AND syscheck.event: "added"
+
+/* WZ-300013 | Linux-Persistence | AT-Job erstellt
+   MITRE: T1053.001 | Severity: MEDIUM | Confidence: 65 */
+rule.groups: "linux" AND (full_log: *atd* OR data.audit.exe: */at*) AND full_log: *job*
+
+/* WZ-300014 | Linux-Persistence | /var/spool/cron Änderung
+   MITRE: T1053.003 | Severity: HIGH | Confidence: 88 */
+rule.groups: "linux" AND syscheck.path: "/var/spool/cron/*" AND syscheck.event: ("added" OR "modified")
+
+/* WZ-300015 | Linux-Persistence | Systemd Timer erstellt
+   MITRE: T1053.006 | Severity: MEDIUM | Confidence: 68 */
+rule.groups: "linux" AND syscheck.path: (*systemd/system/*.timer OR *systemd/user/*.timer) AND syscheck.event: "added"

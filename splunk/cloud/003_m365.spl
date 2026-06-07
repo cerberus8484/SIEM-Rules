@@ -1,0 +1,122 @@
+
+`comment("SP-202001 | Cloud-M365 | Mailbox Forwarding Rule erstellt (T1114.003)")`
+index=o365 sourcetype="ms:o365:management" Operation IN ("New-InboxRule", "Set-InboxRule") Workload=Exchange
+| where match(Parameters, "(?i)ForwardTo|RedirectTo|ForwardAsAttachmentTo")
+| eval rule_id="SP-202001", tactic="Collection", technique="T1114.003", severity="HIGH", confidence=92
+| table _time, UserId, ClientIP, "Parameters", Operation
+
+`comment("SP-202002 | Cloud-M365 | Mailbox auf externe Adresse weitergeleitet (Transport Rule)")`
+index=o365 sourcetype="ms:o365:management" Operation IN ("New-TransportRule", "Set-TransportRule") Workload=Exchange
+| where match(Parameters, "(?i)RedirectMessageTo|BlindCopyTo|CopyTo") AND match(Parameters, "(?i)@gmail|@yahoo|@proton|@tutanota")
+| eval rule_id="SP-202002", tactic="Exfiltration", technique="T1048", severity="CRITICAL", confidence=95
+| table _time, UserId, ClientIP, Parameters, Operation
+
+`comment("SP-202003 | Cloud-M365 | Massendownload aus SharePoint / OneDrive")`
+index=o365 sourcetype="ms:o365:management" Operation="FileDownloaded" Workload IN ("SharePoint", "OneDriveForBusiness")
+| bin _time span=10m
+| stats count dc(ObjectId) as uniqueFiles by _time, UserId, ClientIP
+| where count > 100 OR uniqueFiles > 50
+| eval rule_id="SP-202003", tactic="Exfiltration", technique="T1039", severity="HIGH", confidence=82
+
+`comment("SP-202004 | Cloud-M365 | External Sharing für ganze Site aktiviert")`
+index=o365 sourcetype="ms:o365:management" (Operation="SitePermissionsModified" OR Operation="SiteCollectionAdminAdded") Workload=SharePoint
+| where match(Parameters, "(?i)Everyone|ExternalUsers|external")
+| eval rule_id="SP-202004", tactic="Exfiltration", technique="T1537", severity="HIGH", confidence=85
+| table _time, UserId, ClientIP, ObjectId, Parameters
+
+`comment("SP-202005 | Cloud-M365 | OAuth App mit hohem Scope genehmigt")`
+index=o365 sourcetype="ms:o365:management" Operation="Consent to application"
+| where match(ModifiedProperties, "(?i)Mail\.ReadWrite|Files\.ReadWrite\.All|Mail\.Read|full_access_as_app")
+| eval rule_id="SP-202005", tactic="Persistence", technique="T1528", severity="HIGH", confidence=88
+| table _time, UserId, ClientIP, ObjectId, ModifiedProperties
+
+`comment("SP-202006 | Cloud-M365 | Admin-Rolle einem User zugewiesen")`
+index=o365 sourcetype="ms:o365:management" Operation="Add member to role." Workload=AzureActiveDirectory
+| where match(ModifiedProperties, "(?i)Global Admin|Security Admin|Exchange Admin|SharePoint Admin")
+| eval rule_id="SP-202006", tactic="Privilege Escalation", technique="T1098.003", severity="CRITICAL", confidence=97
+| table _time, UserId, ClientIP, ObjectId, ModifiedProperties
+
+`comment("SP-202007 | Cloud-M365 | Massenhafte E-Mail-Löschungen")`
+index=o365 sourcetype="ms:o365:management" Operation IN ("HardDelete", "MoveToDeletedItems") Workload=Exchange
+| bin _time span=10m
+| stats count by _time, UserId, ClientIP
+| where count > 100
+| eval rule_id="SP-202007", tactic="Defense Evasion", technique="T1070.008", severity="HIGH", confidence=80
+
+`comment("SP-202008 | Cloud-M365 | Neue Postfach-Delegierung gesetzt")`
+index=o365 sourcetype="ms:o365:management" (Operation="Add-MailboxPermission" OR Operation="Add-RecipientPermission") Workload=Exchange
+| where match(Parameters, "(?i)FullAccess|SendAs|SendOnBehalf")
+| eval rule_id="SP-202008", tactic="Persistence", technique="T1098", severity="MEDIUM", confidence=70
+| table _time, UserId, ClientIP, Parameters, Operation
+
+`comment("SP-202009 | Cloud-M365 | E-Mail-Suche über alle Postfächer (Compliance Search)")`
+index=o365 sourcetype="ms:o365:management" (Operation="SearchStarted" OR Operation="New-ComplianceSearch") Workload=SecurityComplianceCenter
+| eval rule_id="SP-202009", tactic="Collection", technique="T1114", severity="MEDIUM", confidence=65
+| table _time, UserId, ClientIP, ObjectId, Parameters
+
+`comment("SP-202010 | Cloud-M365 | Teams-Kanal mit externem Gast erstellt")`
+index=o365 sourcetype="ms:o365:management" (Operation="TeamCreated" OR Operation="MemberAdded") Workload=MicrosoftTeams
+| where match(Members, "(?i)#EXT#|@gmail|@yahoo|@proton")
+| eval rule_id="SP-202010", tactic="Initial Access", technique="T1566", severity="MEDIUM", confidence=65
+| table _time, UserId, ClientIP, TeamName, Members
+
+`comment("SP-202011 | Cloud-M365 | DLP-Richtlinie deaktiviert oder überschrieben")`
+index=o365 sourcetype="ms:o365:management" (Operation="Set-DlpCompliancePolicy" OR Operation="Remove-DlpCompliancePolicy") Workload=SecurityComplianceCenter
+| eval rule_id="SP-202011", tactic="Defense Evasion", technique="T1562", severity="HIGH", confidence=90
+| table _time, UserId, ClientIP, ObjectId, Parameters
+
+`comment("SP-202012 | Cloud-M365 | Safe Attachments / Safe Links deaktiviert")`
+index=o365 sourcetype="ms:o365:management" (Operation="Set-SafeAttachmentPolicy" OR Operation="Set-SafeLinksPolicy") Workload=Exchange
+| where match(Parameters, "(?i)Disable|Off|false") OR match(Parameters, "(?i)Action.*Allow")
+| eval rule_id="SP-202012", tactic="Defense Evasion", technique="T1562", severity="CRITICAL", confidence=92
+| table _time, UserId, ClientIP, Parameters, Operation
+
+`comment("SP-202013 | Cloud-M365 | Multi-Geo Einstellungen geändert (Datenstandort)")`
+index=o365 sourcetype="ms:o365:management" Operation="Set-MoveRequest" OR Operation="New-MoveRequest"
+| eval rule_id="SP-202013", tactic="Exfiltration", technique="T1537", severity="MEDIUM", confidence=60
+| table _time, UserId, ClientIP, ObjectId, Parameters
+
+`comment("SP-202014 | Cloud-M365 | Audit-Log-Suche durch Non-Admin User")`
+index=o365 sourcetype="ms:o365:management" Operation="SearchAuditLog"
+| where NOT match(UserId, "(?i)@admin\.|admin@|security@")
+| eval rule_id="SP-202014", tactic="Discovery", technique="T1526", severity="MEDIUM", confidence=65
+| table _time, UserId, ClientIP, Parameters
+
+`comment("SP-202015 | Cloud-M365 | Ungewöhnliche Exchange Web Services Aktivität (EWS API)")`
+index=o365 sourcetype="ms:o365:management" Operation="MailItemsAccessed" Workload=Exchange
+| where match(ClientInfoString, "(?i)EWS|ExchangeWebServices") AND NOT match(ClientInfoString, "(?i)Outlook|Microsoft")
+| bin _time span=5m
+| stats count by _time, UserId, ClientIP, ClientInfoString
+| where count > 100
+| eval rule_id="SP-202015", tactic="Collection", technique="T1114.002", severity="HIGH", confidence=83
+
+`comment("SP-202016 | Cloud-M365 | Power Automate Flow mit externen Webhook erstellt")`
+index=o365 sourcetype="ms:o365:management" Operation IN ("CreateFlow", "EditFlow") Workload=MicrosoftFlow
+| where match(FlowDetails, "(?i)http://|https://webhook|requestbin|pipedream|ngrok")
+| eval rule_id="SP-202016", tactic="Exfiltration", technique="T1048", severity="HIGH", confidence=80
+| table _time, UserId, ClientIP, ObjectId, FlowDetails
+
+`comment("SP-202017 | Cloud-M365 | Hohe Anzahl Datei-Zugriffe kurz vor Off-Boarding (Data Staging)")`
+index=o365 sourcetype="ms:o365:management" Operation IN ("FileAccessed", "FileDownloaded") Workload IN ("SharePoint", "OneDriveForBusiness")
+| bin _time span=1h
+| stats count dc(ObjectId) as files by _time, UserId
+| where count > 200 OR files > 100
+| eval rule_id="SP-202017", tactic="Exfiltration", technique="T1039", severity="HIGH", confidence=75
+
+`comment("SP-202018 | Cloud-M365 | Teams Nachricht mit verdächtigem Link versendet")`
+index=o365 sourcetype="ms:o365:management" Operation="MessageSent" Workload=MicrosoftTeams
+| where match(MessageBody, "(?i)http[s]?://bit\.ly|tinyurl|t\.co|shorturl|is\.gd|ngrok|trycloudflare")
+| eval rule_id="SP-202018", tactic="Initial Access", technique="T1566.002", severity="HIGH", confidence=78
+| table _time, UserId, ChatName, MessageBody, ClientIP
+
+`comment("SP-202019 | Cloud-M365 | Audit-Logging für Mailbox deaktiviert")`
+index=o365 sourcetype="ms:o365:management" Operation="Set-Mailbox" Workload=Exchange
+| where match(Parameters, "(?i)AuditEnabled.*false|AuditEnabled.*\$false")
+| eval rule_id="SP-202019", tactic="Defense Evasion", technique="T1562.008", severity="HIGH", confidence=92
+| table _time, UserId, ClientIP, Parameters, ObjectId
+
+`comment("SP-202020 | Cloud-M365 | Login von unbekanntem Land laut AAD Sign-in Risk")`
+index=o365 sourcetype="ms:o365:management" Operation="UserLoggedIn" ResultStatus=Success
+| where NOT match("DeviceProperties{}.Value", "(?i)Germany|Austria|Switzerland|DE|AT|CH") AND match(ExtendedProperties, "(?i)CountryOrRegion")
+| eval rule_id="SP-202020", tactic="Initial Access", technique="T1078.004", severity="MEDIUM", confidence=68
+| table _time, UserId, ClientIP, "DeviceProperties{}.Value", ExtendedProperties

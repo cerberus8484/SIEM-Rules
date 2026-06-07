@@ -1,0 +1,105 @@
+
+`comment("SP-401001 | Network-Proxy | Domain Fronting — Host-Header weicht von SNI ab")`
+index=network (sourcetype="bluecoat:proxysg" OR sourcetype="squid" OR sourcetype="cisco:web")
+| where match(_raw, "(?i)(CONNECT|TUNNEL)") AND NOT match(cs_host, dest_host)
+| eval rule_id="SP-401001", tactic="Command and Control", technique="T1090.004", severity="HIGH", confidence=82
+| table _time, host, src, cs_host, dest_host, _raw
+
+`comment("SP-401002 | Network-Proxy | Base64-encodierter String in HTTP-URL")`
+index=network (sourcetype="bluecoat:proxysg" OR sourcetype="squid" OR sourcetype="cisco:web")
+| rex field=cs_uri_query "(?P<potential_b64>[A-Za-z0-9+/=]{40,})"
+| where isnotnull(potential_b64) AND len(potential_b64) > 40
+| eval rule_id="SP-401002", tactic="Command and Control", technique="T1132.001", severity="MEDIUM", confidence=70
+| table _time, host, src, cs_host, cs_uri_stem, potential_b64, _raw
+
+`comment("SP-401003 | Network-Proxy | HTTP POST auf unübliche Ports (nicht 80/443)")`
+index=network (sourcetype="bluecoat:proxysg" OR sourcetype="squid" OR sourcetype="cisco:web")
+| where cs_method="POST" AND dest_port NOT IN (80,443,8080,8443)
+| eval rule_id="SP-401003", tactic="Command and Control / Exfiltration", technique="T1041", severity="HIGH", confidence=78
+| table _time, host, src, cs_host, dest_port, cs_bytes, _raw
+
+`comment("SP-401004 | Network-Proxy | User-Agent mit bekannten Tool-Signaturen")`
+index=network (sourcetype="bluecoat:proxysg" OR sourcetype="squid" OR sourcetype="cisco:web")
+| where match(cs_useragent, "(?i)(python-requests|curl|wget|libcurl|Go-http-client|Java/|PowerShell|nmap|masscan|sqlmap|nuclei)")
+| where NOT match(src, "^(10\.|192\.168\.|172\.)")
+| eval rule_id="SP-401004", tactic="Command and Control", technique="T1071.001", severity="MEDIUM", confidence=72
+| table _time, host, src, cs_host, cs_useragent, _raw
+
+`comment("SP-401005 | Network-Proxy | Verbindung zu frisch registrierter Domain (<30 Tage alt)")`
+index=network (sourcetype="bluecoat:proxysg" OR sourcetype="squid")
+| lookup domain_age_lookup domain AS cs_host OUTPUT age_days
+| where age_days < 30
+| eval rule_id="SP-401005", tactic="Command and Control", technique="T1583.001", severity="HIGH", confidence=78
+| table _time, host, src, cs_host, age_days, _raw
+
+`comment("SP-401006 | Network-Proxy | Hohe Anfragehäufigkeit mit kleinen gleichmäßigen Intervallen (Beaconing)")`
+index=network (sourcetype="bluecoat:proxysg" OR sourcetype="squid" OR sourcetype="cisco:web")
+| where NOT match(cs_host, "(?i)microsoft|windows|apple|google|cloudflare|akamai|amazonaws")
+| eventstats stdev(_time) as stdev avg(cs_bytes) as avg_bytes by src, cs_host
+| where stdev < 60 AND avg_bytes < 1024
+| bin _time span=1h
+| stats count by _time, src, cs_host
+| where count > 20
+| eval rule_id="SP-401006", tactic="Command and Control", technique="T1071.001", severity="HIGH", confidence=80
+
+`comment("SP-401007 | Network-Proxy | HTTP Tunneling über CONNECT zu nicht-HTTPS-Port")`
+index=network (sourcetype="bluecoat:proxysg" OR sourcetype="squid")
+| where cs_method="CONNECT" AND dest_port NOT IN (443,8443)
+| eval rule_id="SP-401007", tactic="Command and Control", technique="T1572", severity="HIGH", confidence=82
+| table _time, host, src, cs_host, dest_port, _raw
+
+`comment("SP-401008 | Network-Proxy | Verbindung zu Pastebin / GitHub Gist / Telegram API")`
+index=network (sourcetype="bluecoat:proxysg" OR sourcetype="squid" OR sourcetype="cisco:web")
+| where match(cs_host, "(?i)(pastebin\.com|api\.telegram\.org|discord\.com/api|raw\.githubusercontent\.com|gist\.github\.com)")
+| where match(cs_method, "POST")
+| eval rule_id="SP-401008", tactic="Command and Control", technique="T1102", severity="HIGH", confidence=80
+| table _time, host, src, cs_host, cs_uri_stem, cs_bytes, _raw
+
+`comment("SP-401009 | Network-DNS | DGA-Verdacht — hohe Entropie im Hostnamen")`
+index=network sourcetype IN ("stream:dns", "bro:dns", "zeek:dns", "cisco:umbrella")
+| eval domain_len=len(query)
+| eval label_len=len(mvindex(split(query, "."), 0))
+| where label_len > 20 AND domain_len > 30
+| eval rule_id="SP-401009", tactic="Command and Control", technique="T1568.002", severity="HIGH", confidence=78
+| table _time, host, src, query, label_len, _raw
+
+`comment("SP-401010 | Network-DNS | DNS TXT Record mit langen Base64-Strings (DNS-Exfil)")`
+index=network sourcetype IN ("stream:dns", "bro:dns", "zeek:dns")
+| where qtype="TXT" AND match(answer, "[A-Za-z0-9+/=]{50,}")
+| eval rule_id="SP-401010", tactic="Exfiltration", technique="T1048.003", severity="HIGH", confidence=88
+| table _time, host, src, query, answer, _raw
+
+`comment("SP-401011 | Network-DNS | Hohe NXDOMAIN-Rate von einem Host (DGA Beaconing)")`
+index=network sourcetype IN ("stream:dns", "bro:dns", "zeek:dns", "cisco:umbrella")
+| where rcode=3
+| bin _time span=5m
+| stats count by _time, src
+| where count > 50
+| eval rule_id="SP-401011", tactic="Command and Control", technique="T1568.002", severity="HIGH", confidence=85
+
+`comment("SP-401012 | Network-DNS | DNS over HTTPS (DoH) zu unbekannten Servern")`
+index=network (sourcetype="cisco:asa" OR sourcetype="paloalto:firewall" OR sourcetype="zeek:dns")
+| where (dport=443 AND match(dst_hostname, "(?i)(cloudflare-dns|dns\.google|doh\.dns|doh\.cleanbrowsing)")) OR match(_raw, "(?i)dns-query|dns\+https")
+| where NOT match(src, "^(10\.|192\.168\.|172\.)")
+| eval rule_id="SP-401012", tactic="Command and Control", technique="T1071.004", severity="MEDIUM", confidence=68
+| table _time, host, src, dst_hostname, _raw
+
+`comment("SP-401013 | Network-DNS | Subdomain-Enumeration (> 50 unique Subdomains einer Domain)")`
+index=network sourcetype IN ("stream:dns", "bro:dns", "zeek:dns")
+| rex field=query "(?:[^.]+\.)*(?P<root_domain>[^.]+\.[^.]+)$"
+| bin _time span=5m
+| stats dc(query) as subdomains by _time, src, root_domain
+| where subdomains > 50
+| eval rule_id="SP-401013", tactic="Reconnaissance", technique="T1595.003", severity="HIGH", confidence=85
+
+`comment("SP-401014 | Network-DNS | Fast Flux — DNS TTL < 60 Sekunden")`
+index=network sourcetype IN ("bro:dns", "zeek:dns", "stream:dns")
+| where ttl < 60 AND rcode=0
+| eval rule_id="SP-401014", tactic="Command and Control", technique="T1568.001", severity="HIGH", confidence=80
+| table _time, host, src, query, ttl, answer, _raw
+
+`comment("SP-401015 | Network-DNS | Homoglyph / Look-alike Domain zu bekanntem Unternehmen")`
+index=network sourcetype IN ("stream:dns", "bro:dns", "cisco:umbrella")
+| where match(query, "(?i)(micros0ft|rnicrosoft|g00gle|goog1e|paypa1|arnazon|faceb00k|micr0soft)")
+| eval rule_id="SP-401015", tactic="Initial Access", technique="T1566.002", severity="HIGH", confidence=90
+| table _time, host, src, query, _raw

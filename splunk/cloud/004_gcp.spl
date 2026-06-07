@@ -1,0 +1,122 @@
+
+`comment("SP-203001 | Cloud-GCP | Service Account Key erstellt (Persistenz)")`
+index=gcp sourcetype="google:gcp:pubsub:audit" protoPayload.methodName="google.iam.admin.v1.CreateServiceAccountKey"
+| eval rule_id="SP-203001", tactic="Persistence", technique="T1098", severity="HIGH", confidence=85
+| table _time, "protoPayload.authenticationInfo.principalEmail", "protoPayload.resourceName", "protoPayload.requestMetadata.callerIp"
+
+`comment("SP-203002 | Cloud-GCP | IAM Policy Binding geändert (Rolle zugeteilt)")`
+index=gcp sourcetype="google:gcp:pubsub:audit" protoPayload.methodName="SetIamPolicy"
+| eval rule_id="SP-203002", tactic="Privilege Escalation", technique="T1098", severity="HIGH", confidence=80
+| table _time, "protoPayload.authenticationInfo.principalEmail", "protoPayload.resourceName", "protoPayload.request.policy.bindings{}.role", "protoPayload.requestMetadata.callerIp"
+
+`comment("SP-203003 | Cloud-GCP | Owner/Editor Rolle an Nutzer oder SA vergeben")`
+index=gcp sourcetype="google:gcp:pubsub:audit" protoPayload.methodName="SetIamPolicy"
+| where match('protoPayload.request.policy.bindings{}.role', "roles/owner|roles/editor")
+| eval rule_id="SP-203003", tactic="Privilege Escalation", technique="T1098", severity="CRITICAL", confidence=92
+| table _time, "protoPayload.authenticationInfo.principalEmail", "protoPayload.request.policy.bindings{}.role", "protoPayload.request.policy.bindings{}.members{}", "protoPayload.requestMetadata.callerIp"
+
+`comment("SP-203004 | Cloud-GCP | Cloud Logging Sink gelöscht oder deaktiviert")`
+index=gcp sourcetype="google:gcp:pubsub:audit" protoPayload.methodName IN ("google.logging.v2.ConfigServiceV2.DeleteSink", "google.logging.v2.ConfigServiceV2.UpdateSink")
+| eval rule_id="SP-203004", tactic="Defense Evasion", technique="T1562.008", severity="HIGH", confidence=90
+| table _time, "protoPayload.authenticationInfo.principalEmail", "protoPayload.resourceName", "protoPayload.requestMetadata.callerIp"
+
+`comment("SP-203005 | Cloud-GCP | Cloud Audit Log deaktiviert")`
+index=gcp sourcetype="google:gcp:pubsub:audit" protoPayload.methodName="SetIamPolicy"
+| where match(protoPayload, "auditLogConfigs") AND match(protoPayload, "(?i)DATA_READ|DATA_WRITE") AND match(protoPayload, "exemptedMembers")
+| eval rule_id="SP-203005", tactic="Defense Evasion", technique="T1562.008", severity="CRITICAL", confidence=88
+| table _time, "protoPayload.authenticationInfo.principalEmail", "protoPayload.resourceName", "protoPayload.requestMetadata.callerIp"
+
+`comment("SP-203006 | Cloud-GCP | GCS Bucket Public gemacht")`
+index=gcp sourcetype="google:gcp:pubsub:audit" protoPayload.methodName="storage.setIamPermissions"
+| where match(protoPayload, "allUsers|allAuthenticatedUsers")
+| eval rule_id="SP-203006", tactic="Exfiltration", technique="T1537", severity="HIGH", confidence=92
+| table _time, "protoPayload.authenticationInfo.principalEmail", "protoPayload.resourceName", "protoPayload.requestMetadata.callerIp"
+
+`comment("SP-203007 | Cloud-GCP | Cloud Function erstellt oder aktualisiert")`
+index=gcp sourcetype="google:gcp:pubsub:audit" protoPayload.methodName IN ("google.cloud.functions.v1.CloudFunctionsService.CreateFunction", "google.cloud.functions.v1.CloudFunctionsService.UpdateFunction")
+| eval rule_id="SP-203007", tactic="Execution", technique="T1648", severity="MEDIUM", confidence=65
+| table _time, "protoPayload.authenticationInfo.principalEmail", "protoPayload.resourceName", "protoPayload.request.httpsTrigger.url", "protoPayload.requestMetadata.callerIp"
+
+`comment("SP-203008 | Cloud-GCP | Compute Engine Instance mit SA-Scope erstellt")`
+index=gcp sourcetype="google:gcp:pubsub:audit" protoPayload.methodName="v1.compute.instances.insert"
+| where match(protoPayload, "serviceAccounts") AND match(protoPayload, "(?i)cloud-platform|compute|storage")
+| eval rule_id="SP-203008", tactic="Privilege Escalation", technique="T1098", severity="HIGH", confidence=72
+| table _time, "protoPayload.authenticationInfo.principalEmail", "protoPayload.resourceName", "protoPayload.requestMetadata.callerIp"
+
+`comment("SP-203009 | Cloud-GCP | SSH Public Key in Compute Engine Metadaten gesetzt")`
+index=gcp sourcetype="google:gcp:pubsub:audit" protoPayload.methodName IN ("v1.compute.instances.setMetadata", "v1.compute.projects.setCommonInstanceMetadata")
+| where match(protoPayload, "(?i)ssh-rsa|ssh-ed25519|ecdsa-sha2")
+| eval rule_id="SP-203009", tactic="Persistence", technique="T1098.004", severity="HIGH", confidence=88
+| table _time, "protoPayload.authenticationInfo.principalEmail", "protoPayload.resourceName", "protoPayload.requestMetadata.callerIp"
+
+`comment("SP-203010 | Cloud-GCP | Firewall-Regel für alle Quellen (0.0.0.0/0) erstellt")`
+index=gcp sourcetype="google:gcp:pubsub:audit" protoPayload.methodName="v1.compute.firewalls.insert"
+| where match(protoPayload, "0\.0\.0\.0/0|::/0")
+| eval rule_id="SP-203010", tactic="Defense Evasion", technique="T1562.007", severity="HIGH", confidence=85
+| table _time, "protoPayload.authenticationInfo.principalEmail", "protoPayload.resourceName", "protoPayload.request.direction", "protoPayload.requestMetadata.callerIp"
+
+`comment("SP-203011 | Cloud-GCP | Cloud KMS Key gelöscht oder zerstört")`
+index=gcp sourcetype="google:gcp:pubsub:audit" protoPayload.methodName IN ("DestroyCryptoKeyVersion", "google.cloud.kms.v1.KeyManagementService.DestroyCryptoKeyVersion")
+| eval rule_id="SP-203011", tactic="Impact", technique="T1485", severity="CRITICAL", confidence=95
+| table _time, "protoPayload.authenticationInfo.principalEmail", "protoPayload.resourceName", "protoPayload.requestMetadata.callerIp"
+
+`comment("SP-203012 | Cloud-GCP | Service Account Impersonation")`
+index=gcp sourcetype="google:gcp:pubsub:audit" protoPayload.methodName="GenerateAccessToken" OR protoPayload.methodName="SignBlob" OR protoPayload.methodName="SignJwt"
+| eval rule_id="SP-203012", tactic="Privilege Escalation", technique="T1548", severity="HIGH", confidence=80
+| table _time, "protoPayload.authenticationInfo.principalEmail", "protoPayload.requestMetadata.callerIp", "protoPayload.resourceName"
+
+`comment("SP-203013 | Cloud-GCP | Organisation-Policy Constraint entfernt")`
+index=gcp sourcetype="google:gcp:pubsub:audit" protoPayload.methodName="SetOrgPolicy"
+| where match(protoPayload, "(?i)restoreDefault|reset|NotEnforce")
+| eval rule_id="SP-203013", tactic="Defense Evasion", technique="T1562", severity="CRITICAL", confidence=90
+| table _time, "protoPayload.authenticationInfo.principalEmail", "protoPayload.resourceName", protoPayload, "protoPayload.requestMetadata.callerIp"
+
+`comment("SP-203014 | Cloud-GCP | Massenhafte List/Get API-Calls — Enumeration")`
+index=gcp sourcetype="google:gcp:pubsub:audit"
+| where match(protoPayload.methodName, "^(list|get|describe)")
+| bin _time span=5m
+| stats count dc(protoPayload.methodName) as methods by _time, "protoPayload.authenticationInfo.principalEmail", "protoPayload.requestMetadata.callerIp"
+| where count > 200 OR methods > 30
+| eval rule_id="SP-203014", tactic="Discovery", technique="T1580", severity="HIGH", confidence=80
+
+`comment("SP-203015 | Cloud-GCP | GCS Bucket Versioning deaktiviert (Ransomware Vorbereitung)")`
+index=gcp sourcetype="google:gcp:pubsub:audit" protoPayload.methodName="storage.buckets.update"
+| where match(protoPayload, "(?i)versioning.*false|Disabled")
+| eval rule_id="SP-203015", tactic="Impact", technique="T1490", severity="HIGH", confidence=80
+| table _time, "protoPayload.authenticationInfo.principalEmail", "protoPayload.resourceName", "protoPayload.requestMetadata.callerIp"
+
+`comment("SP-203016 | Cloud-GCP | API-Call von externem Angreifer-IP (Threat Intel)")`
+index=gcp sourcetype="google:gcp:pubsub:audit"
+[search index=threat sourcetype=bad_ips | fields ip | rename ip as callerIp]
+| eval rule_id="SP-203016", tactic="Initial Access", technique="T1078", severity="HIGH", confidence=85
+| table _time, "protoPayload.methodName", "protoPayload.authenticationInfo.principalEmail", "protoPayload.requestMetadata.callerIp"
+
+`comment("SP-203017 | Cloud-GCP | Compute Instance mit externem IP gestartet")`
+index=gcp sourcetype="google:gcp:pubsub:audit" protoPayload.methodName="v1.compute.instances.insert"
+| where match(protoPayload, "natIP") AND NOT match(protoPayload, "\"networkTier\":\"PREMIUM\"")
+| eval rule_id="SP-203017", tactic="Command and Control", technique="T1095", severity="MEDIUM", confidence=65
+| table _time, "protoPayload.authenticationInfo.principalEmail", "protoPayload.resourceName", "protoPayload.requestMetadata.callerIp"
+
+`comment("SP-203018 | Cloud-GCP | Pub/Sub Subscription mit Push auf externe URL")`
+index=gcp sourcetype="google:gcp:pubsub:audit" protoPayload.methodName IN ("google.pubsub.v1.Subscriber.CreateSubscription", "google.pubsub.v1.Subscriber.ModifyPushConfig")
+| where match(protoPayload, "pushConfig") AND NOT match(protoPayload, "\.googleapis\.com|\.google\.com")
+| eval rule_id="SP-203018", tactic="Exfiltration", technique="T1048", severity="HIGH", confidence=80
+| table _time, "protoPayload.authenticationInfo.principalEmail", "protoPayload.resourceName", protoPayload, "protoPayload.requestMetadata.callerIp"
+
+`comment("SP-203019 | Cloud-GCP | Secret Manager Secret ausgelesen")`
+index=gcp sourcetype="google:gcp:pubsub:audit" protoPayload.methodName="AccessSecretVersion"
+| eval rule_id="SP-203019", tactic="Credential Access", technique="T1552.001", severity="HIGH", confidence=78
+| table _time, "protoPayload.authenticationInfo.principalEmail", "protoPayload.resourceName", "protoPayload.requestMetadata.callerIp", "protoPayload.requestMetadata.callerSuppliedUserAgent"
+
+`comment("SP-203020 | Cloud-GCP | Vollständige Impact-Chain: Logging + Firewall + IAM in 30 Min")`
+index=gcp sourcetype="google:gcp:pubsub:audit"
+| eval category=case(
+    match(protoPayload.methodName, "(?i)DeleteSink|SetIamPolicy.*auditLogConfigs"), "visibility_tampering",
+    match(protoPayload.methodName, "(?i)firewalls.insert|firewalls.patch") AND match(protoPayload, "0\.0\.0\.0/0"), "firewall_open",
+    match(protoPayload.methodName, "(?i)SetIamPolicy") AND match(protoPayload, "roles/owner|roles/editor"), "privilege_escalation",
+    true(), null())
+| where isnotnull(category)
+| bin _time span=30m
+| stats dc(category) as uniqueActions values(category) as actions by _time, "protoPayload.authenticationInfo.principalEmail"
+| where uniqueActions >= 2
+| eval rule_id="SP-203020", tactic="Defense Evasion / Privilege Escalation", technique="T1562 / T1098", severity="CRITICAL", confidence=95

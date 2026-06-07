@@ -1,0 +1,59 @@
+/* WZ-201001 | Cloud-Azure | Global Administrator Rolle zugewiesen
+   MITRE: T1098.003 | Severity: CRITICAL | Confidence: 97 */
+rule.groups: "azure" AND data.azure.operationName: "Add member to role" AND data.azure.properties.targetResources.displayName: "Global Administrator"
+
+/* WZ-201002 | Cloud-Azure | MFA-Requirement für User deaktiviert
+   MITRE: T1556 | Severity: CRITICAL | Confidence: 95 */
+rule.groups: "azure" AND data.azure.operationName: "Update user" AND data.azure.properties.modifiedProperties.displayName: "StrongAuthenticationRequirements"
+
+/* WZ-201003 | Cloud-Azure | Conditional Access Policy geändert oder gelöscht
+   MITRE: T1556 | Severity: HIGH | Confidence: 92 */
+rule.groups: "azure" AND data.azure.operationName: ("Update conditional access policy" OR "Delete conditional access policy")
+
+/* WZ-201004 | Cloud-Azure | Passwort-Spray — viele Fehlschläge
+   MITRE: T1110.003 | Severity: CRITICAL | Confidence: 90 */
+rule.groups: "azure" AND data.azure.properties.status.errorCode: ("50126" OR "AADSTS50126") AND rule.level >= 10
+
+/* WZ-201005 | Cloud-Azure | Neuer Service Principal erstellt
+   MITRE: T1136.003 | Severity: MEDIUM | Confidence: 70 */
+rule.groups: "azure" AND data.azure.operationName: ("Add service principal" OR "Add application")
+
+/* WZ-201006 | Cloud-Azure | OAuth App Consent mit hohem Scope
+   MITRE: T1528 | Severity: HIGH | Confidence: 88 */
+rule.groups: "azure" AND data.azure.operationName: "Consent to application" AND (data.azure.properties.targetResources.modifiedProperties.newValue: *Mail.ReadWrite* OR data.azure.properties.targetResources.modifiedProperties.newValue: *Files.ReadWrite.All* OR data.azure.properties.targetResources.modifiedProperties.newValue: *full_access_as_app*)
+
+/* WZ-201007 | Cloud-Azure | PIM Rolle Aktivierung außerhalb Geschäftszeiten
+   MITRE: T1098.003 | Severity: HIGH | Confidence: 72 */
+rule.groups: "azure" AND data.azure.operationName: *eligible member to role in PIM*
+
+/* WZ-201008 | Cloud-Azure | Sign-in mit Legacy-Protokoll
+   MITRE: T1078 | Severity: MEDIUM | Confidence: 68 */
+rule.groups: "azure" AND (data.azure.properties.clientAppUsed: "SMTP Auth" OR data.azure.properties.clientAppUsed: "IMAP4" OR data.azure.properties.clientAppUsed: "POP3" OR data.azure.properties.clientAppUsed: "Exchange ActiveSync")
+
+/* WZ-201009 | Cloud-Azure | Risky Sign-in — anonyme IP / Tor
+   MITRE: T1078.004 | Severity: HIGH | Confidence: 85 */
+rule.groups: "azure" AND (data.azure.properties.riskEventTypes: *anonymizedIPAddress* OR data.azure.properties.riskState: "atRisk" OR data.azure.properties.riskLevelDuringSignIn: "high")
+
+/* WZ-201010 | Cloud-Azure | Named Location (IP Whitelist) geändert
+   MITRE: T1562 | Severity: HIGH | Confidence: 85 */
+rule.groups: "azure" AND data.azure.operationName: ("Update named location" OR "Add named location" OR "Delete named location")
+
+/* WZ-201011 | Cloud-Azure | Neues Gastnutzer-Konto eingeladen
+   MITRE: T1078.004 | Severity: MEDIUM | Confidence: 60 */
+rule.groups: "azure" AND data.azure.operationName: "Invite external user"
+
+/* WZ-201012 | Cloud-Azure | Azure AD Connect Sync konfiguriert
+   MITRE: T1556.007 | Severity: CRITICAL | Confidence: 90 */
+rule.groups: "azure" AND data.azure.operationName: (*Update DirSync* OR *Set DirSync*)
+
+/* WZ-201013 | Cloud-Azure | High-Privilege Rolle direkt vergeben (kein PIM)
+   MITRE: T1098.003 | Severity: CRITICAL | Confidence: 95 */
+rule.groups: "azure" AND data.azure.operationName: "Add member to role" AND (data.azure.properties.targetResources.displayName: "Global Administrator" OR data.azure.properties.targetResources.displayName: *Security Admin* OR data.azure.properties.targetResources.displayName: *Privileged Auth*) AND NOT data.azure.operationName: *PIM*
+
+/* WZ-201014 | Cloud-Azure | Massenhafte Passwort-Resets durch Admin
+   MITRE: T1531 | Severity: HIGH | Confidence: 80 */
+rule.groups: "azure" AND data.azure.operationName: ("Reset user password" OR "Change user password") AND rule.level >= 8
+
+/* WZ-201015 | Cloud-Azure | App mit Directory-Berechtigungen genehmigt
+   MITRE: T1528 | Severity: HIGH | Confidence: 82 */
+rule.groups: "azure" AND data.azure.operationName: "Add app role assignment to service principal" AND (data.azure.properties.targetResources.modifiedProperties.newValue: *User.Read.All* OR data.azure.properties.targetResources.modifiedProperties.newValue: *Directory.ReadWrite.All*)

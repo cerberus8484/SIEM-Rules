@@ -1,0 +1,47 @@
+/* WZ-202001 | Cloud-M365 | Mailbox Forwarding Rule erstellt
+   MITRE: T1114.003 | Severity: HIGH | Confidence: 92 */
+rule.groups: "office365" AND data.office365.Operation: ("New-InboxRule" OR "Set-InboxRule") AND (data.office365.Parameters.ForwardTo: * OR data.office365.Parameters.RedirectTo: *)
+
+/* WZ-202002 | Cloud-M365 | Externe Mailweiterleitung via Transport Rule
+   MITRE: T1048 | Severity: CRITICAL | Confidence: 95 */
+rule.groups: "office365" AND data.office365.Operation: ("New-TransportRule" OR "Set-TransportRule") AND (data.office365.Parameters: *@gmail* OR data.office365.Parameters: *@yahoo* OR data.office365.Parameters: *@proton* OR data.office365.Parameters: *@tutanota*)
+
+/* WZ-202003 | Cloud-M365 | Admin-Rolle zugewiesen
+   MITRE: T1098.003 | Severity: CRITICAL | Confidence: 97 */
+rule.groups: "office365" AND data.office365.Operation: "Add member to role." AND (data.office365.ModifiedProperties: *Global Admin* OR data.office365.ModifiedProperties: *Exchange Admin* OR data.office365.ModifiedProperties: *Security Admin*)
+
+/* WZ-202004 | Cloud-M365 | OAuth App Consent mit hohem Scope
+   MITRE: T1528 | Severity: HIGH | Confidence: 88 */
+rule.groups: "office365" AND data.office365.Operation: "Consent to application" AND (data.office365.ModifiedProperties: *Mail.ReadWrite* OR data.office365.ModifiedProperties: *Files.ReadWrite.All* OR data.office365.ModifiedProperties: *full_access_as_app*)
+
+/* WZ-202005 | Cloud-M365 | Safe Attachments / Safe Links deaktiviert
+   MITRE: T1562 | Severity: CRITICAL | Confidence: 92 */
+rule.groups: "office365" AND data.office365.Operation: ("Set-SafeAttachmentPolicy" OR "Set-SafeLinksPolicy")
+
+/* WZ-202006 | Cloud-M365 | DLP Policy gelöscht
+   MITRE: T1562 | Severity: HIGH | Confidence: 90 */
+rule.groups: "office365" AND data.office365.Operation: ("Remove-DlpCompliancePolicy" OR "Set-DlpCompliancePolicy")
+
+/* WZ-202007 | Cloud-M365 | Mailbox Audit Logging deaktiviert
+   MITRE: T1562.008 | Severity: HIGH | Confidence: 92 */
+rule.groups: "office365" AND data.office365.Operation: "Set-Mailbox" AND data.office365.Parameters: *AuditEnabled*false*
+
+/* WZ-202008 | Cloud-M365 | Neue Mailbox-Delegation
+   MITRE: T1098 | Severity: MEDIUM | Confidence: 70 */
+rule.groups: "office365" AND data.office365.Operation: ("Add-MailboxPermission" OR "Add-RecipientPermission") AND (data.office365.Parameters: *FullAccess* OR data.office365.Parameters: *SendAs*)
+
+/* WZ-202009 | Cloud-M365 | EWS API Massenzugriff auf Postfächer
+   MITRE: T1114.002 | Severity: HIGH | Confidence: 83 */
+rule.groups: "office365" AND data.office365.Operation: "MailItemsAccessed" AND (data.office365.ClientInfoString: *EWS* OR data.office365.ClientInfoString: *ExchangeWebServices*) AND NOT data.office365.ClientInfoString: *Outlook*
+
+/* WZ-202010 | Cloud-M365 | Power Automate Flow mit externem Webhook
+   MITRE: T1048 | Severity: HIGH | Confidence: 80 */
+rule.groups: "office365" AND data.office365.Operation: ("CreateFlow" OR "EditFlow") AND (data.office365.FlowDetails: *ngrok* OR data.office365.FlowDetails: *requestbin* OR data.office365.FlowDetails: *pipedream*)
+
+/* WZ-202011 | Cloud-M365 | Compliance Search gestartet (E-Mail-Suche)
+   MITRE: T1114 | Severity: MEDIUM | Confidence: 65 */
+rule.groups: "office365" AND data.office365.Operation: ("SearchStarted" OR "New-ComplianceSearch") AND data.office365.Workload: "SecurityComplianceCenter"
+
+/* WZ-202012 | Cloud-M365 | Teams-Nachricht mit verdächtigem Link
+   MITRE: T1566.002 | Severity: HIGH | Confidence: 78 */
+rule.groups: "office365" AND data.office365.Operation: "MessageSent" AND data.office365.Workload: "MicrosoftTeams" AND (data.office365.MessageBody: *bit.ly* OR data.office365.MessageBody: *ngrok* OR data.office365.MessageBody: *trycloudflare*)

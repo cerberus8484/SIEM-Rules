@@ -1,0 +1,92 @@
+
+`comment("SP-301001 | Linux-PrivEsc | sudo -l Auflistung durch normalen User")`
+index=linux (sourcetype="linux_secure" OR sourcetype="syslog")
+| where match(_raw, "sudo") AND match(_raw, "(?i)list|TTY|COMMAND|may run")
+| eval rule_id="SP-301001", tactic="Discovery", technique="T1548.003", severity="LOW", confidence=55
+| table _time, host, _raw
+
+`comment("SP-301002 | Linux-PrivEsc | sudo NOPASSWD Eintrag genutzt (ungewöhnlicher Command)")`
+index=linux sourcetype="linux_secure"
+| where match(_raw, "sudo") AND match(_raw, "(?i)COMMAND") AND NOT match(_raw, "(?i)/bin/ls|/usr/bin/apt|/bin/cat")
+| eval rule_id="SP-301002", tactic="Privilege Escalation", technique="T1548.003", severity="MEDIUM", confidence=65
+| table _time, host, user, _raw
+
+`comment("SP-301003 | Linux-PrivEsc | SUID-Binary missbraucht (bekannte GTFOBins)")`
+index=linux sourcetype="linux:audit"
+| where match(exe, "(?i)(/usr/bin/find|/bin/bash|/usr/bin/python|/usr/bin/perl|/usr/bin/vim|/usr/bin/less|/usr/bin/more|/usr/bin/nmap|/usr/bin/awk|/usr/bin/env)") AND auid != 0
+| where match(key, "(?i)suid|setuid|privesc")
+| eval rule_id="SP-301003", tactic="Privilege Escalation", technique="T1548.001", severity="HIGH", confidence=85
+| table _time, host, auid, uid, exe, cmdline, _raw
+
+`comment("SP-301004 | Linux-PrivEsc | Kernel Exploit Versuch — dmesg / /proc/kallsyms gelesen")`
+index=linux sourcetype="linux:audit"
+| where match(name, "(?i)kallsyms|kcore|/proc/sys/kernel/dmesg") AND auid != 0
+| eval rule_id="SP-301004", tactic="Discovery", technique="T1082", severity="MEDIUM", confidence=68
+| table _time, host, auid, uid, comm, name, _raw
+
+`comment("SP-301005 | Linux-PrivEsc | Capability-Setting via setcap")`
+index=linux sourcetype="linux:audit"
+| where match(exe, "setcap") AND match(cmdline, "cap_setuid|cap_setgid|cap_sys_admin|cap_net_admin")
+| eval rule_id="SP-301005", tactic="Privilege Escalation", technique="T1548.001", severity="HIGH", confidence=88
+| table _time, host, auid, uid, comm, cmdline, _raw
+
+`comment("SP-301006 | Linux-PrivEsc | /etc/sudoers direkt modifiziert")`
+index=linux sourcetype="linux:audit"
+| where match(name, "(?i)/etc/sudoers") AND syscall IN (2,257)
+| eval rule_id="SP-301006", tactic="Privilege Escalation", technique="T1548.003", severity="CRITICAL", confidence=95
+| table _time, host, auid, uid, comm, name, _raw
+
+`comment("SP-301007 | Linux-PrivEsc | pkexec oder polkit Exploit-Pattern")`
+index=linux sourcetype="linux:audit"
+| where match(exe, "(?i)pkexec|polkit") AND match(cmdline, "(?i)/bin/bash|/bin/sh|HISTFILE|/tmp")
+| eval rule_id="SP-301007", tactic="Privilege Escalation", technique="T1068", severity="CRITICAL", confidence=88
+| table _time, host, auid, uid, exe, cmdline, _raw
+
+`comment("SP-301008 | Linux-PrivEsc | Dirty Pipe / Dirty COW Indikator — memfd_create mit exec")`
+index=linux sourcetype="linux:audit" syscall=356
+| eval rule_id="SP-301008", tactic="Privilege Escalation", technique="T1068", severity="CRITICAL", confidence=80
+| table _time, host, auid, uid, comm, exe, _raw
+
+`comment("SP-301009 | Linux-PrivEsc | Python / Perl / Ruby als root ausgeführt (sudo shell escape)")`
+index=linux sourcetype="linux:audit"
+| where match(exe, "(?i)/usr/bin/python|/usr/bin/perl|/usr/bin/ruby") AND uid=0 AND auid != 0 AND auid != 4294967295
+| eval rule_id="SP-301009", tactic="Privilege Escalation", technique="T1548.003", severity="HIGH", confidence=82
+| table _time, host, auid, uid, exe, cmdline, _raw
+
+`comment("SP-301010 | Linux-PrivEsc | chroot Jail Escape (mount in Container)")`
+index=linux sourcetype="linux:audit"
+| where match(exe, "(?i)/bin/mount|/usr/bin/nsenter") AND match(cmdline, "(?i)--pid=1|host|/proc/1|nsenter") AND uid != 0
+| eval rule_id="SP-301010", tactic="Privilege Escalation", technique="T1611", severity="CRITICAL", confidence=85
+| table _time, host, auid, uid, exe, cmdline, _raw
+
+`comment("SP-301011 | Linux-PrivEsc | Neuer UID=0 User angelegt (Backdoor Root)")`
+index=linux sourcetype="linux:audit"
+| where match(_raw, "uid=0") AND match(comm, "(?i)useradd|usermod")
+| eval rule_id="SP-301011", tactic="Persistence / Privilege Escalation", technique="T1136.001", severity="CRITICAL", confidence=95
+| table _time, host, auid, uid, comm, cmdline, _raw
+
+`comment("SP-301012 | Linux-PrivEsc | su zu Root nach Fehlschlägen (Brute Force)")`
+index=linux sourcetype="linux_secure"
+| where match(_raw, "(?i)(su|su -|su root)") AND match(_raw, "FAILED|authentication failure")
+| bin _time span=5m
+| stats count by _time, host, _raw
+| where count > 5
+| eval rule_id="SP-301012", tactic="Privilege Escalation", technique="T1548.003", severity="HIGH", confidence=80
+
+`comment("SP-301013 | Linux-PrivEsc | Docker Gruppe Mitgliedschaft für normalen User (Docker PrivEsc)")`
+index=linux (sourcetype="linux_secure" OR sourcetype="syslog")
+| where match(_raw, "(?i)(docker|usermod.*docker|gpasswd.*docker)")
+| eval rule_id="SP-301013", tactic="Privilege Escalation", technique="T1611", severity="HIGH", confidence=82
+| table _time, host, _raw
+
+`comment("SP-301014 | Linux-PrivEsc | Unix Socket Missbrauch (namespaced root)")`
+index=linux sourcetype="linux:audit" syscall=306
+| where uid != 0 AND auid != 4294967295
+| eval rule_id="SP-301014", tactic="Privilege Escalation", technique="T1068", severity="MEDIUM", confidence=65
+| table _time, host, auid, uid, comm, exe, _raw
+
+`comment("SP-301015 | Linux-PrivEsc | Manipulation von /proc/PID/mem (Process Injection)")`
+index=linux sourcetype="linux:audit"
+| where match(name, "^/proc/[0-9]+/mem$") AND syscall IN (2,257) AND uid != 0
+| eval rule_id="SP-301015", tactic="Privilege Escalation / Defense Evasion", technique="T1055", severity="CRITICAL", confidence=88
+| table _time, host, auid, uid, comm, name, _raw

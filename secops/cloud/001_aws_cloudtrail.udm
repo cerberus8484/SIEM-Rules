@@ -1,0 +1,100 @@
+// GS-200001 | Cloud-AWS | Root Account Console Login
+// MITRE: T1078.004 | Severity: CRITICAL | Confidence: 98
+// USE CASE: Root-Login ohne MFA — sofortiger Handlungsbedarf
+metadata.product_name = "AWS CloudTrail" AND metadata.event_type = "USER_LOGIN" AND principal.user.userid = "root"
+
+// GS-200002 | Cloud-AWS | Console Login ohne MFA — IAM User
+// MITRE: T1078.004 | Severity: HIGH | Confidence: 85
+metadata.product_name = "AWS CloudTrail" AND metadata.event_type = "USER_LOGIN" AND about.labels["MFAUsed"] = "No"
+
+// GS-200003 | Cloud-AWS | CloudTrail Logging deaktiviert
+// MITRE: T1562.008 | Severity: CRITICAL | Confidence: 97
+metadata.product_name = "AWS CloudTrail" AND target.resource.name ~ "StopLogging"
+
+// GS-200004 | Cloud-AWS | GuardDuty Detector gelöscht
+// MITRE: T1562.001 | Severity: CRITICAL | Confidence: 97
+metadata.product_name = "AWS CloudTrail" AND target.resource.name ~ "DeleteDetector" AND metadata.product_event_type = "DeleteDetector"
+
+// GS-200005 | Cloud-AWS | AdministratorAccess Policy angehängt
+// MITRE: T1098 | Severity: CRITICAL | Confidence: 95
+metadata.product_name = "AWS CloudTrail" AND (metadata.product_event_type = "AttachUserPolicy" OR metadata.product_event_type = "AttachRolePolicy" OR metadata.product_event_type = "AttachGroupPolicy") AND about.labels["policyArn"] ~ "AdministratorAccess"
+
+// GS-200006 | Cloud-AWS | Root Access Key erstellt
+// MITRE: T1078.004 | Severity: CRITICAL | Confidence: 99
+metadata.product_name = "AWS CloudTrail" AND metadata.product_event_type = "CreateAccessKey" AND principal.user.userid = "root"
+
+// GS-200007 | Cloud-AWS | S3 Bucket Public gemacht
+// MITRE: T1537 | Severity: HIGH | Confidence: 90
+metadata.product_name = "AWS CloudTrail" AND (metadata.product_event_type = "PutBucketAcl" OR metadata.product_event_type = "PutBucketPublicAccessBlock") AND (about.labels["acl"] ~ "public-read" OR about.labels["blockPublicAccess"] = "false")
+
+// GS-200008 | Cloud-AWS | Security Group 0.0.0.0/0 geöffnet
+// MITRE: T1562.007 | Severity: HIGH | Confidence: 85
+metadata.product_name = "AWS CloudTrail" AND metadata.product_event_type = "AuthorizeSecurityGroupIngress" AND (about.labels["cidrIp"] = "0.0.0.0/0" OR about.labels["cidrIpv6"] = "::/0")
+
+// GS-200009 | Cloud-AWS | VPC Flow Logs deaktiviert
+// MITRE: T1562.008 | Severity: HIGH | Confidence: 95
+metadata.product_name = "AWS CloudTrail" AND metadata.product_event_type = "DeleteFlowLogs"
+
+// GS-200010 | Cloud-AWS | KMS Key für Löschung vorgemerkt
+// MITRE: T1485 | Severity: CRITICAL | Confidence: 90
+metadata.product_name = "AWS CloudTrail" AND metadata.product_event_type = "ScheduleKeyDeletion"
+
+// GS-200011 | Cloud-AWS | Secrets Manager Secret ausgelesen
+// MITRE: T1552.001 | Severity: HIGH | Confidence: 80
+metadata.product_name = "AWS CloudTrail" AND metadata.product_event_type = "GetSecretValue" AND metadata.vendor_name = "AMAZON"
+
+// GS-200012 | Cloud-AWS | IAM Passwort-Policy abgeschwächt
+// MITRE: T1556 | Severity: HIGH | Confidence: 90
+metadata.product_name = "AWS CloudTrail" AND metadata.product_event_type = "UpdateAccountPasswordPolicy"
+
+// GS-200013 | Cloud-AWS | MFA Gerät gelöscht oder deaktiviert
+// MITRE: T1556 | Severity: HIGH | Confidence: 92
+metadata.product_name = "AWS CloudTrail" AND (metadata.product_event_type = "DeleteVirtualMFADevice" OR metadata.product_event_type = "DeactivateMFADevice")
+
+// GS-200014 | Cloud-AWS | AWS Config Recorder gestoppt
+// MITRE: T1562.001 | Severity: CRITICAL | Confidence: 97
+metadata.product_name = "AWS CloudTrail" AND metadata.product_event_type = "StopConfigurationRecorder"
+
+// GS-200015 | Cloud-AWS | SSM SendCommand Remote Code Execution
+// MITRE: T1651 | Severity: HIGH | Confidence: 75
+metadata.product_name = "AWS CloudTrail" AND metadata.product_event_type = "SendCommand" AND target.resource.name ~ "ssm"
+
+// GS-200016 | Cloud-AWS | RDS Snapshot öffentlich gemacht
+// MITRE: T1537 | Severity: CRITICAL | Confidence: 92
+metadata.product_name = "AWS CloudTrail" AND metadata.product_event_type = "ModifyDBSnapshotAttribute" AND about.labels["attributeValue"] ~ "(?i)public|all"
+
+// GS-200017 | Cloud-AWS | Lambda Funktion erstellt oder aktualisiert
+// MITRE: T1648 | Severity: MEDIUM | Confidence: 65
+metadata.product_name = "AWS CloudTrail" AND (metadata.product_event_type = "CreateFunction20150331" OR metadata.product_event_type = "UpdateFunctionCode20150331v2")
+
+// GS-200018 | Cloud-AWS | Route53 Record geändert
+// MITRE: T1584.002 | Severity: HIGH | Confidence: 80
+metadata.product_name = "AWS CloudTrail" AND metadata.product_event_type = "ChangeResourceRecordSets"
+
+// GS-200019 | Cloud-AWS | AssumeRole Cross-Account
+// MITRE: T1548 | Severity: HIGH | Confidence: 75
+metadata.product_name = "AWS CloudTrail" AND metadata.product_event_type = "AssumeRole" AND target.resource.name ~ "arn:aws:iam"
+
+// GS-200020 | Cloud-AWS | WAF Regeln gelöscht
+// MITRE: T1562 | Severity: HIGH | Confidence: 88
+metadata.product_name = "AWS CloudTrail" AND (metadata.product_event_type = "DeleteWebACL" OR metadata.product_event_type = "DeleteRule") AND target.resource.name ~ "(?i)waf"
+
+// GS-200021 | Cloud-AWS | EC2 Snapshot öffentlich gemacht
+// MITRE: T1537 | Severity: HIGH | Confidence: 90
+metadata.product_name = "AWS CloudTrail" AND metadata.product_event_type = "ModifySnapshotAttribute" AND about.labels["permissionGroup"] ~ "(?i)all|public"
+
+// GS-200022 | Cloud-AWS | EKS Cluster Konfiguration geändert
+// MITRE: T1098 | Severity: HIGH | Confidence: 78
+metadata.product_name = "AWS CloudTrail" AND (metadata.product_event_type = "UpdateClusterConfig" OR metadata.product_event_type = "CreateAccessEntry")
+
+// GR-200023 | Cloud-AWS | Organizations SCP entfernt
+// MITRE: T1562 | Severity: CRITICAL | Confidence: 90
+metadata.product_name = "AWS CloudTrail" AND (metadata.product_event_type = "DetachPolicy" OR metadata.product_event_type = "DeletePolicy") AND target.resource.name ~ "organizations"
+
+// GS-200024 | Cloud-AWS | IAM Inline Policy mit Wildcard
+// MITRE: T1098 | Severity: CRITICAL | Confidence: 88
+metadata.product_name = "AWS CloudTrail" AND (metadata.product_event_type = "PutUserPolicy" OR metadata.product_event_type = "PutRolePolicy") AND about.labels["policyDocument"] ~ "\"Action\":\"\\*\""
+
+// GS-200025 | Cloud-AWS | GetCallerIdentity Recon-Abfrage
+// MITRE: T1526 | Severity: LOW | Confidence: 55
+metadata.product_name = "AWS CloudTrail" AND metadata.product_event_type = "GetCallerIdentity" AND NOT principal.ip ~ "^(10\\.|192\\.168\\.|172\\.(1[6-9]|2[0-9]|3[01])\\.)"

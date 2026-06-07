@@ -1,0 +1,92 @@
+
+`comment("SP-300001 | Linux-Persistence | Neuer Crontab-Eintrag für User")`
+index=linux (sourcetype="linux_secure" OR sourcetype="syslog") (source="/var/log/cron" OR source="/var/log/syslog")
+| where match(_raw, "(?i)(crontab|cron\.d|cron\.hourly|cron\.daily)")
+| where match(_raw, "(?i)(REPLACE|EDIT|new|install)")
+| eval rule_id="SP-300001", tactic="Persistence", technique="T1053.003", severity="MEDIUM", confidence=72
+| table _time, host, user, _raw
+
+`comment("SP-300002 | Linux-Persistence | Schreibzugriff auf /etc/crontab oder /etc/cron.d")`
+index=linux sourcetype="linux:audit" key="cron_write" OR (syscall=2 AND (exe="/etc/crontab" OR exe="/etc/cron.d*"))
+| eval rule_id="SP-300002", tactic="Persistence", technique="T1053.003", severity="HIGH", confidence=85
+| table _time, host, auid, uid, comm, exe, _raw
+
+`comment("SP-300003 | Linux-Persistence | Neue systemd Service Unit erstellt")`
+index=linux sourcetype="linux:audit"
+| where match(exe, "systemctl") AND match(cmdline, "(?i)(enable|start|daemon-reload)") AND match(cmdline, "\.service")
+| eval rule_id="SP-300003", tactic="Persistence", technique="T1543.002", severity="MEDIUM", confidence=70
+| table _time, host, auid, uid, comm, cmdline, _raw
+
+`comment("SP-300004 | Linux-Persistence | systemd Service Unit in unüblichem Pfad erstellt")`
+index=linux sourcetype="linux:audit"
+| where match(name, "(?i)/tmp/.*\.service|/dev/shm/.*\.service|/home/.*\.service")
+| eval rule_id="SP-300004", tactic="Persistence", technique="T1543.002", severity="CRITICAL", confidence=92
+| table _time, host, auid, uid, name, _raw
+
+`comment("SP-300005 | Linux-Persistence | Schreibzugriff auf ~/.bashrc oder ~/.bash_profile")`
+index=linux sourcetype="linux:audit"
+| where match(name, "(?i)\.bashrc|\.bash_profile|\.bash_login|\.profile|\.zshrc") AND type="SYSCALL" AND syscall=2
+| where auid != 0
+| eval rule_id="SP-300005", tactic="Persistence", technique="T1546.004", severity="HIGH", confidence=80
+| table _time, host, auid, uid, comm, name, _raw
+
+`comment("SP-300006 | Linux-Persistence | Schreibzugriff auf /etc/profile.d")`
+index=linux sourcetype="linux:audit" type="PATH"
+| where match(name, "/etc/profile.d/") AND type="PATH" AND match(nametype, "CREATE")
+| eval rule_id="SP-300006", tactic="Persistence", technique="T1546.004", severity="HIGH", confidence=85
+| table _time, host, auid, uid, comm, name, _raw
+
+`comment("SP-300007 | Linux-Persistence | SUID Binary an unüblichem Ort gesetzt")`
+index=linux sourcetype="linux:audit" key="setuid"
+| where NOT match(exe, "^(/usr/bin|/bin|/sbin|/usr/sbin)")
+| eval rule_id="SP-300007", tactic="Persistence", technique="T1548.001", severity="HIGH", confidence=85
+| table _time, host, auid, uid, comm, exe, _raw
+
+`comment("SP-300008 | Linux-Persistence | Neuer SSH Authorized Key hinzugefügt")`
+index=linux sourcetype="linux:audit"
+| where match(name, "authorized_keys") AND (type="SYSCALL" AND syscall IN (2,257))
+| eval rule_id="SP-300008", tactic="Persistence", technique="T1098.004", severity="HIGH", confidence=90
+| table _time, host, auid, uid, comm, name, _raw
+
+`comment("SP-300009 | Linux-Persistence | Schreibzugriff auf /etc/ssh/sshd_config")`
+index=linux sourcetype="linux:audit"
+| where match(name, "sshd_config") AND (syscall IN (2,257))
+| eval rule_id="SP-300009", tactic="Defense Evasion", technique="T1556.004", severity="CRITICAL", confidence=92
+| table _time, host, auid, uid, comm, name, _raw
+
+`comment("SP-300010 | Linux-Persistence | Neues Konto in /etc/passwd oder /etc/shadow angelegt")`
+index=linux (sourcetype="linux_secure" OR sourcetype="syslog")
+| where match(_raw, "(?i)(useradd|adduser|new user)") AND match(_raw, "(?i)(uid|home|shell)")
+| eval rule_id="SP-300010", tactic="Persistence", technique="T1136.001", severity="HIGH", confidence=88
+| table _time, host, _raw
+
+`comment("SP-300011 | Linux-Persistence | Schreibzugriff auf /etc/sudoers oder /etc/sudoers.d")`
+index=linux sourcetype="linux:audit"
+| where match(name, "(?i)/etc/sudoers")
+| where syscall IN (2,257)
+| eval rule_id="SP-300011", tactic="Persistence / Privilege Escalation", technique="T1548.003", severity="CRITICAL", confidence=95
+| table _time, host, auid, uid, comm, name, _raw
+
+`comment("SP-300012 | Linux-Persistence | LD_PRELOAD in /etc/environment oder /etc/ld.so.preload gesetzt")`
+index=linux sourcetype="linux:audit"
+| where match(name, "(?i)ld\.so\.preload|/etc/environment") AND syscall IN (2,257)
+| eval rule_id="SP-300012", tactic="Persistence", technique="T1574.006", severity="CRITICAL", confidence=92
+| table _time, host, auid, uid, comm, name, _raw
+
+`comment("SP-300013 | Linux-Persistence | Neues Init-Script in /etc/init.d")`
+index=linux sourcetype="linux:audit"
+| where match(name, "^/etc/init\.d/") AND match(nametype, "CREATE")
+| eval rule_id="SP-300013", tactic="Persistence", technique="T1037.004", severity="HIGH", confidence=82
+| table _time, host, auid, uid, comm, name, _raw
+
+`comment("SP-300014 | Linux-Persistence | AT-Job erstellt (Einmal-Persistenz)")`
+index=linux sourcetype="syslog"
+| where match(_raw, "(?i)(at -f|atq|atd)") AND match(_raw, "(?i)(cron|job|schedule)")
+| eval rule_id="SP-300014", tactic="Persistence", technique="T1053.001", severity="MEDIUM", confidence=65
+| table _time, host, _raw
+
+`comment("SP-300015 | Linux-Persistence | Schreibzugriff auf /var/spool/cron/crontabs")`
+index=linux sourcetype="linux:audit"
+| where match(name, "^/var/spool/cron/") AND syscall IN (2,257)
+| eval rule_id="SP-300015", tactic="Persistence", technique="T1053.003", severity="HIGH", confidence=88
+| table _time, host, auid, uid, comm, name, _raw

@@ -1,0 +1,74 @@
+
+`comment("SP-601001 | ThreatIntel-LB | LockBit 3.0 — VSS + bcdedit + Service-Stop Sequenz")`
+index=windows host="<HOST>" EventCode=1
+| where match(CommandLine, "(?i)(vssadmin.*delete.*shadows|bcdedit.*recoveryenabled.*no|wbadmin.*delete|diskshadow.*delete)")
+| bin _time span=5m
+| stats count dc(CommandLine) as variants by _time, host
+| where count >= 2
+| eval rule_id="SP-601001", tactic="Impact", technique="T1490", severity="CRITICAL", confidence=95
+
+`comment("SP-601002 | ThreatIntel-LB | LockBit 3.0 — Datei-Erweiterung .lockbit erkannt")`
+index=windows EventCode=2
+| where match(TargetFilename, "(?i)\.lockbit$|\.lock$")
+| bin _time span=1m
+| stats count dc(TargetFilename) as files by _time, host
+| where count > 10
+| eval rule_id="SP-601002", tactic="Impact", technique="T1486", severity="CRITICAL", confidence=97
+
+`comment("SP-601003 | ThreatIntel-LB | LockBit 3.0 — Ransom Note Dateiname")`
+index=windows EventCode=11
+| where match(TargetFilename, "(?i)(LockBit-README|LockBit_README|~~README~~|Restore-My-Files|lockbit)")
+| eval rule_id="SP-601003", tactic="Impact", technique="T1486", severity="CRITICAL", confidence=98
+| table _time, host, Image, TargetFilename
+
+`comment("SP-601004 | ThreatIntel-LB | LockBit 3.0 — AV/EDR Dienste gestoppt (bekannte Liste)")`
+index=windows EventCode=7036
+| where match(Message, "(?i)(MsMpEng|WinDefend|SentinelOne|CrowdStrike|Sophos|Cylance|TrendMicro|ESET|BitDefender|McAfee|Symantec|Carbon Black)")
+AND match(Message, "(?i)(stopped|gestoppt)")
+| bin _time span=5m
+| stats count dc(Message) as services_stopped by _time, host
+| where services_stopped >= 2
+| eval rule_id="SP-601004", tactic="Defense Evasion", technique="T1562.001", severity="CRITICAL", confidence=92
+
+`comment("SP-601005 | ThreatIntel-LB | LockBit 3.0 — cmd /c del nach Verschlüsselung (Self-Delete)")`
+index=windows EventCode=1
+| where match(CommandLine, "(?i)cmd.*\/c.*del.*%0|del.*\/f.*\/q.*lockbit|wscript.*\/e.*jscript") AND NOT match(ParentImage, "(?i)(MsMpEng|SecurityHealthService)")
+| eval rule_id="SP-601005", tactic="Defense Evasion", technique="T1070.004", severity="CRITICAL", confidence=88
+| table _time, host, Image, CommandLine, ParentImage
+
+`comment("SP-601006 | ThreatIntel-BC | BlackCat/ALPHV — Rust-Binary von /tmp oder /dev/shm (Linux)")`
+index=linux sourcetype="linux:audit"
+| where match(exe, "^(/tmp/|/dev/shm/)") AND type="EXECVE"
+| eval rule_id="SP-601006", tactic="Execution", technique="T1204", severity="CRITICAL", confidence=80
+| table _time, host, auid, uid, exe, cmdline, _raw
+
+`comment("SP-601007 | ThreatIntel-BC | BlackCat/ALPHV — Erweiterung .sykffle oder .zoldon")`
+index=windows EventCode=2
+| where match(TargetFilename, "(?i)(\.sykffle$|\.zoldon$|\.alpvm$|\.kh1ftzx$)")
+| eval rule_id="SP-601007", tactic="Impact", technique="T1486", severity="CRITICAL", confidence=98
+| table _time, host, Image, TargetFilename
+
+`comment("SP-601008 | ThreatIntel-BC | BlackCat/ALPHV — Ransom Note RECOVER-*-FILES.txt")`
+index=windows EventCode=11
+| where match(TargetFilename, "(?i)(RECOVER-.*-FILES\.txt|ALPHV|BlackCat|RECOVER_FILES)")
+| eval rule_id="SP-601008", tactic="Impact", technique="T1486", severity="CRITICAL", confidence=98
+| table _time, host, Image, TargetFilename
+
+`comment("SP-601009 | ThreatIntel-BC | BlackCat — Windows Volume Shadow Copy via WMI")`
+index=windows EventCode=1
+| where match(ParentImage, "(?i)wmiprvse") AND match(CommandLine, "(?i)(shadowcopy|vssadmin|shadow)")
+| eval rule_id="SP-601009", tactic="Impact", technique="T1490", severity="CRITICAL", confidence=90
+| table _time, host, ParentImage, Image, CommandLine
+
+`comment("SP-601010 | ThreatIntel-Common | Ransomware-Vorstufe: Recon + Staging + Impact in 1h")`
+index=windows EventCode=1
+| eval phase=case(
+    match(CommandLine,"(?i)(whoami|net user|ipconfig|nltest|net group|systeminfo|AdFind|BloodHound|SharpHound)"), "RECON",
+    match(CommandLine,"(?i)(7z|zip|rar|compress|staging|xcopy.*sensitive)"), "STAGING",
+    match(CommandLine,"(?i)(vssadmin|bcdedit|wbadmin|Stop-Service|net stop|cipher /w)"), "IMPACT",
+    true(), null())
+| where isnotnull(phase)
+| bin _time span=1h
+| stats dc(phase) as phases values(phase) as phasenames by _time, host
+| where phases >= 2
+| eval rule_id="SP-601010", tactic="Multi-Phase", technique="T1486/T1490", severity="CRITICAL", confidence=90
