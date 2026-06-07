@@ -98,7 +98,8 @@ Thumbs.db
 site/
 
 # Local test / scan data — never commit
-data/
+# /data/ = root-level scan data dir (not docs/data/ which is part of the site)
+/data/
 scans/
 reports/
 *.db

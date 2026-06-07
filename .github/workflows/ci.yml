@@ -11,6 +11,8 @@ on:
       - "tools/**"
       - "schema/**"
       - "tests/**"
+      - "docs/data/**"
+      - "docs/rules/**"
   pull_request:
     branches: [main]
     paths:
@@ -21,6 +23,8 @@ on:
       - "tools/**"
       - "schema/**"
       - "tests/**"
+      - "docs/data/**"
+      - "docs/rules/**"
 
 jobs:
   lint:
@@ -106,10 +110,47 @@ jobs:
             COVERAGE.md
           retention-days: 30
 
+  rule-catalog:
+    name: Rule Catalog
+    runs-on: ubuntu-latest
+    needs: lint
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r tools/requirements.txt
+
+      - name: Generate rule catalog
+        run: python tools/generate_rule_catalog.py --version "${GITHUB_REF_NAME:-dev}"
+
+      - name: Check catalog is up to date
+        run: |
+          git diff --exit-code docs/data/ docs/rules/index.md || {
+            echo "::error::Rule catalog is out of date. Run 'python tools/generate_rule_catalog.py' locally and commit the result."
+            exit 1
+          }
+
+      - name: Upload catalog artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rule-catalog
+          path: |
+            docs/data/rules.json
+            docs/data/packs.json
+            docs/data/mitre.json
+          retention-days: 30
+
   summary:
     name: CI Summary
     runs-on: ubuntu-latest
-    needs: [lint, validate-fixtures, coverage-matrix]
+    needs: [lint, validate-fixtures, coverage-matrix, rule-catalog]
     if: always()
     steps:
       - name: Check all jobs passed
@@ -124,6 +165,10 @@ jobs:
           fi
           if [[ "${{ needs.coverage-matrix.result }}" != "success" ]]; then
             echo "::error::Coverage matrix check failed"
+            exit 1
+          fi
+          if [[ "${{ needs.rule-catalog.result }}" != "success" ]]; then
+            echo "::error::Rule catalog check failed"
             exit 1
           fi
           echo "All CI checks passed."

@@ -1,0 +1,4848 @@
+[
+  {
+    "technique": "T1566.001",
+    "tactic": "Initial Access",
+    "rule_count": 46,
+    "rule_ids": [
+      "SP-100066",
+      "SP-100067",
+      "SP-100068",
+      "SP-100071",
+      "SP-100080",
+      "SP-100088",
+      "SP-100091",
+      "SP-100093",
+      "SP-100098",
+      "SP-110001",
+      "SP-110002",
+      "SP-110005",
+      "SP-110006",
+      "SP-110009",
+      "SP-110011",
+      "SP-110013",
+      "SP-110015",
+      "SP-110017",
+      "SP-110018",
+      "SP-110020",
+      "SP-110022",
+      "SP-110025",
+      "SP-110027",
+      "SP-110029",
+      "SP-110030",
+      "SP-110032",
+      "SP-110035",
+      "SP-110036",
+      "SP-110039",
+      "SP-110040",
+      "SP-750001",
+      "SP-750002",
+      "SP-750003",
+      "SP-750004",
+      "SP-750005",
+      "SP-750006",
+      "SP-750007",
+      "SP-750010",
+      "SP-750011",
+      "SP-750012",
+      "SP-750014",
+      "SP-750016",
+      "SP-750017",
+      "SP-750020",
+      "SP-800011",
+      "SP-810008"
+    ],
+    "packs": [
+      "correlation",
+      "deception",
+      "email",
+      "execution",
+      "initial_access"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1490",
+    "tactic": "Impact",
+    "rule_count": 34,
+    "rule_ids": [
+      "SP-100022",
+      "SP-100051",
+      "SP-100056",
+      "SP-100079",
+      "SP-108001",
+      "SP-108002",
+      "SP-108003",
+      "SP-108004",
+      "SP-108005",
+      "SP-108010",
+      "SP-108012",
+      "SP-108015",
+      "SP-108017",
+      "SP-108021",
+      "SP-108023",
+      "SP-108026",
+      "SP-108027",
+      "SP-108029",
+      "SP-203015",
+      "SP-601001",
+      "SP-601009",
+      "SP-601010",
+      "SP-730001",
+      "SP-730002",
+      "SP-730003",
+      "SP-730005",
+      "SP-730008",
+      "SP-730009",
+      "SP-730010",
+      "SP-730016",
+      "SP-730018",
+      "SP-740003",
+      "SP-740020",
+      "SP-810003"
+    ],
+    "packs": [
+      "backup",
+      "cloud",
+      "correlation",
+      "execution",
+      "hypervisor",
+      "impact",
+      "threat_intel"
+    ],
+    "platforms": [
+      "splunk",
+      "unknown"
+    ]
+  },
+  {
+    "technique": "T1053.005",
+    "tactic": "Persistence",
+    "rule_count": 31,
+    "rule_ids": [
+      "SP-100014",
+      "SP-100047",
+      "SP-100048",
+      "SP-101026",
+      "SP-101027",
+      "SP-101028",
+      "SP-101029",
+      "SP-101030",
+      "SP-101031",
+      "SP-101032",
+      "SP-101033",
+      "SP-101034",
+      "SP-101035",
+      "SP-101036",
+      "SP-101037",
+      "SP-101038",
+      "SP-101039",
+      "SP-101040",
+      "SP-101041",
+      "SP-101042",
+      "SP-101043",
+      "SP-101044",
+      "SP-101045",
+      "SP-101047",
+      "SP-101048",
+      "SP-101051",
+      "SP-101052",
+      "SP-101053",
+      "SP-101054",
+      "SP-101055",
+      "SP-720001"
+    ],
+    "packs": [
+      "devops",
+      "execution",
+      "persistence"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1078",
+    "tactic": "Initial Access",
+    "rule_count": 28,
+    "rule_ids": [
+      "SP-201019",
+      "SP-203016",
+      "SP-702008",
+      "SP-702018",
+      "SP-702020",
+      "SP-703003",
+      "SP-703005",
+      "SP-703006",
+      "SP-703009",
+      "SP-703010",
+      "SP-703013",
+      "SP-703014",
+      "SP-730011",
+      "SP-760004",
+      "SP-760012",
+      "SP-760015",
+      "SP-770001",
+      "SP-770002",
+      "SP-770004",
+      "SP-770005",
+      "SP-770012",
+      "SP-770013",
+      "SP-800001",
+      "SP-800002",
+      "SP-800009",
+      "SP-810001",
+      "SP-810004",
+      "SP-810020"
+    ],
+    "packs": [
+      "backup",
+      "cloud",
+      "correlation",
+      "database",
+      "deception",
+      "identity",
+      "vpn"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1562",
+    "tactic": "Defense Evasion",
+    "rule_count": 26,
+    "rule_ids": [
+      "SP-200032",
+      "SP-200034",
+      "SP-200035",
+      "SP-201018",
+      "SP-202011",
+      "SP-202012",
+      "SP-203013",
+      "SP-203020",
+      "SP-302009",
+      "SP-701008",
+      "SP-701015",
+      "SP-702006",
+      "SP-710010",
+      "SP-720007",
+      "SP-730004",
+      "SP-730014",
+      "SP-730015",
+      "SP-730019",
+      "SP-740005",
+      "SP-740017",
+      "SP-760018",
+      "SP-760019",
+      "SP-770010",
+      "SP-770014",
+      "SP-780009",
+      "SP-780015"
+    ],
+    "packs": [
+      "backup",
+      "cloud",
+      "container",
+      "database",
+      "devops",
+      "hypervisor",
+      "identity",
+      "linux",
+      "macos",
+      "vpn"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1543.003",
+    "tactic": "Multi-Stage SVC Abuse",
+    "rule_count": 26,
+    "rule_ids": [
+      "SP-100041",
+      "SP-100053",
+      "SP-101056",
+      "SP-101057",
+      "SP-101058",
+      "SP-101059",
+      "SP-101060",
+      "SP-101061",
+      "SP-101062",
+      "SP-101063",
+      "SP-101064",
+      "SP-101065",
+      "SP-101067",
+      "SP-101068",
+      "SP-101070",
+      "SP-101071",
+      "SP-101072",
+      "SP-101073",
+      "SP-101074",
+      "SP-101075",
+      "SP-101076",
+      "SP-101077",
+      "SP-101078",
+      "SP-101079",
+      "SP-101080",
+      "SP-810017"
+    ],
+    "packs": [
+      "correlation",
+      "execution",
+      "persistence"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1048",
+    "tactic": "Exfiltration",
+    "rule_count": 22,
+    "rule_ids": [
+      "SP-107005",
+      "SP-107006",
+      "SP-107014",
+      "SP-107016",
+      "SP-107019",
+      "SP-107020",
+      "SP-107021",
+      "SP-107023",
+      "SP-107024",
+      "SP-107026",
+      "SP-107027",
+      "SP-107029",
+      "SP-107030",
+      "SP-202002",
+      "SP-202016",
+      "SP-203018",
+      "SP-710012",
+      "SP-720020",
+      "SP-770008",
+      "SP-790010",
+      "SP-790019",
+      "SP-810013"
+    ],
+    "packs": [
+      "cloud",
+      "container",
+      "correlation",
+      "devops",
+      "dlp",
+      "exfiltration",
+      "vpn"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1486",
+    "tactic": "Impact",
+    "rule_count": 20,
+    "rule_ids": [
+      "SP-108006",
+      "SP-108007",
+      "SP-108008",
+      "SP-108011",
+      "SP-108013",
+      "SP-108016",
+      "SP-108019",
+      "SP-108022",
+      "SP-108025",
+      "SP-108028",
+      "SP-108030",
+      "SP-601002",
+      "SP-601003",
+      "SP-601007",
+      "SP-601008",
+      "SP-601010",
+      "SP-730020",
+      "SP-740013",
+      "SP-810003",
+      "SP-810020"
+    ],
+    "packs": [
+      "backup",
+      "correlation",
+      "hypervisor",
+      "impact",
+      "threat_intel"
+    ],
+    "platforms": [
+      "splunk",
+      "unknown"
+    ]
+  },
+  {
+    "technique": "T1098",
+    "tactic": "Privilege Escalation",
+    "rule_count": 18,
+    "rule_ids": [
+      "SP-200007",
+      "SP-200009",
+      "SP-200025",
+      "SP-200033",
+      "SP-201017",
+      "SP-202008",
+      "SP-203001",
+      "SP-203002",
+      "SP-203003",
+      "SP-203008",
+      "SP-203020",
+      "SP-701009",
+      "SP-702003",
+      "SP-702013",
+      "SP-702015",
+      "SP-702019",
+      "SP-703015",
+      "SP-810017"
+    ],
+    "packs": [
+      "cloud",
+      "correlation",
+      "identity"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1003.001",
+    "tactic": "Multi-Stage Credential Theft",
+    "rule_count": 18,
+    "rule_ids": [
+      "SP-100006",
+      "SP-103001",
+      "SP-103002",
+      "SP-103003",
+      "SP-103004",
+      "SP-103005",
+      "SP-103008",
+      "SP-103009",
+      "SP-103014",
+      "SP-103017",
+      "SP-103018",
+      "SP-103020",
+      "SP-103023",
+      "SP-103028",
+      "SP-103029",
+      "SP-103032",
+      "SP-103034",
+      "SP-810010"
+    ],
+    "packs": [
+      "correlation",
+      "credential_access",
+      "execution"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1562.001",
+    "tactic": "Defense Evasion",
+    "rule_count": 17,
+    "rule_ids": [
+      "SP-100004",
+      "SP-100024",
+      "SP-100089",
+      "SP-101018",
+      "SP-102007",
+      "SP-102015",
+      "SP-102024",
+      "SP-102030",
+      "SP-102033",
+      "SP-200005",
+      "SP-200019",
+      "SP-200020",
+      "SP-302003",
+      "SP-302004",
+      "SP-302010",
+      "SP-601004",
+      "SP-810011"
+    ],
+    "packs": [
+      "cloud",
+      "correlation",
+      "defense_evasion",
+      "execution",
+      "linux",
+      "persistence",
+      "threat_intel"
+    ],
+    "platforms": [
+      "splunk",
+      "unknown"
+    ]
+  },
+  {
+    "technique": "T1190",
+    "tactic": "Initial Access",
+    "rule_count": 17,
+    "rule_ids": [
+      "SP-110007",
+      "SP-110012",
+      "SP-110021",
+      "SP-110026",
+      "SP-110031",
+      "SP-110038",
+      "SP-500001",
+      "SP-500002",
+      "SP-500003",
+      "SP-500005",
+      "SP-500006",
+      "SP-500011",
+      "SP-500012",
+      "SP-500014",
+      "SP-500015",
+      "SP-760014",
+      "SP-800008"
+    ],
+    "packs": [
+      "database",
+      "deception",
+      "initial_access",
+      "web"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1218",
+    "tactic": "Execution",
+    "rule_count": 16,
+    "rule_ids": [
+      "SP-100033",
+      "SP-100036",
+      "SP-100037",
+      "SP-100038",
+      "SP-100039",
+      "SP-100043",
+      "SP-100049",
+      "SP-100050",
+      "SP-100058",
+      "SP-100060",
+      "SP-602010",
+      "SP-602011",
+      "SP-602012",
+      "SP-602015",
+      "SP-602019",
+      "SP-602020"
+    ],
+    "packs": [
+      "execution",
+      "threat_intel"
+    ],
+    "platforms": [
+      "splunk",
+      "unknown"
+    ]
+  },
+  {
+    "technique": "T1047",
+    "tactic": "Execution",
+    "rule_count": 16,
+    "rule_ids": [
+      "SP-100044",
+      "SP-100061",
+      "SP-100063",
+      "SP-100064",
+      "SP-100076",
+      "SP-100077",
+      "SP-100081",
+      "SP-100083",
+      "SP-100085",
+      "SP-100090",
+      "SP-100092",
+      "SP-100096",
+      "SP-105005",
+      "SP-105018",
+      "SP-105033",
+      "SP-602006"
+    ],
+    "packs": [
+      "execution",
+      "lateral_movement",
+      "threat_intel"
+    ],
+    "platforms": [
+      "splunk",
+      "unknown"
+    ]
+  },
+  {
+    "technique": "T1071.001",
+    "tactic": "C2",
+    "rule_count": 15,
+    "rule_ids": [
+      "SP-104001",
+      "SP-104008",
+      "SP-104009",
+      "SP-104013",
+      "SP-104019",
+      "SP-104021",
+      "SP-104023",
+      "SP-104031",
+      "SP-104033",
+      "SP-401004",
+      "SP-401006",
+      "SP-600002",
+      "SP-600008",
+      "SP-790012",
+      "SP-810005"
+    ],
+    "packs": [
+      "c2",
+      "correlation",
+      "dlp",
+      "network",
+      "threat_intel"
+    ],
+    "platforms": [
+      "splunk",
+      "unknown"
+    ]
+  },
+  {
+    "technique": "T1078.004",
+    "tactic": "Initial Access",
+    "rule_count": 15,
+    "rule_ids": [
+      "SP-200001",
+      "SP-200002",
+      "SP-200008",
+      "SP-201007",
+      "SP-201013",
+      "SP-201016",
+      "SP-202020",
+      "SP-700001",
+      "SP-700003",
+      "SP-700008",
+      "SP-700009",
+      "SP-700012",
+      "SP-700015",
+      "SP-700016",
+      "SP-701001"
+    ],
+    "packs": [
+      "cloud",
+      "identity"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1548.002",
+    "tactic": "Privilege Escalation",
+    "rule_count": 15,
+    "rule_ids": [
+      "SP-101016",
+      "SP-101021",
+      "SP-109001",
+      "SP-109002",
+      "SP-109003",
+      "SP-109007",
+      "SP-109008",
+      "SP-109011",
+      "SP-109017",
+      "SP-109022",
+      "SP-109024",
+      "SP-109028",
+      "SP-109033",
+      "SP-109038",
+      "SP-109040"
+    ],
+    "packs": [
+      "persistence",
+      "privilege_escalation"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1021.002",
+    "tactic": "Multi-Stage Ransomware",
+    "rule_count": 14,
+    "rule_ids": [
+      "SP-105002",
+      "SP-105007",
+      "SP-105008",
+      "SP-105010",
+      "SP-105019",
+      "SP-105024",
+      "SP-105027",
+      "SP-105031",
+      "SP-105035",
+      "SP-400006",
+      "SP-600012",
+      "SP-800006",
+      "SP-810003",
+      "SP-810009"
+    ],
+    "packs": [
+      "correlation",
+      "deception",
+      "lateral_movement",
+      "network",
+      "threat_intel"
+    ],
+    "platforms": [
+      "splunk",
+      "unknown"
+    ]
+  },
+  {
+    "technique": "T1059.001",
+    "tactic": "Initial Access",
+    "rule_count": 14,
+    "rule_ids": [
+      "SP-100001",
+      "SP-100002",
+      "SP-100003",
+      "SP-100005",
+      "SP-100007",
+      "SP-100008",
+      "SP-100009",
+      "SP-100011",
+      "SP-100013",
+      "SP-100016",
+      "SP-100021",
+      "SP-100025",
+      "SP-100099",
+      "SP-810008"
+    ],
+    "packs": [
+      "correlation",
+      "execution"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1537",
+    "tactic": "Exfiltration",
+    "rule_count": 13,
+    "rule_ids": [
+      "SP-200011",
+      "SP-200012",
+      "SP-200024",
+      "SP-200030",
+      "SP-202004",
+      "SP-202013",
+      "SP-203006",
+      "SP-701016",
+      "SP-730012",
+      "SP-760011",
+      "SP-790009",
+      "SP-790020",
+      "SP-810002"
+    ],
+    "packs": [
+      "backup",
+      "cloud",
+      "correlation",
+      "database",
+      "dlp",
+      "identity"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1048.003",
+    "tactic": "Exfiltration",
+    "rule_count": 13,
+    "rule_ids": [
+      "SP-107001",
+      "SP-107010",
+      "SP-400014",
+      "SP-401010",
+      "SP-750013",
+      "SP-750015",
+      "SP-750018",
+      "SP-790001",
+      "SP-790004",
+      "SP-790005",
+      "SP-790006",
+      "SP-790015",
+      "SP-790016"
+    ],
+    "packs": [
+      "dlp",
+      "email",
+      "exfiltration",
+      "network"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1021.006",
+    "tactic": "Lateral Movement",
+    "rule_count": 13,
+    "rule_ids": [
+      "SP-100012",
+      "SP-105003",
+      "SP-105004",
+      "SP-105006",
+      "SP-105017",
+      "SP-105020",
+      "SP-105021",
+      "SP-105022",
+      "SP-105026",
+      "SP-105029",
+      "SP-105034",
+      "SP-105037",
+      "SP-105040"
+    ],
+    "packs": [
+      "execution",
+      "lateral_movement"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1611",
+    "tactic": "Privilege Escalation",
+    "rule_count": 11,
+    "rule_ids": [
+      "SP-301010",
+      "SP-301013",
+      "SP-710001",
+      "SP-710002",
+      "SP-710008",
+      "SP-710014",
+      "SP-710016",
+      "SP-710018",
+      "SP-720015",
+      "SP-810007",
+      "SP-810018"
+    ],
+    "packs": [
+      "container",
+      "correlation",
+      "devops",
+      "linux"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1556",
+    "tactic": "Defense Evasion",
+    "rule_count": 10,
+    "rule_ids": [
+      "SP-200017",
+      "SP-200018",
+      "SP-201002",
+      "SP-201003",
+      "SP-700007",
+      "SP-700017",
+      "SP-700018",
+      "SP-701005",
+      "SP-702004",
+      "SP-810001"
+    ],
+    "packs": [
+      "cloud",
+      "correlation",
+      "identity"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1041",
+    "tactic": "Multi-Stage Hypervisor Attack",
+    "rule_count": 10,
+    "rule_ids": [
+      "SP-100023",
+      "SP-107004",
+      "SP-107009",
+      "SP-107013",
+      "SP-107018",
+      "SP-107025",
+      "SP-400007",
+      "SP-401003",
+      "SP-740007",
+      "SP-810015"
+    ],
+    "packs": [
+      "correlation",
+      "execution",
+      "exfiltration",
+      "hypervisor",
+      "network"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1528",
+    "tactic": "Persistence",
+    "rule_count": 9,
+    "rule_ids": [
+      "SP-201005",
+      "SP-201008",
+      "SP-201014",
+      "SP-202005",
+      "SP-700006",
+      "SP-701011",
+      "SP-702009",
+      "SP-810014",
+      "SP-810019"
+    ],
+    "packs": [
+      "cloud",
+      "correlation",
+      "identity"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1021.001",
+    "tactic": "Detection",
+    "rule_count": 9,
+    "rule_ids": [
+      "SP-101015",
+      "SP-105001",
+      "SP-105016",
+      "SP-105023",
+      "SP-105030",
+      "SP-105036",
+      "SP-105039",
+      "SP-400013",
+      "SP-800004"
+    ],
+    "packs": [
+      "deception",
+      "lateral_movement",
+      "network",
+      "persistence"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1548.003",
+    "tactic": "Persistence",
+    "rule_count": 9,
+    "rule_ids": [
+      "SP-109013",
+      "SP-300011",
+      "SP-301001",
+      "SP-301002",
+      "SP-301006",
+      "SP-301009",
+      "SP-301012",
+      "SP-303010",
+      "SP-780013"
+    ],
+    "packs": [
+      "linux",
+      "macos",
+      "privilege_escalation"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1071.004",
+    "tactic": "C2",
+    "rule_count": 8,
+    "rule_ids": [
+      "SP-104005",
+      "SP-104006",
+      "SP-104011",
+      "SP-104029",
+      "SP-104035",
+      "SP-401012",
+      "SP-800007",
+      "SP-810005"
+    ],
+    "packs": [
+      "c2",
+      "correlation",
+      "deception",
+      "network"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1548",
+    "tactic": "Privilege Escalation",
+    "rule_count": 8,
+    "rule_ids": [
+      "SP-200010",
+      "SP-203012",
+      "SP-701010",
+      "SP-701014",
+      "SP-701018",
+      "SP-710004",
+      "SP-710005",
+      "SP-810007"
+    ],
+    "packs": [
+      "cloud",
+      "container",
+      "correlation",
+      "identity"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1098.003",
+    "tactic": "Privilege Escalation",
+    "rule_count": 8,
+    "rule_ids": [
+      "SP-201001",
+      "SP-201009",
+      "SP-201020",
+      "SP-202006",
+      "SP-701004",
+      "SP-701007",
+      "SP-701013",
+      "SP-810002"
+    ],
+    "packs": [
+      "cloud",
+      "correlation",
+      "identity"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1133",
+    "tactic": "Multi-Stage Hypervisor Attack",
+    "rule_count": 8,
+    "rule_ids": [
+      "SP-400015",
+      "SP-740001",
+      "SP-740012",
+      "SP-770007",
+      "SP-770016",
+      "SP-770018",
+      "SP-770019",
+      "SP-810015"
+    ],
+    "packs": [
+      "correlation",
+      "hypervisor",
+      "network",
+      "vpn"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1082",
+    "tactic": "Discovery",
+    "rule_count": 8,
+    "rule_ids": [
+      "SP-106001",
+      "SP-106013",
+      "SP-106017",
+      "SP-106019",
+      "SP-106025",
+      "SP-106028",
+      "SP-106031",
+      "SP-301004"
+    ],
+    "packs": [
+      "discovery",
+      "linux"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1547.001",
+    "tactic": "Persistence",
+    "rule_count": 8,
+    "rule_ids": [
+      "SP-100045",
+      "SP-100078",
+      "SP-100086",
+      "SP-101001",
+      "SP-101002",
+      "SP-101046",
+      "SP-101049",
+      "SP-101050"
+    ],
+    "packs": [
+      "execution",
+      "persistence"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1095",
+    "tactic": "C2",
+    "rule_count": 7,
+    "rule_ids": [
+      "SP-104002",
+      "SP-104003",
+      "SP-104012",
+      "SP-104018",
+      "SP-104022",
+      "SP-203017",
+      "SP-400008"
+    ],
+    "packs": [
+      "c2",
+      "cloud",
+      "network"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1571",
+    "tactic": "C2",
+    "rule_count": 7,
+    "rule_ids": [
+      "SP-104004",
+      "SP-104007",
+      "SP-104024",
+      "SP-104025",
+      "SP-400001",
+      "SP-400012",
+      "SP-600003"
+    ],
+    "packs": [
+      "c2",
+      "network",
+      "threat_intel"
+    ],
+    "platforms": [
+      "splunk",
+      "unknown"
+    ]
+  },
+  {
+    "technique": "T1562.008",
+    "tactic": "Defense Evasion",
+    "rule_count": 7,
+    "rule_ids": [
+      "SP-200004",
+      "SP-200014",
+      "SP-202019",
+      "SP-203004",
+      "SP-203005",
+      "SP-710015",
+      "SP-760007"
+    ],
+    "packs": [
+      "cloud",
+      "container",
+      "database"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1059",
+    "tactic": "Execution",
+    "rule_count": 7,
+    "rule_ids": [
+      "SP-200022",
+      "SP-500009",
+      "SP-740009",
+      "SP-760005",
+      "SP-760010",
+      "SP-810018",
+      "SP-810020"
+    ],
+    "packs": [
+      "cloud",
+      "correlation",
+      "database",
+      "hypervisor",
+      "web"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1213",
+    "tactic": "Multi-Stage Insider Exfil",
+    "rule_count": 7,
+    "rule_ids": [
+      "SP-760001",
+      "SP-760002",
+      "SP-760008",
+      "SP-760009",
+      "SP-790018",
+      "SP-800010",
+      "SP-810004"
+    ],
+    "packs": [
+      "correlation",
+      "database",
+      "deception",
+      "dlp"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1068",
+    "tactic": "Privilege Escalation",
+    "rule_count": 7,
+    "rule_ids": [
+      "SP-109019",
+      "SP-109020",
+      "SP-109026",
+      "SP-109037",
+      "SP-301007",
+      "SP-301008",
+      "SP-301014"
+    ],
+    "packs": [
+      "linux",
+      "privilege_escalation"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1110.001",
+    "tactic": "Credential Access",
+    "rule_count": 6,
+    "rule_ids": [
+      "SP-103015",
+      "SP-103030",
+      "SP-200003",
+      "SP-702017",
+      "SP-760013",
+      "SP-770003"
+    ],
+    "packs": [
+      "cloud",
+      "credential_access",
+      "database",
+      "identity",
+      "vpn"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1110.003",
+    "tactic": "Credential Access",
+    "rule_count": 6,
+    "rule_ids": [
+      "SP-103016",
+      "SP-201006",
+      "SP-303012",
+      "SP-700014",
+      "SP-770020",
+      "SP-810016"
+    ],
+    "packs": [
+      "cloud",
+      "correlation",
+      "credential_access",
+      "identity",
+      "linux",
+      "vpn"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1566.002",
+    "tactic": "Initial Access",
+    "rule_count": 6,
+    "rule_ids": [
+      "SP-110004",
+      "SP-110023",
+      "SP-110034",
+      "SP-202018",
+      "SP-401015",
+      "SP-750009"
+    ],
+    "packs": [
+      "cloud",
+      "email",
+      "initial_access",
+      "network"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1021",
+    "tactic": "Multi-Stage Credential Theft",
+    "rule_count": 6,
+    "rule_ids": [
+      "SP-400005",
+      "SP-740008",
+      "SP-740018",
+      "SP-760006",
+      "SP-770015",
+      "SP-810010"
+    ],
+    "packs": [
+      "correlation",
+      "database",
+      "hypervisor",
+      "network",
+      "vpn"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1546.003",
+    "tactic": "Persistence",
+    "rule_count": 6,
+    "rule_ids": [
+      "SP-100062",
+      "SP-100065",
+      "SP-100087",
+      "SP-100097",
+      "SP-100100",
+      "SP-101024"
+    ],
+    "packs": [
+      "execution",
+      "persistence"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1489",
+    "tactic": "Impact",
+    "rule_count": 5,
+    "rule_ids": [
+      "SP-108009",
+      "SP-108014",
+      "SP-108020",
+      "SP-108024",
+      "SP-730006"
+    ],
+    "packs": [
+      "backup",
+      "impact"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1552",
+    "tactic": "Credential Access",
+    "rule_count": 5,
+    "rule_ids": [
+      "SP-303008",
+      "SP-720005",
+      "SP-720010",
+      "SP-730007",
+      "SP-730013"
+    ],
+    "packs": [
+      "backup",
+      "devops",
+      "linux"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1485",
+    "tactic": "Impact",
+    "rule_count": 5,
+    "rule_ids": [
+      "SP-200015",
+      "SP-203011",
+      "SP-720019",
+      "SP-730017",
+      "SP-760020"
+    ],
+    "packs": [
+      "backup",
+      "cloud",
+      "database",
+      "devops"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1090.003",
+    "tactic": "C2",
+    "rule_count": 5,
+    "rule_ids": [
+      "SP-104034",
+      "SP-200026",
+      "SP-400002",
+      "SP-703008",
+      "SP-770006"
+    ],
+    "packs": [
+      "c2",
+      "cloud",
+      "identity",
+      "network",
+      "vpn"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1552.001",
+    "tactic": "Credential Access",
+    "rule_count": 5,
+    "rule_ids": [
+      "SP-103024",
+      "SP-200016",
+      "SP-203019",
+      "SP-303005",
+      "SP-720013"
+    ],
+    "packs": [
+      "cloud",
+      "credential_access",
+      "devops",
+      "linux"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1550.001",
+    "tactic": "Persistence",
+    "rule_count": 5,
+    "rule_ids": [
+      "SP-201010",
+      "SP-700005",
+      "SP-700019",
+      "SP-740004",
+      "SP-810014"
+    ],
+    "packs": [
+      "cloud",
+      "correlation",
+      "hypervisor",
+      "identity"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1114",
+    "tactic": "Collection",
+    "rule_count": 5,
+    "rule_ids": [
+      "SP-202009",
+      "SP-703011",
+      "SP-810001",
+      "SP-810014",
+      "SP-810019"
+    ],
+    "packs": [
+      "cloud",
+      "correlation",
+      "identity"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1552.007",
+    "tactic": "Credential Access",
+    "rule_count": 5,
+    "rule_ids": [
+      "SP-303009",
+      "SP-710006",
+      "SP-710013",
+      "SP-710020",
+      "SP-810007"
+    ],
+    "packs": [
+      "container",
+      "correlation",
+      "linux"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1552.005",
+    "tactic": "Multi-Stage Cloud PrivEsc",
+    "rule_count": 5,
+    "rule_ids": [
+      "SP-500008",
+      "SP-701012",
+      "SP-701020",
+      "SP-800003",
+      "SP-810002"
+    ],
+    "packs": [
+      "correlation",
+      "deception",
+      "identity",
+      "web"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1105",
+    "tactic": "Initial Access",
+    "rule_count": 5,
+    "rule_ids": [
+      "SP-100069",
+      "SP-100084",
+      "SP-602001",
+      "SP-602018",
+      "SP-810008"
+    ],
+    "packs": [
+      "correlation",
+      "execution",
+      "threat_intel"
+    ],
+    "platforms": [
+      "splunk",
+      "unknown"
+    ]
+  },
+  {
+    "technique": "T1562.004",
+    "tactic": "Defense Evasion",
+    "rule_count": 5,
+    "rule_ids": [
+      "SP-101017",
+      "SP-102019",
+      "SP-400004",
+      "SP-740010",
+      "SP-810011"
+    ],
+    "packs": [
+      "correlation",
+      "defense_evasion",
+      "hypervisor",
+      "network",
+      "persistence"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1136",
+    "tactic": "Persistence",
+    "rule_count": 5,
+    "rule_ids": [
+      "SP-703007",
+      "SP-720009",
+      "SP-740002",
+      "SP-740019",
+      "SP-760003"
+    ],
+    "packs": [
+      "database",
+      "devops",
+      "hypervisor",
+      "identity"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1087.002",
+    "tactic": "Discovery",
+    "rule_count": 5,
+    "rule_ids": [
+      "SP-100094",
+      "SP-106002",
+      "SP-106015",
+      "SP-106022",
+      "SP-106030"
+    ],
+    "packs": [
+      "discovery",
+      "execution"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1134.001",
+    "tactic": "Privilege Escalation",
+    "rule_count": 5,
+    "rule_ids": [
+      "SP-100020",
+      "SP-109004",
+      "SP-109012",
+      "SP-109034",
+      "SP-109039"
+    ],
+    "packs": [
+      "execution",
+      "privilege_escalation"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1556.006",
+    "tactic": "Defense Evasion",
+    "rule_count": 5,
+    "rule_ids": [
+      "SP-700002",
+      "SP-701006",
+      "SP-702001",
+      "SP-702002",
+      "SP-702014"
+    ],
+    "packs": [
+      "identity"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1572",
+    "tactic": "C2",
+    "rule_count": 4,
+    "rule_ids": [
+      "SP-104015",
+      "SP-104028",
+      "SP-400010",
+      "SP-401007"
+    ],
+    "packs": [
+      "c2",
+      "network"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1136.003",
+    "tactic": "Persistence",
+    "rule_count": 4,
+    "rule_ids": [
+      "SP-200006",
+      "SP-200029",
+      "SP-201004",
+      "SP-701002"
+    ],
+    "packs": [
+      "cloud",
+      "identity"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1070",
+    "tactic": "Defense Evasion",
+    "rule_count": 4,
+    "rule_ids": [
+      "SP-201011",
+      "SP-720008",
+      "SP-720016",
+      "SP-740014"
+    ],
+    "packs": [
+      "cloud",
+      "devops",
+      "hypervisor"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1098.004",
+    "tactic": "Persistence",
+    "rule_count": 4,
+    "rule_ids": [
+      "SP-203009",
+      "SP-300008",
+      "SP-780014",
+      "SP-810006"
+    ],
+    "packs": [
+      "cloud",
+      "correlation",
+      "linux",
+      "macos"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1570",
+    "tactic": "Lateral Movement",
+    "rule_count": 4,
+    "rule_ids": [
+      "SP-105009",
+      "SP-105028",
+      "SP-600007",
+      "SP-810009"
+    ],
+    "packs": [
+      "correlation",
+      "lateral_movement",
+      "threat_intel"
+    ],
+    "platforms": [
+      "splunk",
+      "unknown"
+    ]
+  },
+  {
+    "technique": "T1083",
+    "tactic": "Multi-Stage Data Exfil",
+    "rule_count": 4,
+    "rule_ids": [
+      "SP-106008",
+      "SP-106032",
+      "SP-800014",
+      "SP-810013"
+    ],
+    "packs": [
+      "correlation",
+      "deception",
+      "discovery"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1534",
+    "tactic": "Multi-Stage BEC",
+    "rule_count": 4,
+    "rule_ids": [
+      "SP-105015",
+      "SP-105025",
+      "SP-105038",
+      "SP-810019"
+    ],
+    "packs": [
+      "correlation",
+      "lateral_movement"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1046",
+    "tactic": "Detection",
+    "rule_count": 4,
+    "rule_ids": [
+      "SP-106016",
+      "SP-106033",
+      "SP-400003",
+      "SP-800013"
+    ],
+    "packs": [
+      "deception",
+      "discovery",
+      "network"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1055.001",
+    "tactic": "Defense Evasion",
+    "rule_count": 4,
+    "rule_ids": [
+      "SP-100052",
+      "SP-102001",
+      "SP-102034",
+      "SP-109015"
+    ],
+    "packs": [
+      "defense_evasion",
+      "execution",
+      "privilege_escalation"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1027",
+    "tactic": "Defense Evasion",
+    "rule_count": 4,
+    "rule_ids": [
+      "SP-100010",
+      "SP-102008",
+      "SP-102035",
+      "SP-302007"
+    ],
+    "packs": [
+      "defense_evasion",
+      "execution",
+      "linux"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1218.011",
+    "tactic": "Defense Evasion",
+    "rule_count": 4,
+    "rule_ids": [
+      "SP-100028",
+      "SP-100095",
+      "SP-102027",
+      "SP-602005"
+    ],
+    "packs": [
+      "defense_evasion",
+      "execution",
+      "threat_intel"
+    ],
+    "platforms": [
+      "splunk",
+      "unknown"
+    ]
+  },
+  {
+    "technique": "T1098.001",
+    "tactic": "Persistence",
+    "rule_count": 4,
+    "rule_ids": [
+      "SP-700004",
+      "SP-701003",
+      "SP-702005",
+      "SP-720002"
+    ],
+    "packs": [
+      "devops",
+      "identity"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1071",
+    "tactic": "C2",
+    "rule_count": 4,
+    "rule_ids": [
+      "SP-600001",
+      "SP-602017",
+      "SP-720011",
+      "SP-770009"
+    ],
+    "packs": [
+      "devops",
+      "threat_intel",
+      "vpn"
+    ],
+    "platforms": [
+      "splunk",
+      "unknown"
+    ]
+  },
+  {
+    "technique": "T1560.001",
+    "tactic": "Collection",
+    "rule_count": 4,
+    "rule_ids": [
+      "SP-100019",
+      "SP-107003",
+      "SP-107012",
+      "SP-790003"
+    ],
+    "packs": [
+      "dlp",
+      "execution",
+      "exfiltration"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1059.005",
+    "tactic": "Execution",
+    "rule_count": 4,
+    "rule_ids": [
+      "SP-100031",
+      "SP-100070",
+      "SP-100072",
+      "SP-100073"
+    ],
+    "packs": [
+      "execution"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1204.002",
+    "tactic": "Initial Access",
+    "rule_count": 4,
+    "rule_ids": [
+      "SP-110003",
+      "SP-110014",
+      "SP-110028",
+      "SP-110033"
+    ],
+    "packs": [
+      "initial_access"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1053.003",
+    "tactic": "Persistence",
+    "rule_count": 4,
+    "rule_ids": [
+      "SP-300001",
+      "SP-300002",
+      "SP-300015",
+      "SP-780020"
+    ],
+    "packs": [
+      "linux",
+      "macos"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1548.001",
+    "tactic": "Persistence",
+    "rule_count": 4,
+    "rule_ids": [
+      "SP-109009",
+      "SP-300007",
+      "SP-301003",
+      "SP-301005"
+    ],
+    "packs": [
+      "linux",
+      "privilege_escalation"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1531",
+    "tactic": "Impact",
+    "rule_count": 3,
+    "rule_ids": [
+      "SP-201012",
+      "SP-701019",
+      "SP-702007"
+    ],
+    "packs": [
+      "cloud",
+      "identity"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1610",
+    "tactic": "Execution",
+    "rule_count": 3,
+    "rule_ids": [
+      "SP-710007",
+      "SP-710017",
+      "SP-720012"
+    ],
+    "packs": [
+      "container",
+      "devops"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1021.004",
+    "tactic": "Persistence",
+    "rule_count": 3,
+    "rule_ids": [
+      "SP-105011",
+      "SP-800005",
+      "SP-810006"
+    ],
+    "packs": [
+      "correlation",
+      "deception",
+      "lateral_movement"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1543.002",
+    "tactic": "Persistence",
+    "rule_count": 3,
+    "rule_ids": [
+      "SP-300003",
+      "SP-300004",
+      "SP-810006"
+    ],
+    "packs": [
+      "correlation",
+      "linux"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1070.001",
+    "tactic": "Defense Evasion",
+    "rule_count": 3,
+    "rule_ids": [
+      "SP-100018",
+      "SP-102014",
+      "SP-810011"
+    ],
+    "packs": [
+      "correlation",
+      "defense_evasion",
+      "execution"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1560",
+    "tactic": "Multi-Stage Data Exfil",
+    "rule_count": 3,
+    "rule_ids": [
+      "SP-107022",
+      "SP-790011",
+      "SP-810013"
+    ],
+    "packs": [
+      "correlation",
+      "dlp",
+      "exfiltration"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1003",
+    "tactic": "Multi-Stage Hypervisor Attack",
+    "rule_count": 3,
+    "rule_ids": [
+      "SP-740015",
+      "SP-810015",
+      "SP-810020"
+    ],
+    "packs": [
+      "correlation",
+      "hypervisor"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1078.002",
+    "tactic": "Multi-Stage SVC Abuse",
+    "rule_count": 3,
+    "rule_ids": [
+      "SP-703004",
+      "SP-770011",
+      "SP-810017"
+    ],
+    "packs": [
+      "correlation",
+      "identity",
+      "vpn"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1003.002",
+    "tactic": "Credential Access",
+    "rule_count": 3,
+    "rule_ids": [
+      "SP-100054",
+      "SP-103006",
+      "SP-103033"
+    ],
+    "packs": [
+      "credential_access",
+      "execution"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1056.001",
+    "tactic": "Credential Access",
+    "rule_count": 3,
+    "rule_ids": [
+      "SP-100017",
+      "SP-103022",
+      "SP-303006"
+    ],
+    "packs": [
+      "credential_access",
+      "execution",
+      "linux"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1055.003",
+    "tactic": "Defense Evasion",
+    "rule_count": 3,
+    "rule_ids": [
+      "SP-102006",
+      "SP-109027",
+      "SP-600005"
+    ],
+    "packs": [
+      "defense_evasion",
+      "privilege_escalation",
+      "threat_intel"
+    ],
+    "platforms": [
+      "splunk",
+      "unknown"
+    ]
+  },
+  {
+    "technique": "T1070.004",
+    "tactic": "Defense Evasion",
+    "rule_count": 3,
+    "rule_ids": [
+      "SP-102009",
+      "SP-102032",
+      "SP-601005"
+    ],
+    "packs": [
+      "defense_evasion",
+      "threat_intel"
+    ],
+    "platforms": [
+      "splunk",
+      "unknown"
+    ]
+  },
+  {
+    "technique": "T1562.006",
+    "tactic": "Defense Evasion",
+    "rule_count": 3,
+    "rule_ids": [
+      "SP-100015",
+      "SP-102022",
+      "SP-770017"
+    ],
+    "packs": [
+      "defense_evasion",
+      "execution",
+      "vpn"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1218.005",
+    "tactic": "Defense Evasion",
+    "rule_count": 3,
+    "rule_ids": [
+      "SP-100026",
+      "SP-102031",
+      "SP-602003"
+    ],
+    "packs": [
+      "defense_evasion",
+      "execution",
+      "threat_intel"
+    ],
+    "platforms": [
+      "splunk",
+      "unknown"
+    ]
+  },
+  {
+    "technique": "T1069.002",
+    "tactic": "Discovery",
+    "rule_count": 3,
+    "rule_ids": [
+      "SP-106003",
+      "SP-106021",
+      "SP-106035"
+    ],
+    "packs": [
+      "discovery"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1018",
+    "tactic": "Discovery",
+    "rule_count": 3,
+    "rule_ids": [
+      "SP-106004",
+      "SP-106006",
+      "SP-106024"
+    ],
+    "packs": [
+      "discovery"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1197",
+    "tactic": "Defense Evasion",
+    "rule_count": 3,
+    "rule_ids": [
+      "SP-100030",
+      "SP-101023",
+      "SP-602002"
+    ],
+    "packs": [
+      "execution",
+      "persistence",
+      "threat_intel"
+    ],
+    "platforms": [
+      "splunk",
+      "unknown"
+    ]
+  },
+  {
+    "technique": "T1136.001",
+    "tactic": "Persistence",
+    "rule_count": 3,
+    "rule_ids": [
+      "SP-100046",
+      "SP-300010",
+      "SP-301011"
+    ],
+    "packs": [
+      "execution",
+      "linux"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1621",
+    "tactic": "Credential Access",
+    "rule_count": 3,
+    "rule_ids": [
+      "SP-700020",
+      "SP-702011",
+      "SP-703001"
+    ],
+    "packs": [
+      "identity"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1203",
+    "tactic": "Initial Access",
+    "rule_count": 3,
+    "rule_ids": [
+      "SP-110008",
+      "SP-110016",
+      "SP-110024"
+    ],
+    "packs": [
+      "initial_access"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1204.001",
+    "tactic": "Initial Access",
+    "rule_count": 3,
+    "rule_ids": [
+      "SP-110010",
+      "SP-110019",
+      "SP-110037"
+    ],
+    "packs": [
+      "initial_access"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1021.003",
+    "tactic": "Lateral Movement",
+    "rule_count": 3,
+    "rule_ids": [
+      "SP-105013",
+      "SP-105014",
+      "SP-105032"
+    ],
+    "packs": [
+      "lateral_movement"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1055",
+    "tactic": "Privilege Escalation",
+    "rule_count": 3,
+    "rule_ids": [
+      "SP-301015",
+      "SP-600004",
+      "SP-602013"
+    ],
+    "packs": [
+      "linux",
+      "threat_intel"
+    ],
+    "platforms": [
+      "splunk",
+      "unknown"
+    ]
+  },
+  {
+    "technique": "T1562.007",
+    "tactic": "Defense Evasion",
+    "rule_count": 2,
+    "rule_ids": [
+      "SP-200013",
+      "SP-203010"
+    ],
+    "packs": [
+      "cloud"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1648",
+    "tactic": "Execution",
+    "rule_count": 2,
+    "rule_ids": [
+      "SP-200021",
+      "SP-203007"
+    ],
+    "packs": [
+      "cloud"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1580",
+    "tactic": "Discovery",
+    "rule_count": 2,
+    "rule_ids": [
+      "SP-200027",
+      "SP-203014"
+    ],
+    "packs": [
+      "cloud"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1526",
+    "tactic": "Discovery",
+    "rule_count": 2,
+    "rule_ids": [
+      "SP-200028",
+      "SP-202014"
+    ],
+    "packs": [
+      "cloud"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1039",
+    "tactic": "Exfiltration",
+    "rule_count": 2,
+    "rule_ids": [
+      "SP-202003",
+      "SP-202017"
+    ],
+    "packs": [
+      "cloud"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1566",
+    "tactic": "Initial Access",
+    "rule_count": 2,
+    "rule_ids": [
+      "SP-202010",
+      "SP-810019"
+    ],
+    "packs": [
+      "cloud",
+      "correlation"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1114.002",
+    "tactic": "Collection",
+    "rule_count": 2,
+    "rule_ids": [
+      "SP-202015",
+      "SP-700011"
+    ],
+    "packs": [
+      "cloud",
+      "identity"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1543",
+    "tactic": "Persistence",
+    "rule_count": 2,
+    "rule_ids": [
+      "SP-710009",
+      "SP-780019"
+    ],
+    "packs": [
+      "container",
+      "macos"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1567",
+    "tactic": "Multi-Stage Insider Exfil",
+    "rule_count": 2,
+    "rule_ids": [
+      "SP-107017",
+      "SP-810004"
+    ],
+    "packs": [
+      "correlation",
+      "exfiltration"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1003.006",
+    "tactic": "Multi-Stage Credential Theft",
+    "rule_count": 2,
+    "rule_ids": [
+      "SP-103021",
+      "SP-810010"
+    ],
+    "packs": [
+      "correlation",
+      "credential_access"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1195.002",
+    "tactic": "Multi-Stage Supply Chain",
+    "rule_count": 2,
+    "rule_ids": [
+      "SP-720014",
+      "SP-810012"
+    ],
+    "packs": [
+      "correlation",
+      "devops"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1525",
+    "tactic": "Multi-Stage Supply Chain",
+    "rule_count": 2,
+    "rule_ids": [
+      "SP-720017",
+      "SP-810012"
+    ],
+    "packs": [
+      "correlation",
+      "devops"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1003.003",
+    "tactic": "Credential Access",
+    "rule_count": 2,
+    "rule_ids": [
+      "SP-100055",
+      "SP-103007"
+    ],
+    "packs": [
+      "credential_access",
+      "execution"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1555.003",
+    "tactic": "Credential Access",
+    "rule_count": 2,
+    "rule_ids": [
+      "SP-103010",
+      "SP-103031"
+    ],
+    "packs": [
+      "credential_access"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1012",
+    "tactic": "Detection",
+    "rule_count": 2,
+    "rule_ids": [
+      "SP-106011",
+      "SP-800012"
+    ],
+    "packs": [
+      "deception",
+      "discovery"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1552.004",
+    "tactic": "Detection",
+    "rule_count": 2,
+    "rule_ids": [
+      "SP-303004",
+      "SP-800015"
+    ],
+    "packs": [
+      "deception",
+      "linux"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1055.002",
+    "tactic": "Defense Evasion",
+    "rule_count": 2,
+    "rule_ids": [
+      "SP-102002",
+      "SP-109018"
+    ],
+    "packs": [
+      "defense_evasion",
+      "privilege_escalation"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1055.012",
+    "tactic": "Defense Evasion",
+    "rule_count": 2,
+    "rule_ids": [
+      "SP-102003",
+      "SP-109023"
+    ],
+    "packs": [
+      "defense_evasion",
+      "privilege_escalation"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1027.002",
+    "tactic": "Defense Evasion",
+    "rule_count": 2,
+    "rule_ids": [
+      "SP-102011",
+      "SP-302006"
+    ],
+    "packs": [
+      "defense_evasion",
+      "linux"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1036.001",
+    "tactic": "Defense Evasion",
+    "rule_count": 2,
+    "rule_ids": [
+      "SP-102018",
+      "SP-780016"
+    ],
+    "packs": [
+      "defense_evasion",
+      "macos"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1070.006",
+    "tactic": "Defense Evasion",
+    "rule_count": 2,
+    "rule_ids": [
+      "SP-102020",
+      "SP-302005"
+    ],
+    "packs": [
+      "defense_evasion",
+      "linux"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1070.003",
+    "tactic": "Defense Evasion",
+    "rule_count": 2,
+    "rule_ids": [
+      "SP-102026",
+      "SP-302001"
+    ],
+    "packs": [
+      "defense_evasion",
+      "linux"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1059.004",
+    "tactic": "Execution",
+    "rule_count": 2,
+    "rule_ids": [
+      "SP-720004",
+      "SP-780012"
+    ],
+    "packs": [
+      "devops",
+      "macos"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1195.001",
+    "tactic": "Persistence",
+    "rule_count": 2,
+    "rule_ids": [
+      "SP-720006",
+      "SP-720018"
+    ],
+    "packs": [
+      "devops"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1016",
+    "tactic": "Discovery",
+    "rule_count": 2,
+    "rule_ids": [
+      "SP-106005",
+      "SP-106023"
+    ],
+    "packs": [
+      "discovery"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1040",
+    "tactic": "Discovery",
+    "rule_count": 2,
+    "rule_ids": [
+      "SP-106034",
+      "SP-302014"
+    ],
+    "packs": [
+      "discovery",
+      "linux"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1567.002",
+    "tactic": "Exfiltration",
+    "rule_count": 2,
+    "rule_ids": [
+      "SP-107008",
+      "SP-790002"
+    ],
+    "packs": [
+      "dlp",
+      "exfiltration"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1052.001",
+    "tactic": "Exfiltration",
+    "rule_count": 2,
+    "rule_ids": [
+      "SP-107007",
+      "SP-790008"
+    ],
+    "packs": [
+      "dlp",
+      "exfiltration"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1113",
+    "tactic": "Collection",
+    "rule_count": 2,
+    "rule_ids": [
+      "SP-780018",
+      "SP-790013"
+    ],
+    "packs": [
+      "dlp",
+      "macos"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1036",
+    "tactic": "Defense Evasion",
+    "rule_count": 2,
+    "rule_ids": [
+      "SP-750019",
+      "SP-780007"
+    ],
+    "packs": [
+      "email",
+      "macos"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1218.010",
+    "tactic": "Execution",
+    "rule_count": 2,
+    "rule_ids": [
+      "SP-100027",
+      "SP-602004"
+    ],
+    "packs": [
+      "execution",
+      "threat_intel"
+    ],
+    "platforms": [
+      "splunk",
+      "unknown"
+    ]
+  },
+  {
+    "technique": "T1218.004",
+    "tactic": "Defense Evasion",
+    "rule_count": 2,
+    "rule_ids": [
+      "SP-100032",
+      "SP-602008"
+    ],
+    "packs": [
+      "execution",
+      "threat_intel"
+    ],
+    "platforms": [
+      "splunk",
+      "unknown"
+    ]
+  },
+  {
+    "technique": "T1218.003",
+    "tactic": "Defense Evasion",
+    "rule_count": 2,
+    "rule_ids": [
+      "SP-100034",
+      "SP-602007"
+    ],
+    "packs": [
+      "execution",
+      "threat_intel"
+    ],
+    "platforms": [
+      "splunk",
+      "unknown"
+    ]
+  },
+  {
+    "technique": "T1218.008",
+    "tactic": "Defense Evasion",
+    "rule_count": 2,
+    "rule_ids": [
+      "SP-100035",
+      "SP-602014"
+    ],
+    "packs": [
+      "execution",
+      "threat_intel"
+    ],
+    "platforms": [
+      "splunk",
+      "unknown"
+    ]
+  },
+  {
+    "technique": "T1127.001",
+    "tactic": "Defense Evasion",
+    "rule_count": 2,
+    "rule_ids": [
+      "SP-100040",
+      "SP-602009"
+    ],
+    "packs": [
+      "execution",
+      "threat_intel"
+    ],
+    "platforms": [
+      "splunk",
+      "unknown"
+    ]
+  },
+  {
+    "technique": "T1218.007",
+    "tactic": "Defense Evasion",
+    "rule_count": 2,
+    "rule_ids": [
+      "SP-100057",
+      "SP-602016"
+    ],
+    "packs": [
+      "execution",
+      "threat_intel"
+    ],
+    "platforms": [
+      "splunk",
+      "unknown"
+    ]
+  },
+  {
+    "technique": "T1137.001",
+    "tactic": "Persistence",
+    "rule_count": 2,
+    "rule_ids": [
+      "SP-100082",
+      "SP-101008"
+    ],
+    "packs": [
+      "execution",
+      "persistence"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1048.001",
+    "tactic": "Exfiltration",
+    "rule_count": 2,
+    "rule_ids": [
+      "SP-107002",
+      "SP-107015"
+    ],
+    "packs": [
+      "exfiltration"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1020",
+    "tactic": "Collection",
+    "rule_count": 2,
+    "rule_ids": [
+      "SP-107011",
+      "SP-107028"
+    ],
+    "packs": [
+      "exfiltration"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1565",
+    "tactic": "Impact",
+    "rule_count": 2,
+    "rule_ids": [
+      "SP-740011",
+      "SP-740016"
+    ],
+    "packs": [
+      "hypervisor"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1550.004",
+    "tactic": "Credential Access",
+    "rule_count": 2,
+    "rule_ids": [
+      "SP-702010",
+      "SP-703012"
+    ],
+    "packs": [
+      "identity"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1087",
+    "tactic": "Discovery",
+    "rule_count": 2,
+    "rule_ids": [
+      "SP-702012",
+      "SP-702016"
+    ],
+    "packs": [
+      "identity"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1546.004",
+    "tactic": "Persistence",
+    "rule_count": 2,
+    "rule_ids": [
+      "SP-300005",
+      "SP-300006"
+    ],
+    "packs": [
+      "linux"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1574.006",
+    "tactic": "Persistence",
+    "rule_count": 2,
+    "rule_ids": [
+      "SP-300012",
+      "SP-302008"
+    ],
+    "packs": [
+      "linux"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1620",
+    "tactic": "Defense Evasion",
+    "rule_count": 2,
+    "rule_ids": [
+      "SP-302002",
+      "SP-302013"
+    ],
+    "packs": [
+      "linux"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1003.008",
+    "tactic": "Credential Access",
+    "rule_count": 2,
+    "rule_ids": [
+      "SP-303001",
+      "SP-303002"
+    ],
+    "packs": [
+      "linux"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1003.007",
+    "tactic": "Credential Access",
+    "rule_count": 2,
+    "rule_ids": [
+      "SP-303003",
+      "SP-303007"
+    ],
+    "packs": [
+      "linux"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1548.004",
+    "tactic": "Defense Evasion",
+    "rule_count": 2,
+    "rule_ids": [
+      "SP-109036",
+      "SP-780005"
+    ],
+    "packs": [
+      "macos",
+      "privilege_escalation"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1547.006",
+    "tactic": "Persistence",
+    "rule_count": 2,
+    "rule_ids": [
+      "SP-101011",
+      "SP-780010"
+    ],
+    "packs": [
+      "macos",
+      "persistence"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1568.001",
+    "tactic": "Command and Control",
+    "rule_count": 2,
+    "rule_ids": [
+      "SP-400009",
+      "SP-401014"
+    ],
+    "packs": [
+      "network"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1568.002",
+    "tactic": "Command and Control",
+    "rule_count": 2,
+    "rule_ids": [
+      "SP-401009",
+      "SP-401011"
+    ],
+    "packs": [
+      "network"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1574.012",
+    "tactic": "Defense Evasion",
+    "rule_count": 2,
+    "rule_ids": [
+      "SP-101012",
+      "SP-109014"
+    ],
+    "packs": [
+      "persistence",
+      "privilege_escalation"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1112",
+    "tactic": "Defense Evasion",
+    "rule_count": 2,
+    "rule_ids": [
+      "SP-101013",
+      "SP-101022"
+    ],
+    "packs": [
+      "persistence"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1574.011",
+    "tactic": "Persistence",
+    "rule_count": 2,
+    "rule_ids": [
+      "SP-101069",
+      "SP-109029"
+    ],
+    "packs": [
+      "persistence",
+      "privilege_escalation"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1134.004",
+    "tactic": "Privilege Escalation",
+    "rule_count": 2,
+    "rule_ids": [
+      "SP-109025",
+      "SP-600006"
+    ],
+    "packs": [
+      "privilege_escalation",
+      "threat_intel"
+    ],
+    "platforms": [
+      "splunk",
+      "unknown"
+    ]
+  },
+  {
+    "technique": "T1055.004",
+    "tactic": "Privilege Escalation",
+    "rule_count": 2,
+    "rule_ids": [
+      "SP-109030",
+      "SP-600010"
+    ],
+    "packs": [
+      "privilege_escalation",
+      "threat_intel"
+    ],
+    "platforms": [
+      "splunk",
+      "unknown"
+    ]
+  },
+  {
+    "technique": "T1505.003",
+    "tactic": "Execution",
+    "rule_count": 2,
+    "rule_ids": [
+      "SP-500004",
+      "SP-500007"
+    ],
+    "packs": [
+      "web"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1595.002",
+    "tactic": "Reconnaissance",
+    "rule_count": 2,
+    "rule_ids": [
+      "SP-500010",
+      "SP-500013"
+    ],
+    "packs": [
+      "web"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1001.003",
+    "tactic": "C2",
+    "rule_count": 1,
+    "rule_ids": [
+      "SP-104010"
+    ],
+    "packs": [
+      "c2"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1573.002",
+    "tactic": "C2",
+    "rule_count": 1,
+    "rule_ids": [
+      "SP-104014"
+    ],
+    "packs": [
+      "c2"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1090.001",
+    "tactic": "C2",
+    "rule_count": 1,
+    "rule_ids": [
+      "SP-104016"
+    ],
+    "packs": [
+      "c2"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1090.002",
+    "tactic": "C2",
+    "rule_count": 1,
+    "rule_ids": [
+      "SP-104017"
+    ],
+    "packs": [
+      "c2"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1008",
+    "tactic": "C2",
+    "rule_count": 1,
+    "rule_ids": [
+      "SP-104020"
+    ],
+    "packs": [
+      "c2"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1071.003",
+    "tactic": "C2",
+    "rule_count": 1,
+    "rule_ids": [
+      "SP-104026"
+    ],
+    "packs": [
+      "c2"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1071.002",
+    "tactic": "C2",
+    "rule_count": 1,
+    "rule_ids": [
+      "SP-104027"
+    ],
+    "packs": [
+      "c2"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1573.001",
+    "tactic": "C2",
+    "rule_count": 1,
+    "rule_ids": [
+      "SP-104030"
+    ],
+    "packs": [
+      "c2"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1219",
+    "tactic": "C2",
+    "rule_count": 1,
+    "rule_ids": [
+      "SP-104032"
+    ],
+    "packs": [
+      "c2"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1651",
+    "tactic": "Execution",
+    "rule_count": 1,
+    "rule_ids": [
+      "SP-200023"
+    ],
+    "packs": [
+      "cloud"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1584.002",
+    "tactic": "Impact",
+    "rule_count": 1,
+    "rule_ids": [
+      "SP-200031"
+    ],
+    "packs": [
+      "cloud"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1556.007",
+    "tactic": "Persistence",
+    "rule_count": 1,
+    "rule_ids": [
+      "SP-201015"
+    ],
+    "packs": [
+      "cloud"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1114.003",
+    "tactic": "Collection",
+    "rule_count": 1,
+    "rule_ids": [
+      "SP-202001"
+    ],
+    "packs": [
+      "cloud"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1070.008",
+    "tactic": "Defense Evasion",
+    "rule_count": 1,
+    "rule_ids": [
+      "SP-202007"
+    ],
+    "packs": [
+      "cloud"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1609",
+    "tactic": "Execution",
+    "rule_count": 1,
+    "rule_ids": [
+      "SP-710003"
+    ],
+    "packs": [
+      "container"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1613",
+    "tactic": "Discovery",
+    "rule_count": 1,
+    "rule_ids": [
+      "SP-710011"
+    ],
+    "packs": [
+      "container"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1496",
+    "tactic": "Impact",
+    "rule_count": 1,
+    "rule_ids": [
+      "SP-710019"
+    ],
+    "packs": [
+      "container"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1558.003",
+    "tactic": "Credential Access",
+    "rule_count": 1,
+    "rule_ids": [
+      "SP-103011"
+    ],
+    "packs": [
+      "credential_access"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1558.004",
+    "tactic": "Credential Access",
+    "rule_count": 1,
+    "rule_ids": [
+      "SP-103012"
+    ],
+    "packs": [
+      "credential_access"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1003.004",
+    "tactic": "Credential Access",
+    "rule_count": 1,
+    "rule_ids": [
+      "SP-103013"
+    ],
+    "packs": [
+      "credential_access"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1003.005",
+    "tactic": "Credential Access",
+    "rule_count": 1,
+    "rule_ids": [
+      "SP-103019"
+    ],
+    "packs": [
+      "credential_access"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1552.002",
+    "tactic": "Credential Access",
+    "rule_count": 1,
+    "rule_ids": [
+      "SP-103025"
+    ],
+    "packs": [
+      "credential_access"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1558.001",
+    "tactic": "Credential Access",
+    "rule_count": 1,
+    "rule_ids": [
+      "SP-103026"
+    ],
+    "packs": [
+      "credential_access"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1558.002",
+    "tactic": "Credential Access",
+    "rule_count": 1,
+    "rule_ids": [
+      "SP-103027"
+    ],
+    "packs": [
+      "credential_access"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1556.001",
+    "tactic": "Credential Access",
+    "rule_count": 1,
+    "rule_ids": [
+      "SP-103035"
+    ],
+    "packs": [
+      "credential_access"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1505.001",
+    "tactic": "Persistence",
+    "rule_count": 1,
+    "rule_ids": [
+      "SP-760016"
+    ],
+    "packs": [
+      "database"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1053.002",
+    "tactic": "Persistence",
+    "rule_count": 1,
+    "rule_ids": [
+      "SP-760017"
+    ],
+    "packs": [
+      "database"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1036.003",
+    "tactic": "Defense Evasion",
+    "rule_count": 1,
+    "rule_ids": [
+      "SP-102004"
+    ],
+    "packs": [
+      "defense_evasion"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1036.005",
+    "tactic": "Defense Evasion",
+    "rule_count": 1,
+    "rule_ids": [
+      "SP-102005"
+    ],
+    "packs": [
+      "defense_evasion"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1562.002",
+    "tactic": "Defense Evasion",
+    "rule_count": 1,
+    "rule_ids": [
+      "SP-102010"
+    ],
+    "packs": [
+      "defense_evasion"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1055.013",
+    "tactic": "Defense Evasion",
+    "rule_count": 1,
+    "rule_ids": [
+      "SP-102012"
+    ],
+    "packs": [
+      "defense_evasion"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1036.004",
+    "tactic": "Defense Evasion",
+    "rule_count": 1,
+    "rule_ids": [
+      "SP-102013"
+    ],
+    "packs": [
+      "defense_evasion"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1027.004",
+    "tactic": "Defense Evasion",
+    "rule_count": 1,
+    "rule_ids": [
+      "SP-102016"
+    ],
+    "packs": [
+      "defense_evasion"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1055.008",
+    "tactic": "Defense Evasion",
+    "rule_count": 1,
+    "rule_ids": [
+      "SP-102017"
+    ],
+    "packs": [
+      "defense_evasion"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1027.001",
+    "tactic": "Defense Evasion",
+    "rule_count": 1,
+    "rule_ids": [
+      "SP-102021"
+    ],
+    "packs": [
+      "defense_evasion"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1055.009",
+    "tactic": "Defense Evasion",
+    "rule_count": 1,
+    "rule_ids": [
+      "SP-102023"
+    ],
+    "packs": [
+      "defense_evasion"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1036.007",
+    "tactic": "Defense Evasion",
+    "rule_count": 1,
+    "rule_ids": [
+      "SP-102025"
+    ],
+    "packs": [
+      "defense_evasion"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1027.005",
+    "tactic": "Defense Evasion",
+    "rule_count": 1,
+    "rule_ids": [
+      "SP-102028"
+    ],
+    "packs": [
+      "defense_evasion"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1055.015",
+    "tactic": "Defense Evasion",
+    "rule_count": 1,
+    "rule_ids": [
+      "SP-102029"
+    ],
+    "packs": [
+      "defense_evasion"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1053",
+    "tactic": "Persistence",
+    "rule_count": 1,
+    "rule_ids": [
+      "SP-720003"
+    ],
+    "packs": [
+      "devops"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1049",
+    "tactic": "Discovery",
+    "rule_count": 1,
+    "rule_ids": [
+      "SP-106007"
+    ],
+    "packs": [
+      "discovery"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1069.001",
+    "tactic": "Discovery",
+    "rule_count": 1,
+    "rule_ids": [
+      "SP-106009"
+    ],
+    "packs": [
+      "discovery"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1087.001",
+    "tactic": "Discovery",
+    "rule_count": 1,
+    "rule_ids": [
+      "SP-106010"
+    ],
+    "packs": [
+      "discovery"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1057",
+    "tactic": "Discovery",
+    "rule_count": 1,
+    "rule_ids": [
+      "SP-106012"
+    ],
+    "packs": [
+      "discovery"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1135",
+    "tactic": "Discovery",
+    "rule_count": 1,
+    "rule_ids": [
+      "SP-106014"
+    ],
+    "packs": [
+      "discovery"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1201",
+    "tactic": "Discovery",
+    "rule_count": 1,
+    "rule_ids": [
+      "SP-106018"
+    ],
+    "packs": [
+      "discovery"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1007",
+    "tactic": "Discovery",
+    "rule_count": 1,
+    "rule_ids": [
+      "SP-106020"
+    ],
+    "packs": [
+      "discovery"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1010",
+    "tactic": "Discovery",
+    "rule_count": 1,
+    "rule_ids": [
+      "SP-106026"
+    ],
+    "packs": [
+      "discovery"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1033",
+    "tactic": "Discovery",
+    "rule_count": 1,
+    "rule_ids": [
+      "SP-106027"
+    ],
+    "packs": [
+      "discovery"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1217",
+    "tactic": "Discovery",
+    "rule_count": 1,
+    "rule_ids": [
+      "SP-106029"
+    ],
+    "packs": [
+      "discovery"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1048.002",
+    "tactic": "Exfiltration",
+    "rule_count": 1,
+    "rule_ids": [
+      "SP-790007"
+    ],
+    "packs": [
+      "dlp"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1115",
+    "tactic": "Collection",
+    "rule_count": 1,
+    "rule_ids": [
+      "SP-790014"
+    ],
+    "packs": [
+      "dlp"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1567.001",
+    "tactic": "Exfiltration",
+    "rule_count": 1,
+    "rule_ids": [
+      "SP-790017"
+    ],
+    "packs": [
+      "dlp"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1498",
+    "tactic": "Impact",
+    "rule_count": 1,
+    "rule_ids": [
+      "SP-750008"
+    ],
+    "packs": [
+      "email"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1140",
+    "tactic": "Defense Evasion",
+    "rule_count": 1,
+    "rule_ids": [
+      "SP-100029"
+    ],
+    "packs": [
+      "execution"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1482",
+    "tactic": "Discovery",
+    "rule_count": 1,
+    "rule_ids": [
+      "SP-100042"
+    ],
+    "packs": [
+      "execution"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1059.003",
+    "tactic": "Execution",
+    "rule_count": 1,
+    "rule_ids": [
+      "SP-100059"
+    ],
+    "packs": [
+      "execution"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1137.006",
+    "tactic": "Persistence",
+    "rule_count": 1,
+    "rule_ids": [
+      "SP-100074"
+    ],
+    "packs": [
+      "execution"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1559.001",
+    "tactic": "Execution",
+    "rule_count": 1,
+    "rule_ids": [
+      "SP-100075"
+    ],
+    "packs": [
+      "execution"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1542",
+    "tactic": "Persistence",
+    "rule_count": 1,
+    "rule_ids": [
+      "SP-740006"
+    ],
+    "packs": [
+      "hypervisor"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1098.002",
+    "tactic": "Privilege Escalation",
+    "rule_count": 1,
+    "rule_ids": [
+      "SP-700010"
+    ],
+    "packs": [
+      "identity"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1090",
+    "tactic": "Defense Evasion",
+    "rule_count": 1,
+    "rule_ids": [
+      "SP-700013"
+    ],
+    "packs": [
+      "identity"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1069.003",
+    "tactic": "Discovery",
+    "rule_count": 1,
+    "rule_ids": [
+      "SP-701017"
+    ],
+    "packs": [
+      "identity"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1110.004",
+    "tactic": "Credential Access",
+    "rule_count": 1,
+    "rule_ids": [
+      "SP-703002"
+    ],
+    "packs": [
+      "identity"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1561.001",
+    "tactic": "Impact",
+    "rule_count": 1,
+    "rule_ids": [
+      "SP-108018"
+    ],
+    "packs": [
+      "impact"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1021.005",
+    "tactic": "Lateral Movement",
+    "rule_count": 1,
+    "rule_ids": [
+      "SP-105012"
+    ],
+    "packs": [
+      "lateral_movement"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1556.004",
+    "tactic": "Defense Evasion",
+    "rule_count": 1,
+    "rule_ids": [
+      "SP-300009"
+    ],
+    "packs": [
+      "linux"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1037.004",
+    "tactic": "Persistence",
+    "rule_count": 1,
+    "rule_ids": [
+      "SP-300013"
+    ],
+    "packs": [
+      "linux"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1053.001",
+    "tactic": "Persistence",
+    "rule_count": 1,
+    "rule_ids": [
+      "SP-300014"
+    ],
+    "packs": [
+      "linux"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1014",
+    "tactic": "Defense Evasion",
+    "rule_count": 1,
+    "rule_ids": [
+      "SP-302011"
+    ],
+    "packs": [
+      "linux"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1222.002",
+    "tactic": "Defense Evasion",
+    "rule_count": 1,
+    "rule_ids": [
+      "SP-302012"
+    ],
+    "packs": [
+      "linux"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1053.006",
+    "tactic": "Persistence",
+    "rule_count": 1,
+    "rule_ids": [
+      "SP-302015"
+    ],
+    "packs": [
+      "linux"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1555.004",
+    "tactic": "Credential Access",
+    "rule_count": 1,
+    "rule_ids": [
+      "SP-303011"
+    ],
+    "packs": [
+      "linux"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1543.001",
+    "tactic": "Persistence",
+    "rule_count": 1,
+    "rule_ids": [
+      "SP-780001"
+    ],
+    "packs": [
+      "macos"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1543.004",
+    "tactic": "Persistence",
+    "rule_count": 1,
+    "rule_ids": [
+      "SP-780002"
+    ],
+    "packs": [
+      "macos"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1547.015",
+    "tactic": "Persistence",
+    "rule_count": 1,
+    "rule_ids": [
+      "SP-780003"
+    ],
+    "packs": [
+      "macos"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1059.002",
+    "tactic": "Execution",
+    "rule_count": 1,
+    "rule_ids": [
+      "SP-780004"
+    ],
+    "packs": [
+      "macos"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1555.001",
+    "tactic": "Credential Access",
+    "rule_count": 1,
+    "rule_ids": [
+      "SP-780006"
+    ],
+    "packs": [
+      "macos"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1553.001",
+    "tactic": "Defense Evasion",
+    "rule_count": 1,
+    "rule_ids": [
+      "SP-780008"
+    ],
+    "packs": [
+      "macos"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1059.006",
+    "tactic": "Execution",
+    "rule_count": 1,
+    "rule_ids": [
+      "SP-780011"
+    ],
+    "packs": [
+      "macos"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1565.001",
+    "tactic": "Defense Evasion",
+    "rule_count": 1,
+    "rule_ids": [
+      "SP-780017"
+    ],
+    "packs": [
+      "macos"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1583.003",
+    "tactic": "Command and Control",
+    "rule_count": 1,
+    "rule_ids": [
+      "SP-400011"
+    ],
+    "packs": [
+      "network"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1090.004",
+    "tactic": "Command and Control",
+    "rule_count": 1,
+    "rule_ids": [
+      "SP-401001"
+    ],
+    "packs": [
+      "network"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1132.001",
+    "tactic": "Command and Control",
+    "rule_count": 1,
+    "rule_ids": [
+      "SP-401002"
+    ],
+    "packs": [
+      "network"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1583.001",
+    "tactic": "Command and Control",
+    "rule_count": 1,
+    "rule_ids": [
+      "SP-401005"
+    ],
+    "packs": [
+      "network"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1102",
+    "tactic": "Command and Control",
+    "rule_count": 1,
+    "rule_ids": [
+      "SP-401008"
+    ],
+    "packs": [
+      "network"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1595.003",
+    "tactic": "Reconnaissance",
+    "rule_count": 1,
+    "rule_ids": [
+      "SP-401013"
+    ],
+    "packs": [
+      "network"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1547.004",
+    "tactic": "Persistence",
+    "rule_count": 1,
+    "rule_ids": [
+      "SP-101003"
+    ],
+    "packs": [
+      "persistence"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1546.010",
+    "tactic": "Persistence",
+    "rule_count": 1,
+    "rule_ids": [
+      "SP-101004"
+    ],
+    "packs": [
+      "persistence"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1546.012",
+    "tactic": "Persistence",
+    "rule_count": 1,
+    "rule_ids": [
+      "SP-101005"
+    ],
+    "packs": [
+      "persistence"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1553.006",
+    "tactic": "Defense Evasion",
+    "rule_count": 1,
+    "rule_ids": [
+      "SP-101006"
+    ],
+    "packs": [
+      "persistence"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1547.008",
+    "tactic": "Persistence",
+    "rule_count": 1,
+    "rule_ids": [
+      "SP-101007"
+    ],
+    "packs": [
+      "persistence"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1546.002",
+    "tactic": "Persistence",
+    "rule_count": 1,
+    "rule_ids": [
+      "SP-101009"
+    ],
+    "packs": [
+      "persistence"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1546.015",
+    "tactic": "Persistence",
+    "rule_count": 1,
+    "rule_ids": [
+      "SP-101010"
+    ],
+    "packs": [
+      "persistence"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1547.012",
+    "tactic": "Persistence",
+    "rule_count": 1,
+    "rule_ids": [
+      "SP-101014"
+    ],
+    "packs": [
+      "persistence"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1546.011",
+    "tactic": "Persistence",
+    "rule_count": 1,
+    "rule_ids": [
+      "SP-101019"
+    ],
+    "packs": [
+      "persistence"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1546.013",
+    "tactic": "Persistence",
+    "rule_count": 1,
+    "rule_ids": [
+      "SP-101020"
+    ],
+    "packs": [
+      "persistence"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1546.001",
+    "tactic": "Persistence",
+    "rule_count": 1,
+    "rule_ids": [
+      "SP-101025"
+    ],
+    "packs": [
+      "persistence"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1574.010",
+    "tactic": "Privilege Escalation",
+    "rule_count": 1,
+    "rule_ids": [
+      "SP-101066"
+    ],
+    "packs": [
+      "persistence"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1134.002",
+    "tactic": "Privilege Escalation",
+    "rule_count": 1,
+    "rule_ids": [
+      "SP-109005"
+    ],
+    "packs": [
+      "privilege_escalation"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1574.002",
+    "tactic": "Privilege Escalation",
+    "rule_count": 1,
+    "rule_ids": [
+      "SP-109006"
+    ],
+    "packs": [
+      "privilege_escalation"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1574.001",
+    "tactic": "Privilege Escalation",
+    "rule_count": 1,
+    "rule_ids": [
+      "SP-109010"
+    ],
+    "packs": [
+      "privilege_escalation"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1134.003",
+    "tactic": "Privilege Escalation",
+    "rule_count": 1,
+    "rule_ids": [
+      "SP-109016"
+    ],
+    "packs": [
+      "privilege_escalation"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1574.007",
+    "tactic": "Privilege Escalation",
+    "rule_count": 1,
+    "rule_ids": [
+      "SP-109021"
+    ],
+    "packs": [
+      "privilege_escalation"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1546.007",
+    "tactic": "Privilege Escalation",
+    "rule_count": 1,
+    "rule_ids": [
+      "SP-109031"
+    ],
+    "packs": [
+      "privilege_escalation"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1078.003",
+    "tactic": "Privilege Escalation",
+    "rule_count": 1,
+    "rule_ids": [
+      "SP-109032"
+    ],
+    "packs": [
+      "privilege_escalation"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1055.011",
+    "tactic": "Privilege Escalation",
+    "rule_count": 1,
+    "rule_ids": [
+      "SP-109035"
+    ],
+    "packs": [
+      "privilege_escalation"
+    ],
+    "platforms": [
+      "splunk"
+    ]
+  },
+  {
+    "technique": "T1134",
+    "tactic": "Privilege Escalation",
+    "rule_count": 1,
+    "rule_ids": [
+      "SP-600009"
+    ],
+    "packs": [
+      "threat_intel"
+    ],
+    "platforms": [
+      "unknown"
+    ]
+  },
+  {
+    "technique": "T1056",
+    "tactic": "Collection",
+    "rule_count": 1,
+    "rule_ids": [
+      "SP-600011"
+    ],
+    "packs": [
+      "threat_intel"
+    ],
+    "platforms": [
+      "unknown"
+    ]
+  },
+  {
+    "technique": "T1204",
+    "tactic": "Execution",
+    "rule_count": 1,
+    "rule_ids": [
+      "SP-601006"
+    ],
+    "packs": [
+      "threat_intel"
+    ],
+    "platforms": [
+      "unknown"
+    ]
+  }
+]

@@ -116,6 +116,7 @@ nav:
     - Backup & Ransomware: fixtures/backup-ransomware.md
     - Deception: fixtures/deception.md
     - Correlation Chains: fixtures/correlation.md
+  - Rule Index: rules/index.md
   - Quality & Coverage:
     - Quality Standards: quality.md
     - Coverage Matrix: coverage.md
