@@ -117,6 +117,19 @@ nav:
     - Deception: fixtures/deception.md
     - Correlation Chains: fixtures/correlation.md
   - Rule Index: rules/index.md
+  - Use Cases:
+    - Catalog: use-cases/index.md
+    - Ransomware (UC-001–005): use-cases/ransomware.md
+    - Credential Theft (UC-006–011): use-cases/credential-theft.md
+    - Lateral Movement (UC-012–016): use-cases/lateral-movement.md
+    - Initial Access & Execution (UC-017–022): use-cases/initial-access-execution.md
+    - Persistence (UC-023–026): use-cases/persistence.md
+    - C2 & Beaconing (UC-027–030): use-cases/c2-beaconing.md
+    - Identity & IAM (UC-031–035): use-cases/identity-iam.md
+    - Cloud & Container (UC-036–040): use-cases/cloud.md
+    - Linux & macOS (UC-041–043): use-cases/linux-macos.md
+    - Email & Database (UC-044–045): use-cases/email-database.md
+    - Deception & Correlation (UC-046): use-cases/deception-correlation.md
   - Quality & Coverage:
     - Quality Standards: quality.md
     - Coverage Matrix: coverage.md
