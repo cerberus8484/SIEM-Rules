@@ -7,7 +7,7 @@ UC-005,Ransomware Precursor Kill Chain (Correlation),Ransomware,T1490+T1489,Mult
 UC-006,LSASS Memory Dump via ProcDump,Credential Theft,T1003.001,OS Credential Dumping: LSASS Memory,Critical,96,Yes,Yes,Windows Security 4688 / Sysmon 1 10,,SP-200001 SP-200002,credential_access
 UC-007,Mimikatz Execution,Credential Theft,T1003,OS Credential Dumping,Critical,97,Yes,Yes,Windows Security 4688 / Sysmon 1,,SP-200003 SP-200004,credential_access
 UC-008,DCSync Attack,Credential Theft,T1003.006,OS Credential Dumping: DCSync,Critical,94,Yes,Yes,Windows Security 4662 (DC) / Sysmon 1,,SP-200005,credential_access
-UC-009,Kerberoasting - GetUserSPNs,Credential Theft,T1558.003,Steal or Forge Kerberos Tickets: Kerberoasting,High,85,Yes,Yes,Windows Security 4769 (DC) / Sysmon 1,,SP-200007 SP-200008,credential_access
+UC-009,Kerberoasting - GetUserSPNs,Credential Theft,T1558.003,Kerberoasting,High,85,Yes,Yes,Windows Security 4769 (DC) / Sysmon 1,,SP-200007 SP-200008,credential_access
 UC-010,NTDS.dit Extraction,Credential Theft,T1003.003,OS Credential Dumping: NTDS,Critical,95,Yes,Yes,Windows Security 4688 / Sysmon 1 11,,SP-200009 SP-200010,credential_access
 UC-011,SAM/SECURITY Hive Dump via Reg,Credential Theft,T1003.002,OS Credential Dumping: SAM,Critical,96,Yes,Yes,Windows Security 4688 / Sysmon 1,,SP-200011,credential_access
 UC-012,PsExec Lateral Movement,Lateral Movement,T1570,Lateral Tool Transfer,High,88,Yes,Yes,Windows Security 4688 7045 / Sysmon 1 17,,SP-300001 SP-300002,lateral_movement
@@ -45,3 +45,157 @@ UC-043,macOS - LaunchAgent Persistence,macOS,T1543.001,Create or Modify System P
 UC-044,Email - Mass Internal Forwarding Rule,Email,T1114.003,Email Collection: Email Forwarding Rule,High,88,Yes,Yes,,Microsoft 365 Audit / Exchange,SP-email-001,email
 UC-045,Database - Privileged Bulk Export,Database,T1005,Data from Local System,High,76,Yes,Yes,,DB Audit Log (pgaudit/MySQL/MSSQL),SP-database-001 SP-database-002,database
 UC-046,Canary Document Accessed,Deception,T1083,File and Directory Discovery,Critical,99,Yes,Yes,Windows Security 4663 / File Server Audit,,SP-deception-001 SP-deception-002,deception
+UC-047,AMSI Bypass,Defense Evasion,T1562.001,Impair Defenses: Disable or Modify Tools,High,88,Yes,Yes,PowerShell 4104,,SP-evasion-001,windows_sysmon
+UC-048,ETW Patch / Event Tracing Disabled,Defense Evasion,T1562.006,Impair Defenses: Indicator Blocking,High,85,Yes,Yes,PowerShell 4104 / Sysmon 10,,SP-evasion-002,windows_sysmon
+UC-049,Event Log Cleared,Defense Evasion,T1070.001,Indicator Removal: Clear Windows Event Logs,High,92,Yes,Yes,Windows Security 1102 / System 104,,SP-evasion-003,windows_sysmon
+UC-050,Sysmon Driver Unloaded / Service Stopped,Defense Evasion,T1562.001,Impair Defenses: Disable or Modify Tools,Critical,97,Yes,Yes,Windows System 7036 / Security 4688,,SP-evasion-004,windows_sysmon
+UC-051,Timestomping,Defense Evasion,T1070.006,Indicator Removal: Timestomp,Medium,80,Yes,Yes,Sysmon 2,,SP-evasion-005,windows_sysmon
+UC-052,Process Hollowing / Injection,Defense Evasion,T1055.012,Process Injection: Process Hollowing,Critical,85,Yes,Yes,Sysmon 8 10 25,,SP-evasion-006,windows_sysmon
+UC-053,Parent PID Spoofing,Defense Evasion,T1134.004,Access Token Manipulation: Parent PID Spoofing,High,78,Yes,Yes,Sysmon 1,,SP-evasion-007,windows_sysmon
+UC-054,Windows Defender Disabled,Defense Evasion,T1562.001,Impair Defenses: Disable or Modify Tools,High,90,Yes,Yes,Windows Security 4688 / Sysmon 13 / Defender 5001,,SP-evasion-008,windows_sysmon
+UC-055,Audit Policy Changed,Defense Evasion,T1562.002,Impair Defenses: Disable Windows Event Logging,High,85,Yes,Yes,Windows Security 4719,,SP-evasion-009,windows_sysmon
+UC-056,Signed Binary DLL Sideloading,Defense Evasion,T1574.002,Hijack Execution Flow: DLL Side-Loading,High,75,Yes,Yes,Sysmon 7,,SP-evasion-010,windows_sysmon
+UC-057,Binary Masquerading (Renamed Tool),Defense Evasion,T1036.003,Masquerading: Rename System Utilities,High,82,Yes,Yes,Sysmon 1,,SP-evasion-011,windows_sysmon
+UC-058,Indicator Removal - Malicious File Deleted,Defense Evasion,T1070.004,Indicator Removal: File Deletion,Medium,72,Yes,Yes,Sysmon 23,,SP-evasion-012,windows_sysmon
+UC-059,Firewall Rule Added to Allow Inbound,Defense Evasion,T1562.004,Impair Defenses: Disable or Modify System Firewall,High,83,Yes,Yes,Windows Security 4946 4947,,SP-evasion-013,windows_sysmon
+UC-060,Execution from Unusual Location,Defense Evasion,T1036.005,Masquerading: Match Legitimate Name or Location,Medium,70,Yes,Yes,Windows Security 4688 / Sysmon 1,,SP-evasion-014,windows_sysmon
+UC-061,BloodHound / SharpHound AD Enumeration,Discovery,T1087.002,Account Discovery: Domain Account,High,88,Yes,Yes,Windows Security 4662 / Sysmon 1,,SP-discovery-001,windows_sysmon
+UC-062,Port Scan from Internal Host,Discovery,T1046,Network Service Discovery,High,82,Yes,Yes,Sysmon 3 / Firewall logs,,SP-discovery-002,windows_sysmon
+UC-063,LDAP Enumeration for Domain Admins,Discovery,T1069.002,Permission Groups Discovery: Domain Groups,Medium,72,Yes,Yes,Windows Security 4661 4662 (DC),,SP-discovery-003,windows_sysmon
+UC-064,Local Admin Discovery via net Commands,Discovery,T1087.001,Account Discovery: Local Account,Medium,68,Yes,Yes,Windows Security 4688 / Sysmon 1,,SP-discovery-004,windows_sysmon
+UC-065,Domain Controller Discovery,Discovery,T1018,Remote System Discovery,High,80,Yes,Yes,Windows Security 4688 / Sysmon 1,,SP-discovery-005,windows_sysmon
+UC-066,SMB Share Enumeration,Discovery,T1135,Network Share Discovery,Medium,70,Yes,Yes,Windows Security 4688 5140 / Sysmon 1 3,,SP-discovery-006,windows_sysmon
+UC-067,Security Software Discovery,Discovery,T1518.001,Software Discovery: Security Software Discovery,Medium,65,Yes,Yes,Windows Security 4688 / Sysmon 1,,SP-discovery-007,windows_sysmon
+UC-068,SystemInfo / OS Recon,Discovery,T1082,System Information Discovery,Low,55,Yes,Yes,Windows Security 4688 / Sysmon 1,,SP-discovery-008,windows_sysmon
+UC-069,Active Directory ACL Abuse Discovery,Discovery,T1069.002,Permission Groups Discovery: Domain Groups,High,85,Yes,Yes,Windows Security 4688 4662 / Sysmon 1,,SP-discovery-009,windows_sysmon
+UC-070,Browser History / Credential Discovery,Discovery,T1555.003,Credentials from Password Stores: Web Browsers,High,80,Yes,Yes,Sysmon 10 11,,SP-discovery-010,windows_sysmon
+UC-071,UAC Bypass,Privilege Escalation,T1548.002,Bypass User Account Control,High,88,Yes,Yes,Sysmon 1 / Windows Security 4688,,SP-privesc-001,windows_sysmon
+UC-072,Token Impersonation (SeImpersonatePrivilege),Privilege Escalation,T1134.001,Access Token Manipulation: Token Impersonation,Critical,85,Yes,Yes,Windows Security 4688 4624 / Sysmon 1,,SP-privesc-002,windows_sysmon
+UC-073,Kernel Exploit Indicators,Privilege Escalation,T1068,Exploitation for Privilege Escalation,Critical,75,Yes,Yes,Sysmon 6 / Windows Security 4688,,SP-privesc-003,windows_sysmon
+UC-074,Always Install Elevated Abuse,Privilege Escalation,T1548.002,Abuse Elevation Control Mechanism,High,88,Yes,Yes,Sysmon 13,,SP-privesc-004,windows_sysmon
+UC-075,Sudo Abuse on Linux,Privilege Escalation,T1548.003,Abuse Elevation Control Mechanism: Sudo,High,82,Yes,Yes,Linux auditd / auth.log,,SP-privesc-005,linux
+UC-076,Shadow Credentials (Windows),Privilege Escalation,T1556.006,Modify Authentication Process,Critical,90,Yes,Yes,Windows Security 5136 (DC),,SP-privesc-006,windows_sysmon
+UC-077,DLL Search Order Hijacking,Privilege Escalation,T1574.001,Hijack Execution Flow: DLL Search Order,High,73,Yes,Yes,Sysmon 7,,SP-privesc-007,windows_sysmon
+UC-078,ACL-Based Privilege Escalation (AD Object),Privilege Escalation,T1098,Account Manipulation,Critical,90,Yes,Yes,Windows Security 4728 4732 4756 4738 5136 (DC),,SP-privesc-008,windows_sysmon
+UC-079,Large Outbound Data Transfer,Exfiltration,T1048,Exfiltration Over Alternative Protocol,High,75,Yes,Yes,Sysmon 3,Firewall / Proxy logs,SP-dlp-001,dlp
+UC-080,Cloud Storage Upload (Suspicious),Exfiltration,T1567.002,Exfiltration Over Web Service: Cloud Storage,High,78,Yes,Yes,Sysmon 3,Proxy logs,SP-dlp-002,dlp
+UC-081,USB Mass Storage Device Connected,Exfiltration,T1052.001,Exfiltration over Physical Medium: USB,Medium,72,Yes,Yes,Windows Security 6416 / Sysmon 11,,SP-dlp-003,dlp
+UC-082,Data Archiving Before Exfiltration,Exfiltration,T1560.001,Archive Collected Data: Archive via Utility,High,80,Yes,Yes,Sysmon 1 11 / Windows Security 4688,,SP-dlp-004,dlp
+UC-083,Screen Capture / Keylogger Indicators,Exfiltration,T1113+T1056.001,Screen Capture / Keylogging,High,78,Yes,Yes,Sysmon 1 / Windows Security 4688,,SP-dlp-005,dlp
+UC-084,Git Clone / Code Repository Exfiltration,Exfiltration,T1213,Data from Information Repositories,High,70,Yes,Yes,Sysmon 1,Proxy / GitLab audit,SP-dlp-006,dlp
+UC-085,FTP / SCP / rsync Exfiltration,Exfiltration,T1048.003,Exfiltration Over Alternative Protocol,High,80,Yes,Yes,Sysmon 3,Firewall logs,SP-dlp-007,dlp
+UC-086,ICMP Tunneling,Exfiltration,T1095,Non-Application Layer Protocol,High,75,Yes,Yes,,Firewall / NetFlow,SP-dlp-008,dlp
+UC-087,Clipboard Data Access,Exfiltration,T1115,Clipboard Data,Medium,70,Yes,Yes,Sysmon 1 / Windows Security 4688,,SP-dlp-009,dlp
+UC-088,Mass File Access on File Server,Exfiltration,T1005,Data from Local System,High,80,Yes,Yes,Windows Security 4663 (File Server),,SP-dlp-010,dlp
+UC-089,VPN Brute Force,VPN/Remote Access,T1110.001,Brute Force: Password Guessing,High,85,Yes,Yes,,VPN logs,SP-vpn-001,vpn
+UC-090,New User First VPN Login,VPN/Remote Access,T1078,Valid Accounts,Medium,68,Yes,Yes,,VPN logs,SP-vpn-002,vpn
+UC-091,VPN Login Outside Business Hours,VPN/Remote Access,T1078,Valid Accounts,Medium,65,Yes,Yes,,VPN logs,SP-vpn-003,vpn
+UC-092,VPN Login from Tor or Known VPS,VPN/Remote Access,T1090.003,Proxy: Multi-hop Proxy,High,90,Yes,Yes,,VPN logs + Threat Intel,SP-vpn-004,vpn
+UC-093,Concurrent VPN Sessions (Same User),VPN/Remote Access,T1078,Valid Accounts,High,85,Yes,Yes,,VPN session logs,SP-vpn-005,vpn
+UC-094,VPN Access to Sensitive Admin Systems,VPN/Remote Access,T1021.001,Remote Services,High,75,Yes,Yes,Windows Security 4624 (DC),,SP-vpn-006,vpn
+UC-095,Admin Account VPN Login (Non-PAW),VPN/Remote Access,T1078.002,Valid Accounts: Domain Accounts,High,80,Yes,Yes,,VPN logs,SP-vpn-007,vpn
+UC-096,VPN Split Tunnel Bypass,VPN/Remote Access,T1599,Network Boundary Bridging,Medium,62,Yes,Yes,,VPN / endpoint telemetry,SP-vpn-008,vpn
+UC-097,BEC / CEO Impersonation Email,Email,T1566.002,Phishing: Spearphishing Link,Critical,85,Yes,Yes,,Microsoft 365 Unified Audit,SP-email-002,email
+UC-098,Inbox Rule Deleting Security Alerts,Email,T1564.008,Hide Artifacts: Email Hiding Rules,High,88,Yes,Yes,,Microsoft 365 Unified Audit,SP-email-003,email
+UC-099,Domain Lookalike Registration Alert,Email,T1566,Phishing,High,80,Yes,Yes,,DNS logs / Email gateway,SP-email-004,email
+UC-100,External Sender with Internal Display Name,Email,T1566.001,Phishing: Spearphishing Attachment,High,82,Yes,Yes,,Exchange message trace,SP-email-005,email
+UC-101,Executable Attachment Delivered,Email,T1566.001,Phishing: Spearphishing Attachment,High,90,Yes,Yes,,Exchange / Email gateway,SP-email-006,email
+UC-102,Phishing Link Clicked (Internal Alert),Email,T1566.002,Phishing: Spearphishing Link,High,88,Yes,Yes,,Proxy / ATP telemetry,SP-email-007,email
+UC-103,xp_cmdshell Enabled or Called,Database,T1059.003,Command and Scripting Interpreter: Windows Command Shell,Critical,95,Yes,Yes,,MSSQL Audit,SP-database-003,database
+UC-104,Database Admin Account Created via SQL,Database,T1136,Create Account,Critical,92,Yes,Yes,,DB Audit Log,SP-database-004,database
+UC-105,SQL Injection Burst,Database,T1190,Exploit Public-Facing Application,High,85,Yes,Yes,,WAF / DB error log,SP-database-005,database
+UC-106,Database Backup Exported to External Share,Database,T1005,Data from Local System,High,82,Yes,Yes,Sysmon 11,,SP-database-006,database
+UC-107,Linked Server Used for Lateral Movement,Database,T1021,Remote Services,High,80,Yes,Yes,,MSSQL Audit,SP-database-007,database
+UC-108,Database Brute Force Login,Database,T1110.001,Brute Force: Password Guessing,High,88,Yes,Yes,,DB error log,SP-database-008,database
+UC-109,Sensitive Table Queried by New Account,Database,T1078,Valid Accounts,High,78,Yes,Yes,,DB audit log,SP-database-009,database
+UC-110,AWS IAM User Created Outside Terraform,Cloud/AWS,T1136.003,Create Account: Cloud Account,High,82,Yes,Yes,,AWS CloudTrail,SP-cloud-001,cloud
+UC-111,AWS Security Group Opened to 0.0.0.0/0,Cloud/AWS,T1562.004,Impair Defenses: Disable or Modify System Firewall,High,90,Yes,Yes,,AWS CloudTrail,SP-cloud-002,cloud
+UC-112,AWS KMS Key Scheduled for Deletion,Cloud/AWS,T1485,Data Destruction,Critical,95,Yes,Yes,,AWS CloudTrail,SP-cloud-003,cloud
+UC-113,AWS GuardDuty Disabled,Cloud/AWS,T1562.008,Impair Defenses: Disable Cloud Logs,Critical,98,Yes,Yes,,AWS CloudTrail,SP-cloud-004,cloud
+UC-114,Lambda Function with Admin IAM Role,Cloud/AWS,T1578.002,Modify Cloud Compute Infrastructure,High,85,Yes,Yes,,AWS CloudTrail,SP-cloud-005,cloud
+UC-115,EC2 IMDSv1 Access (Credential Theft Vector),Cloud/AWS,T1552.005,Unsecured Credentials: Cloud Instance Metadata API,High,78,Yes,Yes,,AWS CloudTrail / VPC Flow,SP-cloud-006,cloud
+UC-116,Azure Conditional Access Policy Disabled,Cloud/Azure,T1562.001,Impair Defenses: Disable or Modify Tools,Critical,93,Yes,Yes,,Entra ID Audit,SP-cloud-007,cloud
+UC-117,Azure PIM Role Activation Outside Hours,Cloud/Azure,T1078.004,Valid Accounts: Cloud Accounts,High,80,Yes,Yes,,Entra ID Audit / PIM,SP-cloud-008,cloud
+UC-118,Kubernetes kubectl exec into Production Pod,Cloud/K8s,T1609,Container Administration Command,High,85,Yes,Yes,,Kubernetes Audit,SP-k8s-001,container_kubernetes
+UC-119,Kubernetes Secret Enumeration,Cloud/K8s,T1552.007,Unsecured Credentials: Container API,High,82,Yes,Yes,,Kubernetes Audit,SP-k8s-002,container_kubernetes
+UC-120,Kubernetes DaemonSet with hostPID,Cloud/K8s,T1611,Escape to Host,Critical,90,Yes,Yes,,Kubernetes Audit,SP-k8s-003,container_kubernetes
+UC-121,Sudoers File Modified,Linux,T1548.003,Abuse Elevation Control Mechanism: Sudo,Critical,92,Yes,Yes,Linux auditd,,SP-linux-004,linux
+UC-122,SSH Authorized Keys Modified,Linux,T1098.004,Account Manipulation: SSH Authorized Keys,Critical,90,Yes,Yes,Linux auditd / FIM,,SP-linux-005,linux
+UC-123,LD_PRELOAD Injection,Linux,T1574.006,Hijack Execution Flow: LD_PRELOAD,High,85,Yes,Yes,Linux auditd,,SP-linux-006,linux
+UC-124,/etc/passwd or /etc/shadow Modified,Linux,T1136.001,Create Account: Local Account,Critical,93,Yes,Yes,Linux auditd / FIM,,SP-linux-007,linux
+UC-125,Potential Rootkit Indicators on Linux,Linux,T1014,Rootkit,Critical,80,Yes,Yes,Linux auditd / rkhunter,,SP-linux-008,linux
+UC-126,macOS TCC Database Modified,macOS,T1548,Abuse Elevation Control Mechanism,High,85,Yes,Yes,macOS Unified Log / ESF,,SP-macos-002,macos
+UC-127,macOS Login Items / LaunchAgent Added,macOS,T1543.001,Create or Modify System Process: Launch Agent,Medium,78,Yes,Yes,macOS Unified Log / ESF,,SP-macos-003,macos
+UC-128,Gatekeeper Disabled on macOS,macOS,T1553.001,Subvert Trust Controls: Gatekeeper Bypass,High,88,Yes,Yes,macOS Unified Log,,SP-macos-004,macos
+UC-129,Linux Reverse Shell via Bash/Python/Perl,Linux,T1059.004,Command and Scripting Interpreter: Unix Shell,Critical,88,Yes,Yes,Linux auditd,,SP-linux-009,linux
+UC-130,Cron Job Added as Root on Linux,Linux,T1053.003,Scheduled Task/Job: Cron,High,82,Yes,Yes,Linux auditd / FIM,,SP-linux-010,linux
+UC-131,Hardcoded Secret Pushed to Git Repository,DevOps/CI-CD,T1552.001,Unsecured Credentials: Credentials in Files,Critical,92,Yes,Yes,,GitHub / GitLab,SP-cicd-001,devops_cicd
+UC-132,Malicious Package Installed via npm/pip,DevOps/CI-CD,T1195.001,Supply Chain Compromise: Software Dependencies,High,80,Yes,Yes,Sysmon 1 3,,SP-cicd-002,devops_cicd
+UC-133,GitHub Actions Secret Exfiltration,DevOps/CI-CD,T1552,Unsecured Credentials,Critical,88,Yes,Yes,,GitHub Audit,SP-cicd-003,devops_cicd
+UC-134,Pipeline Injection via Untrusted Input,DevOps/CI-CD,T1059,Command and Scripting Interpreter,High,80,Yes,Yes,,GitHub / CI-CD logs,SP-cicd-004,devops_cicd
+UC-135,Unverified Docker Image in Production Build,DevOps/CI-CD,T1195.002,Supply Chain Compromise,High,75,Yes,Yes,,Docker / CI-CD logs,SP-cicd-005,devops_cicd
+UC-136,Terraform Destroy Run Against Production,DevOps/CI-CD,T1485,Data Destruction,Critical,92,Yes,Yes,,Terraform Cloud / CloudTrail,SP-cicd-006,devops_cicd
+UC-137,CI Runner Privilege Escalation,DevOps/CI-CD,T1611,Escape to Host,Critical,85,Yes,Yes,Linux OS / Docker,,SP-cicd-007,devops_cicd
+UC-138,Dependency Confusion Attack Vector,DevOps/CI-CD,T1195.001,Supply Chain Compromise,Critical,82,Yes,Yes,,Build logs,SP-cicd-008,devops_cicd
+UC-139,C2 via Living-Off-the-Land Binary,C2,T1218,System Binary Proxy Execution,High,85,Yes,Yes,Sysmon 1 3,,SP-c2-001,correlation
+UC-140,C2 via Cloud Storage API,C2,T1102,Web Service: Bidirectional Communication,High,72,Yes,Yes,,Proxy / DNS,SP-c2-002,correlation
+UC-141,Domain Fronting via CDN,C2,T1090.004,Proxy: Domain Fronting,High,68,Yes,Yes,,Proxy / TLS logs,SP-c2-003,correlation
+UC-142,Fast-Flux DNS (C2 Infrastructure),C2,T1568.001,Dynamic Resolution: Fast Flux DNS,High,78,Yes,Yes,,DNS logs,SP-c2-004,correlation
+UC-143,DCOM Lateral Movement,Lateral Movement,T1021.003,Remote Services: DCOM,High,80,Yes,Yes,Sysmon 1 3 / Windows Security 4688,,SP-lateral-001,lateral_movement
+UC-144,Remote Registry Access,Lateral Movement,T1112,Modify Registry,Medium,70,Yes,Yes,Windows Security 5145,,SP-lateral-002,lateral_movement
+UC-145,PrintNightmare / Print Spooler Exploit,Lateral Movement,T1068,Exploitation for Privilege Escalation,Critical,85,Yes,Yes,Sysmon 1 7 / Windows System 316,,SP-lateral-003,lateral_movement
+UC-146,Token Impersonation for Lateral Movement,Lateral Movement,T1134.001,Access Token Manipulation: Token Impersonation,Critical,82,Yes,Yes,Windows Security 4624,,SP-lateral-004,lateral_movement
+UC-147,SMB Enumeration / Spray from Internal Host,Lateral Movement,T1046,Network Service Discovery,High,83,Yes,Yes,Sysmon 3 / Firewall,,SP-lateral-005,lateral_movement
+UC-148,Pass-the-Hash via Overpass-the-Hash,Lateral Movement,T1550.002,Use Alternate Authentication Material: Pass the Hash,Critical,82,Yes,Yes,Windows Security 4768 4624,,SP-lateral-006,lateral_movement
+UC-149,AS-REP Roasting,Credential Theft,T1558.004,Steal or Forge Kerberos Tickets: AS-REP Roasting,High,82,Yes,Yes,Windows Security 4768 (DC),,SP-cred-001,credential_access
+UC-150,Golden Ticket Attack,Credential Theft,T1558.001,Steal or Forge Kerberos Tickets: Golden Ticket,Critical,78,Yes,Yes,Windows Security 4624 4769 (DC),,SP-cred-002,credential_access
+UC-151,DPAPI Secret Extraction,Credential Theft,T1555.004,Credentials from Password Stores: Windows Credential Manager,High,80,Yes,Yes,Windows Security 4688 / Sysmon 1,,SP-cred-003,credential_access
+UC-152,Password Spraying - Active Directory,Credential Theft,T1110.003,Brute Force: Password Spraying,High,85,Yes,Yes,Windows Security 4771 4625 (DC),,SP-cred-004,credential_access
+UC-153,Credential Stuffing Attack,Credential Theft,T1110.004,Brute Force: Credential Stuffing,High,80,Yes,Yes,Windows Security 4625,,SP-cred-005,credential_access
+UC-154,Windows Vault / Credential Manager Dump,Credential Theft,T1555.004,Credentials from Password Stores: Windows Credential Manager,High,78,Yes,Yes,Sysmon 1 / Windows Security 4688,,SP-cred-006,credential_access
+UC-155,Silver Ticket Attack,Credential Theft,T1558.002,Steal or Forge Kerberos Tickets: Silver Ticket,Critical,72,Yes,Yes,Windows Security 4769 (DC),,SP-cred-007,credential_access
+UC-156,Full Attack Chain: Recon→Cred→Lateral→DC,Correlation,T1087+T1003+T1021+T1003.006,Multi-Stage AD Attack,Critical,98,Yes,Yes,Sysmon / Windows Security (all stages),,SP-correlation-001,correlation
+UC-157,Brute Force then Successful Login,Correlation,T1110,Brute Force,Critical,93,Yes,Yes,Windows Security 4625 4624,,SP-correlation-002,correlation
+UC-158,Recon then Lateral Movement (Same Host),Correlation,T1087+T1021,Recon + Lateral,High,88,Yes,Yes,Windows Security / Sysmon 1 3,,SP-correlation-003,correlation
+UC-159,BEC Attack Chain,Correlation,T1566.001+T1114.003+T1078,BEC Multi-Stage,Critical,92,Yes,Yes,,Microsoft 365 Audit,SP-correlation-004,correlation
+UC-160,Credential Theft then DC Access,Correlation,T1003+T1021,Cred Theft + DC Logon,Critical,92,Yes,Yes,Sysmon 10 / Windows Security 4624,,SP-correlation-005,correlation
+UC-161,Supply Chain Attack Indicator,Correlation,T1195.002,Supply Chain Compromise,Critical,78,Yes,Yes,Windows Installer / Sysmon 3,,SP-correlation-006,correlation
+UC-162,Insider Threat Pattern (Anomalous Data Access),Correlation,T1005,Data from Local System,High,70,Yes,Yes,Windows Security 4663,,SP-correlation-007,correlation
+UC-163,Zero-Day Proxy Exploitation Chain,Correlation,T1190,Exploit Public-Facing Application,Critical,82,Yes,Yes,,WAF / Web server logs,SP-correlation-008,correlation
+UC-164,Double Extortion - Data Staging Before Encryption,Ransomware,T1560.001+T1048,Archive + Exfil over Web,Critical,88,Yes,Yes,Sysmon 1 11 3,,SP-ransomware-001,backup-resilience
+UC-165,LockBit 3.0 Specific Indicators,Ransomware,T1486+T1490+T1070,LockBit Multi-TTP,Critical,92,Yes,Yes,Windows Security 4688 / Sysmon 1 11,,SP-ransomware-002,backup-resilience
+UC-166,Ransomware Deployed via RDP,Ransomware,T1021.001+T1486,RDP + Encryption,Critical,90,Yes,Yes,Windows Security 4624 / Sysmon 1 11,,SP-ransomware-003,backup-resilience
+UC-167,Network Share Encryption (File Server),Ransomware,T1486,Data Encrypted for Impact,Critical,94,Yes,Yes,Windows Security 4663 4660,,SP-ransomware-004,backup-resilience
+UC-168,Account Lockout Storm,Identity/IAM,T1531,Account Access Removal,High,85,Yes,Yes,Windows Security 4740 (DC),,SP-identity-001,identity
+UC-169,Service Account Interactive Login,Identity/IAM,T1078.002,Valid Accounts: Domain Accounts,High,85,Yes,Yes,Windows Security 4624,,SP-identity-002,identity
+UC-170,Admin Login from Non-PAW Workstation,Identity/IAM,T1078,Valid Accounts,High,82,Yes,Yes,Windows Security 4624,,SP-identity-003,identity
+UC-171,Stale Account Reactivated,Identity/IAM,T1078,Valid Accounts,High,82,Yes,Yes,Windows Security 4722 4624,,SP-identity-004,identity
+UC-172,Domain Admins Group Changed,Identity/IAM,T1098,Account Manipulation,Critical,95,Yes,Yes,Windows Security 4728 4729 (DC),,SP-identity-005,identity
+UC-173,Password Never Expires Accounts (Newly Set),Identity/IAM,T1098,Account Manipulation,Medium,78,Yes,Yes,Windows Security 4738 (DC),,SP-identity-006,identity
+UC-174,Entra ID Privileged Role Assigned,Identity/IAM,T1098.003,Account Manipulation: Additional Cloud Roles,Critical,90,Yes,Yes,,Entra ID Audit,SP-identity-007,identity
+UC-175,Guest Account Added to Privileged Azure Resource,Identity/IAM,T1098.003,Account Manipulation: Additional Cloud Roles,High,88,Yes,Yes,,Azure Activity Log,SP-identity-008,identity
+UC-176,COM Object Hijacking,Persistence,T1546.015,Event Triggered Execution: COM Hijacking,High,80,Yes,Yes,Sysmon 13,,SP-persist-001,windows_sysmon
+UC-177,Image File Execution Options (IFEO) Debugger,Persistence,T1546.012,Event Triggered Execution: IFEO Injection,Critical,92,Yes,Yes,Sysmon 13 / Windows Security 4657,,SP-persist-002,windows_sysmon
+UC-178,AppCert / AppInit DLL Persistence,Persistence,T1546.009,Event Triggered Execution: AppCert DLLs,High,88,Yes,Yes,Sysmon 13 7,,SP-persist-003,windows_sysmon
+UC-179,Office Add-in Persistence,Persistence,T1137.006,Office Application Startup: Add-ins,High,78,Yes,Yes,Sysmon 11 13,,SP-persist-004,windows_sysmon
+UC-180,Screensaver Executable Modified,Persistence,T1546.002,Event Triggered Execution: Screensaver,Medium,85,Yes,Yes,Sysmon 13,,SP-persist-005,windows_sysmon
+UC-181,Startup Folder Drop (New Executable),Persistence,T1547.001,Registry Run Keys / Startup Folder,High,82,Yes,Yes,Sysmon 11,,SP-persist-006,windows_sysmon
+UC-182,ISO / IMG Mount for Malware Delivery,Initial Access,T1553.005,Subvert Trust Controls: Mark-of-the-Web Bypass,High,82,Yes,Yes,Sysmon 1 11 / Windows Security 4688,,SP-initial-001,initial_access
+UC-183,OneNote Embedded Payload Execution,Initial Access,T1566.001,Phishing: Spearphishing Attachment,High,85,Yes,Yes,Sysmon 1 / Windows Security 4688,,SP-initial-002,initial_access
+UC-184,HTML Smuggling (JavaScript Dropper),Initial Access,T1027.006,Obfuscated Files or Information: HTML Smuggling,High,78,Yes,Yes,Sysmon 1 11,,SP-initial-003,initial_access
+UC-185,Malicious LNK File Execution,Initial Access,T1204.002,User Execution: Malicious File,High,80,Yes,Yes,Sysmon 1 11,,SP-initial-004,initial_access
+UC-186,Teams / Slack Phishing File Delivery,Initial Access,T1566.003,Phishing: Spearphishing via Service,High,78,Yes,Yes,Sysmon 11,M365 Audit,SP-initial-005,initial_access
+UC-187,Zip Password-Protected Archive with Executable,Initial Access,T1566.001,Phishing: Spearphishing Attachment,High,82,Yes,Yes,Sysmon 11,,SP-initial-006,initial_access
+UC-188,Honey Credential Used (Windows Authentication),Deception,T1003,OS Credential Dumping,Critical,99,Yes,Yes,Windows Security 4776 4768 4624,,SP-deception-003,deception
+UC-189,Canary AWS Access Key Used,Deception,T1552.001,Unsecured Credentials: Credentials in Files,Critical,99,Yes,Yes,,AWS CloudTrail,SP-deception-004,deception
+UC-190,Honey User Account Logon,Deception,T1078,Valid Accounts,Critical,99,Yes,Yes,Windows Security 4624 4625,,SP-deception-005,deception
+UC-191,Canary DNS Query Detected,Deception,T1567,Exfiltration Over Web Service,Critical,99,Yes,Yes,,DNS logs,SP-deception-006,deception
+UC-192,Honeypot Port Scan Detected,Deception,T1046,Network Service Discovery,High,95,Yes,Yes,,Firewall / IDS,SP-deception-007,deception
+UC-193,Honeyfile Accessed on File Server,Deception,T1083,File and Directory Discovery,Critical,98,Yes,Yes,Windows Security 4663,,SP-deception-008,deception
+UC-194,Honey Share Accessed (Network Lateral Detection),Deception,T1135,Network Share Discovery,Critical,97,Yes,Yes,Windows Security 5140 5142 5145,,SP-deception-009,deception
+UC-195,Honey Token Service Accessed (HTTP),Deception,T1078,Valid Accounts,High,95,Yes,Yes,,Web server / API Gateway logs,SP-deception-010,deception
+UC-196,Decoy SSH Key Used on Bastion,Deception,T1098.004,Account Manipulation: SSH Authorized Keys,Critical,99,Yes,Yes,Linux auth log,,SP-deception-011,deception
+UC-197,Fake MFA Bypass Attempt on Honey Identity,Deception,T1621,Multi-Factor Authentication Request Generation,High,92,Yes,Yes,,Okta / Entra ID,SP-deception-012,deception
+UC-198,Canary API Key Used in Production API,Deception,T1552,Unsecured Credentials,Critical,98,Yes,Yes,,API Gateway / Web logs,SP-deception-013,deception
+UC-199,LDAP Honey Object Queried,Deception,T1069.002,Permission Groups Discovery,High,90,Yes,Yes,Windows Security 4661 4662 (DC),,SP-deception-014,deception
+UC-200,Global Deception Alert Aggregation,Deception/Correlation,Multiple,Attack Chain via Deception,Critical,99,Yes,Yes,Multiple deception data sources,Multiple,SP-deception-015,deception

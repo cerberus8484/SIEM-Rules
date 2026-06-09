@@ -118,7 +118,7 @@ nav:
     - Correlation Chains: fixtures/correlation.md
   - Rule Index: rules/index.md
   - Use Cases:
-    - Catalog: use-cases/index.md
+    - Catalog (200 UCs): use-cases/index.md
     - Ransomware (UC-001–005): use-cases/ransomware.md
     - Credential Theft (UC-006–011): use-cases/credential-theft.md
     - Lateral Movement (UC-012–016): use-cases/lateral-movement.md
@@ -130,6 +130,25 @@ nav:
     - Linux & macOS (UC-041–043): use-cases/linux-macos.md
     - Email & Database (UC-044–045): use-cases/email-database.md
     - Deception & Correlation (UC-046): use-cases/deception-correlation.md
+    - Defense Evasion (UC-047–060): use-cases/defense-evasion.md
+    - Discovery & Recon (UC-061–070): use-cases/discovery.md
+    - Privilege Escalation (UC-071–078): use-cases/privilege-escalation.md
+    - Exfiltration & DLP (UC-079–088): use-cases/exfiltration.md
+    - VPN & Remote Access (UC-089–096): use-cases/vpn-remote-access.md
+    - Email Extended (UC-097–102): use-cases/more-email.md
+    - Database Extended (UC-103–109): use-cases/more-database.md
+    - Cloud Extended (UC-110–120): use-cases/more-cloud.md
+    - Linux & macOS Extended (UC-121–130): use-cases/more-linux-macos.md
+    - DevOps & CI/CD (UC-131–138): use-cases/devops-cicd.md
+    - C2 Extended (UC-139–142): use-cases/more-c2.md
+    - Lateral Movement Extended (UC-143–148): use-cases/more-lateral-movement.md
+    - Credential Theft Extended (UC-149–155): use-cases/more-credential-theft.md
+    - Correlation Extended (UC-156–163): use-cases/more-correlation.md
+    - Ransomware Extended (UC-164–167): use-cases/more-ransomware.md
+    - Identity & IAM Extended (UC-168–175): use-cases/more-identity-iam.md
+    - Persistence Extended (UC-176–181): use-cases/more-persistence.md
+    - Initial Access Extended (UC-182–187): use-cases/more-initial-access.md
+    - Deception Extended (UC-188–200): use-cases/more-deception.md
   - Quality & Coverage:
     - Quality Standards: quality.md
     - Coverage Matrix: coverage.md
