@@ -1,0 +1,107 @@
+/* HuntingThreats — Enterprise Hunt Pack — MkDocs Custom Styles */
+
+:root {
+  --ht-cyan: #00d4ff;
+  --ht-green: #00ff88;
+  --ht-red: #ff4444;
+  --ht-orange: #ff8c00;
+  --ht-yellow: #ffd700;
+}
+
+[data-md-color-scheme="slate"] {
+  --md-primary-fg-color: #00d4ff;
+  --md-primary-fg-color--light: #33dcff;
+  --md-primary-fg-color--dark: #0099cc;
+  --md-accent-fg-color: #00ff88;
+  --md-default-bg-color: #080c14;
+  --md-default-bg-color--light: #0d1220;
+  --md-default-bg-color--lighter: #141824;
+  --md-default-fg-color: #e8eaf0;
+  --md-default-fg-color--light: #b0b8cc;
+  --md-code-bg-color: #0d1220;
+  --md-code-fg-color: #e8eaf0;
+}
+
+[data-md-color-scheme="default"] {
+  --md-primary-fg-color: #0077aa;
+  --md-accent-fg-color: #00aa55;
+}
+
+/* Stats banner */
+.ht-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 1rem;
+  margin: 1.5rem 0;
+}
+
+.ht-stat-card {
+  background: var(--md-default-bg-color--lighter, #f5f5f5);
+  border: 1px solid var(--md-primary-fg-color);
+  border-radius: 8px;
+  padding: 1rem;
+  text-align: center;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.ht-stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(0, 212, 255, 0.2);
+}
+
+.ht-stat-number {
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--md-primary-fg-color);
+  display: block;
+  line-height: 1.1;
+}
+
+.ht-stat-label {
+  font-size: 0.75rem;
+  color: var(--md-default-fg-color--light);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-top: 0.25rem;
+}
+
+/* Severity badges */
+.badge-critical { background: #ff2222; color: white; padding: 2px 8px; border-radius: 4px; font-size: 0.75em; font-weight: 600; }
+.badge-high     { background: #ff6600; color: white; padding: 2px 8px; border-radius: 4px; font-size: 0.75em; font-weight: 600; }
+.badge-medium   { background: #ffaa00; color: black; padding: 2px 8px; border-radius: 4px; font-size: 0.75em; font-weight: 600; }
+.badge-low      { background: #4488cc; color: white; padding: 2px 8px; border-radius: 4px; font-size: 0.75em; font-weight: 600; }
+.badge-info     { background: #4499aa; color: white; padding: 2px 8px; border-radius: 4px; font-size: 0.75em; font-weight: 600; }
+
+/* Pass/Fail status */
+.status-pass { color: var(--ht-green); font-weight: 700; }
+.status-fail { color: var(--ht-red); font-weight: 700; }
+.status-warn { color: var(--ht-yellow); font-weight: 700; }
+
+/* Platform chips */
+.platform-chip {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 0.75em;
+  font-weight: 500;
+  margin: 2px;
+}
+.chip-splunk  { background: #ff6600; color: white; }
+.chip-qradar  { background: #0062a3; color: white; }
+.chip-secops  { background: #1a73e8; color: white; }
+.chip-wazuh   { background: #6f42c1; color: white; }
+
+/* Navigation tabs styling */
+.md-tabs__link--active {
+  border-bottom: 2px solid var(--ht-cyan) !important;
+}
+
+/* Code blocks */
+.md-typeset code {
+  border-radius: 4px;
+}
+
+/* Admonition customization */
+.md-typeset .admonition.tip > .admonition-title::before {
+  color: var(--ht-green);
+}

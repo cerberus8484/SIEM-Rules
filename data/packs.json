@@ -1,0 +1,1187 @@
+[
+  {
+    "pack": "execution",
+    "display_name": "Windows Execution",
+    "rule_count": 100,
+    "platforms": [
+      "splunk"
+    ],
+    "tactics": [
+      "Initial Access",
+      "Execution",
+      "Persistence",
+      "Privilege Escalation",
+      "Defense Evasion",
+      "Credential Access",
+      "Discovery",
+      "Lateral Movement",
+      "Collection",
+      "Command and Control",
+      "Exfiltration",
+      "Impact"
+    ],
+    "techniques": [
+      "T1003.001",
+      "T1003.002",
+      "T1003.003",
+      "T1021.006",
+      "T1027",
+      "T1041",
+      "T1047",
+      "T1053.005",
+      "T1055.001",
+      "T1056.001",
+      "T1059.001",
+      "T1059.003",
+      "T1059.005",
+      "T1070.001",
+      "T1087.002",
+      "T1105",
+      "T1127.001",
+      "T1134.001",
+      "T1136.001",
+      "T1137.001",
+      "T1137.006",
+      "T1140",
+      "T1197",
+      "T1218",
+      "T1218.003",
+      "T1218.004",
+      "T1218.005",
+      "T1218.007",
+      "T1218.008",
+      "T1218.010",
+      "T1218.011",
+      "T1482",
+      "T1490",
+      "T1543.003",
+      "T1546.003",
+      "T1547.001",
+      "T1559.001",
+      "T1560.001",
+      "T1562.001",
+      "T1562.006",
+      "T1566.001"
+    ],
+    "severities": {
+      "HIGH": 67,
+      "CRITICAL": 21,
+      "MEDIUM": 10,
+      "LOW": 2
+    },
+    "avg_confidence": 78.6
+  },
+  {
+    "pack": "persistence",
+    "display_name": "Windows Persistence",
+    "rule_count": 80,
+    "platforms": [
+      "splunk"
+    ],
+    "tactics": [
+      "Execution",
+      "Persistence",
+      "Privilege Escalation",
+      "Defense Evasion",
+      "Discovery",
+      "Lateral Movement"
+    ],
+    "techniques": [
+      "T1021.001",
+      "T1053.005",
+      "T1112",
+      "T1137.001",
+      "T1197",
+      "T1543.003",
+      "T1546.001",
+      "T1546.002",
+      "T1546.003",
+      "T1546.010",
+      "T1546.011",
+      "T1546.012",
+      "T1546.013",
+      "T1546.015",
+      "T1547.001",
+      "T1547.004",
+      "T1547.006",
+      "T1547.008",
+      "T1547.012",
+      "T1548.002",
+      "T1553.006",
+      "T1562.001",
+      "T1562.004",
+      "T1574.010",
+      "T1574.011",
+      "T1574.012"
+    ],
+    "severities": {
+      "HIGH": 54,
+      "CRITICAL": 18,
+      "MEDIUM": 8
+    },
+    "avg_confidence": 78.5
+  },
+  {
+    "pack": "defense_evasion",
+    "display_name": "Windows Defense Evasion",
+    "rule_count": 35,
+    "platforms": [
+      "splunk"
+    ],
+    "tactics": [
+      "Defense Evasion"
+    ],
+    "techniques": [
+      "T1027",
+      "T1027.001",
+      "T1027.002",
+      "T1027.004",
+      "T1027.005",
+      "T1036.001",
+      "T1036.003",
+      "T1036.004",
+      "T1036.005",
+      "T1036.007",
+      "T1055.001",
+      "T1055.002",
+      "T1055.003",
+      "T1055.008",
+      "T1055.009",
+      "T1055.012",
+      "T1055.013",
+      "T1055.015",
+      "T1070.001",
+      "T1070.003",
+      "T1070.004",
+      "T1070.006",
+      "T1218.005",
+      "T1218.011",
+      "T1562.001",
+      "T1562.002",
+      "T1562.004",
+      "T1562.006"
+    ],
+    "severities": {
+      "HIGH": 25,
+      "CRITICAL": 7,
+      "MEDIUM": 3
+    },
+    "avg_confidence": 79.0
+  },
+  {
+    "pack": "credential_access",
+    "display_name": "Windows Credentials",
+    "rule_count": 35,
+    "platforms": [
+      "splunk"
+    ],
+    "tactics": [
+      "Credential Access",
+      "Lateral Movement"
+    ],
+    "techniques": [
+      "T1003.001",
+      "T1003.002",
+      "T1003.003",
+      "T1003.004",
+      "T1003.005",
+      "T1003.006",
+      "T1056.001",
+      "T1110.001",
+      "T1110.003",
+      "T1552.001",
+      "T1552.002",
+      "T1555.003",
+      "T1556.001",
+      "T1558.001",
+      "T1558.002",
+      "T1558.003",
+      "T1558.004"
+    ],
+    "severities": {
+      "CRITICAL": 19,
+      "HIGH": 15,
+      "MEDIUM": 1
+    },
+    "avg_confidence": 79.2
+  },
+  {
+    "pack": "c2",
+    "display_name": "Command & Control",
+    "rule_count": 35,
+    "platforms": [
+      "splunk"
+    ],
+    "tactics": [
+      "C2"
+    ],
+    "techniques": [
+      "T1001.003",
+      "T1008",
+      "T1071.001",
+      "T1071.002",
+      "T1071.003",
+      "T1071.004",
+      "T1090.001",
+      "T1090.002",
+      "T1090.003",
+      "T1095",
+      "T1219",
+      "T1571",
+      "T1572",
+      "T1573.001",
+      "T1573.002"
+    ],
+    "severities": {
+      "MEDIUM": 4,
+      "HIGH": 28,
+      "CRITICAL": 3
+    },
+    "avg_confidence": 74.5
+  },
+  {
+    "pack": "lateral_movement",
+    "display_name": "Lateral Movement",
+    "rule_count": 40,
+    "platforms": [
+      "splunk"
+    ],
+    "tactics": [
+      "Discovery",
+      "Lateral Movement"
+    ],
+    "techniques": [
+      "T1021.001",
+      "T1021.002",
+      "T1021.003",
+      "T1021.004",
+      "T1021.005",
+      "T1021.006",
+      "T1047",
+      "T1534",
+      "T1570"
+    ],
+    "severities": {
+      "HIGH": 28,
+      "CRITICAL": 9,
+      "MEDIUM": 3
+    },
+    "avg_confidence": 79.1
+  },
+  {
+    "pack": "discovery",
+    "display_name": "Discovery",
+    "rule_count": 35,
+    "platforms": [
+      "splunk"
+    ],
+    "tactics": [
+      "Discovery"
+    ],
+    "techniques": [
+      "T1007",
+      "T1010",
+      "T1012",
+      "T1016",
+      "T1018",
+      "T1033",
+      "T1040",
+      "T1046",
+      "T1049",
+      "T1057",
+      "T1069.001",
+      "T1069.002",
+      "T1082",
+      "T1083",
+      "T1087.001",
+      "T1087.002",
+      "T1135",
+      "T1201",
+      "T1217"
+    ],
+    "severities": {
+      "MEDIUM": 14,
+      "HIGH": 13,
+      "LOW": 6,
+      "CRITICAL": 2
+    },
+    "avg_confidence": 70.5
+  },
+  {
+    "pack": "exfiltration",
+    "display_name": "Exfiltration",
+    "rule_count": 30,
+    "platforms": [
+      "splunk"
+    ],
+    "tactics": [
+      "Collection",
+      "Exfiltration"
+    ],
+    "techniques": [
+      "T1020",
+      "T1041",
+      "T1048",
+      "T1048.001",
+      "T1048.003",
+      "T1052.001",
+      "T1560",
+      "T1560.001",
+      "T1567",
+      "T1567.002"
+    ],
+    "severities": {
+      "HIGH": 21,
+      "MEDIUM": 6,
+      "CRITICAL": 3
+    },
+    "avg_confidence": 74.9
+  },
+  {
+    "pack": "impact",
+    "display_name": "Impact",
+    "rule_count": 30,
+    "platforms": [
+      "splunk"
+    ],
+    "tactics": [
+      "Defense Evasion",
+      "Impact"
+    ],
+    "techniques": [
+      "T1486",
+      "T1489",
+      "T1490",
+      "T1561.001"
+    ],
+    "severities": {
+      "CRITICAL": 24,
+      "HIGH": 6
+    },
+    "avg_confidence": 87.1
+  },
+  {
+    "pack": "privilege_escalation",
+    "display_name": "Privilege Escalation",
+    "rule_count": 40,
+    "platforms": [
+      "splunk"
+    ],
+    "tactics": [
+      "Privilege Escalation"
+    ],
+    "techniques": [
+      "T1055.001",
+      "T1055.002",
+      "T1055.003",
+      "T1055.004",
+      "T1055.011",
+      "T1055.012",
+      "T1068",
+      "T1078.003",
+      "T1134.001",
+      "T1134.002",
+      "T1134.003",
+      "T1134.004",
+      "T1546.007",
+      "T1548.001",
+      "T1548.002",
+      "T1548.003",
+      "T1548.004",
+      "T1574.001",
+      "T1574.002",
+      "T1574.007",
+      "T1574.011",
+      "T1574.012"
+    ],
+    "severities": {
+      "HIGH": 30,
+      "CRITICAL": 10
+    },
+    "avg_confidence": 79.8
+  },
+  {
+    "pack": "initial_access",
+    "display_name": "Initial Access",
+    "rule_count": 40,
+    "platforms": [
+      "splunk"
+    ],
+    "tactics": [
+      "Initial Access",
+      "Persistence",
+      "Defense Evasion"
+    ],
+    "techniques": [
+      "T1190",
+      "T1203",
+      "T1204.001",
+      "T1204.002",
+      "T1566.001",
+      "T1566.002"
+    ],
+    "severities": {
+      "HIGH": 18,
+      "CRITICAL": 21,
+      "MEDIUM": 1
+    },
+    "avg_confidence": 83.1
+  },
+  {
+    "pack": "cloud",
+    "display_name": "Cloud (AWS/Azure/M365/GCP)",
+    "rule_count": 95,
+    "platforms": [
+      "splunk"
+    ],
+    "tactics": [
+      "Initial Access",
+      "Execution",
+      "Persistence",
+      "Privilege Escalation",
+      "Defense Evasion",
+      "Credential Access",
+      "Discovery",
+      "Collection",
+      "Command and Control",
+      "Exfiltration",
+      "Impact"
+    ],
+    "techniques": [
+      "T1039",
+      "T1048",
+      "T1059",
+      "T1070",
+      "T1070.008",
+      "T1078",
+      "T1078.004",
+      "T1090.003",
+      "T1095",
+      "T1098",
+      "T1098.003",
+      "T1098.004",
+      "T1110.001",
+      "T1110.003",
+      "T1114",
+      "T1114.002",
+      "T1114.003",
+      "T1136.003",
+      "T1485",
+      "T1490",
+      "T1526",
+      "T1528",
+      "T1531",
+      "T1537",
+      "T1548",
+      "T1550.001",
+      "T1552.001",
+      "T1556",
+      "T1556.007",
+      "T1562",
+      "T1562.001",
+      "T1562.007",
+      "T1562.008",
+      "T1566",
+      "T1566.002",
+      "T1580",
+      "T1584.002",
+      "T1648",
+      "T1651"
+    ],
+    "severities": {
+      "CRITICAL": 25,
+      "HIGH": 52,
+      "MEDIUM": 17,
+      "LOW": 1
+    },
+    "avg_confidence": 82.5
+  },
+  {
+    "pack": "linux",
+    "display_name": "Linux Hunt",
+    "rule_count": 57,
+    "platforms": [
+      "splunk"
+    ],
+    "tactics": [
+      "Persistence",
+      "Privilege Escalation",
+      "Defense Evasion",
+      "Credential Access",
+      "Discovery"
+    ],
+    "techniques": [
+      "T1003.007",
+      "T1003.008",
+      "T1014",
+      "T1027",
+      "T1027.002",
+      "T1037.004",
+      "T1040",
+      "T1053.001",
+      "T1053.003",
+      "T1053.006",
+      "T1055",
+      "T1056.001",
+      "T1068",
+      "T1070.003",
+      "T1070.006",
+      "T1082",
+      "T1098.004",
+      "T1110.003",
+      "T1136.001",
+      "T1222.002",
+      "T1543.002",
+      "T1546.004",
+      "T1548.001",
+      "T1548.003",
+      "T1552",
+      "T1552.001",
+      "T1552.004",
+      "T1552.007",
+      "T1555.004",
+      "T1556.004",
+      "T1562",
+      "T1562.001",
+      "T1574.006",
+      "T1611",
+      "T1620"
+    ],
+    "severities": {
+      "MEDIUM": 13,
+      "HIGH": 29,
+      "CRITICAL": 14,
+      "LOW": 1
+    },
+    "avg_confidence": 82.0
+  },
+  {
+    "pack": "network",
+    "display_name": "Network Infrastructure",
+    "rule_count": 30,
+    "platforms": [
+      "splunk"
+    ],
+    "tactics": [
+      "Initial Access",
+      "Defense Evasion",
+      "Discovery",
+      "Lateral Movement",
+      "Command and Control",
+      "Exfiltration",
+      "Reconnaissance"
+    ],
+    "techniques": [
+      "T1021",
+      "T1021.001",
+      "T1021.002",
+      "T1041",
+      "T1046",
+      "T1048.003",
+      "T1071.001",
+      "T1071.004",
+      "T1090.003",
+      "T1090.004",
+      "T1095",
+      "T1102",
+      "T1132.001",
+      "T1133",
+      "T1562.004",
+      "T1566.002",
+      "T1568.001",
+      "T1568.002",
+      "T1571",
+      "T1572",
+      "T1583.001",
+      "T1583.003",
+      "T1595.003"
+    ],
+    "severities": {
+      "HIGH": 26,
+      "MEDIUM": 4
+    },
+    "avg_confidence": 80.4
+  },
+  {
+    "pack": "web",
+    "display_name": "Web Application",
+    "rule_count": 15,
+    "platforms": [
+      "splunk"
+    ],
+    "tactics": [
+      "Initial Access",
+      "Execution",
+      "Persistence",
+      "Discovery",
+      "Reconnaissance"
+    ],
+    "techniques": [
+      "T1059",
+      "T1190",
+      "T1505.003",
+      "T1552.005",
+      "T1595.002"
+    ],
+    "severities": {
+      "CRITICAL": 10,
+      "HIGH": 3,
+      "MEDIUM": 2
+    },
+    "avg_confidence": 87.6
+  },
+  {
+    "pack": "threat_intel",
+    "display_name": "Threat Intelligence",
+    "rule_count": 42,
+    "platforms": [
+      "unknown"
+    ],
+    "tactics": [
+      "Execution",
+      "Privilege Escalation",
+      "Defense Evasion",
+      "Lateral Movement",
+      "Collection",
+      "Command and Control",
+      "Exfiltration",
+      "Impact",
+      "Multi-Phase"
+    ],
+    "techniques": [
+      "T1021.002",
+      "T1047",
+      "T1055",
+      "T1055.003",
+      "T1055.004",
+      "T1056",
+      "T1070.004",
+      "T1071",
+      "T1071.001",
+      "T1105",
+      "T1127.001",
+      "T1134",
+      "T1134.004",
+      "T1197",
+      "T1204",
+      "T1218",
+      "T1218.003",
+      "T1218.004",
+      "T1218.005",
+      "T1218.007",
+      "T1218.008",
+      "T1218.010",
+      "T1218.011",
+      "T1486",
+      "T1490",
+      "T1562.001",
+      "T1570",
+      "T1571"
+    ],
+    "severities": {
+      "CRITICAL": 18,
+      "HIGH": 24
+    },
+    "avg_confidence": 87.8
+  },
+  {
+    "pack": "identity",
+    "display_name": "Identity / IAM",
+    "rule_count": 75,
+    "platforms": [
+      "splunk"
+    ],
+    "tactics": [
+      "Initial Access",
+      "Persistence",
+      "Privilege Escalation",
+      "Defense Evasion",
+      "Credential Access",
+      "Discovery",
+      "Collection",
+      "Exfiltration",
+      "Impact"
+    ],
+    "techniques": [
+      "T1069.003",
+      "T1078",
+      "T1078.002",
+      "T1078.004",
+      "T1087",
+      "T1090",
+      "T1090.003",
+      "T1098",
+      "T1098.001",
+      "T1098.002",
+      "T1098.003",
+      "T1110.001",
+      "T1110.003",
+      "T1110.004",
+      "T1114",
+      "T1114.002",
+      "T1136",
+      "T1136.003",
+      "T1528",
+      "T1531",
+      "T1537",
+      "T1548",
+      "T1550.001",
+      "T1550.004",
+      "T1552.005",
+      "T1556",
+      "T1556.006",
+      "T1562",
+      "T1621"
+    ],
+    "severities": {
+      "CRITICAL": 15,
+      "HIGH": 51,
+      "MEDIUM": 9
+    },
+    "avg_confidence": 84.1
+  },
+  {
+    "pack": "container",
+    "display_name": "Container / Kubernetes",
+    "rule_count": 20,
+    "platforms": [
+      "splunk"
+    ],
+    "tactics": [
+      "Execution",
+      "Persistence",
+      "Privilege Escalation",
+      "Defense Evasion",
+      "Credential Access",
+      "Discovery",
+      "Exfiltration",
+      "Impact"
+    ],
+    "techniques": [
+      "T1048",
+      "T1496",
+      "T1543",
+      "T1548",
+      "T1552.007",
+      "T1562",
+      "T1562.008",
+      "T1609",
+      "T1610",
+      "T1611",
+      "T1613"
+    ],
+    "severities": {
+      "CRITICAL": 9,
+      "HIGH": 10,
+      "MEDIUM": 1
+    },
+    "avg_confidence": 86.0
+  },
+  {
+    "pack": "devops",
+    "display_name": "DevOps / CI-CD",
+    "rule_count": 20,
+    "platforms": [
+      "splunk"
+    ],
+    "tactics": [
+      "Execution",
+      "Persistence",
+      "Privilege Escalation",
+      "Defense Evasion",
+      "Credential Access",
+      "Exfiltration",
+      "Impact",
+      "C2",
+      "Supply Chain"
+    ],
+    "techniques": [
+      "T1048",
+      "T1053",
+      "T1053.005",
+      "T1059.004",
+      "T1070",
+      "T1071",
+      "T1098.001",
+      "T1136",
+      "T1195.001",
+      "T1195.002",
+      "T1485",
+      "T1525",
+      "T1552",
+      "T1552.001",
+      "T1562",
+      "T1610",
+      "T1611"
+    ],
+    "severities": {
+      "HIGH": 11,
+      "CRITICAL": 5,
+      "MEDIUM": 4
+    },
+    "avg_confidence": 80.5
+  },
+  {
+    "pack": "backup",
+    "display_name": "Backup / Resilience",
+    "rule_count": 20,
+    "platforms": [
+      "splunk"
+    ],
+    "tactics": [
+      "Initial Access",
+      "Defense Evasion",
+      "Credential Access",
+      "Exfiltration",
+      "Impact"
+    ],
+    "techniques": [
+      "T1078",
+      "T1485",
+      "T1486",
+      "T1489",
+      "T1490",
+      "T1537",
+      "T1552",
+      "T1562"
+    ],
+    "severities": {
+      "CRITICAL": 11,
+      "HIGH": 9
+    },
+    "avg_confidence": 86.2
+  },
+  {
+    "pack": "hypervisor",
+    "display_name": "Hypervisor / VMware",
+    "rule_count": 20,
+    "platforms": [
+      "splunk"
+    ],
+    "tactics": [
+      "Initial Access",
+      "Execution",
+      "Persistence",
+      "Privilege Escalation",
+      "Defense Evasion",
+      "Credential Access",
+      "Lateral Movement",
+      "Exfiltration",
+      "Impact"
+    ],
+    "techniques": [
+      "T1003",
+      "T1021",
+      "T1041",
+      "T1059",
+      "T1070",
+      "T1133",
+      "T1136",
+      "T1486",
+      "T1490",
+      "T1542",
+      "T1550.001",
+      "T1562",
+      "T1562.004",
+      "T1565"
+    ],
+    "severities": {
+      "CRITICAL": 12,
+      "HIGH": 7,
+      "MEDIUM": 1
+    },
+    "avg_confidence": 84.6
+  },
+  {
+    "pack": "email",
+    "display_name": "Email Security",
+    "rule_count": 20,
+    "platforms": [
+      "splunk"
+    ],
+    "tactics": [
+      "Initial Access",
+      "Defense Evasion",
+      "Exfiltration",
+      "Impact"
+    ],
+    "techniques": [
+      "T1036",
+      "T1048.003",
+      "T1498",
+      "T1566.001",
+      "T1566.002"
+    ],
+    "severities": {
+      "HIGH": 17,
+      "MEDIUM": 2,
+      "CRITICAL": 1
+    },
+    "avg_confidence": 82.0
+  },
+  {
+    "pack": "database",
+    "display_name": "Database",
+    "rule_count": 20,
+    "platforms": [
+      "splunk"
+    ],
+    "tactics": [
+      "Initial Access",
+      "Execution",
+      "Persistence",
+      "Privilege Escalation",
+      "Defense Evasion",
+      "Credential Access",
+      "Discovery",
+      "Lateral Movement",
+      "Collection",
+      "Exfiltration",
+      "Impact"
+    ],
+    "techniques": [
+      "T1021",
+      "T1053.002",
+      "T1059",
+      "T1078",
+      "T1110.001",
+      "T1136",
+      "T1190",
+      "T1213",
+      "T1485",
+      "T1505.001",
+      "T1537",
+      "T1562",
+      "T1562.008"
+    ],
+    "severities": {
+      "HIGH": 11,
+      "CRITICAL": 9
+    },
+    "avg_confidence": 85.1
+  },
+  {
+    "pack": "vpn",
+    "display_name": "VPN / Remote Access",
+    "rule_count": 20,
+    "platforms": [
+      "splunk"
+    ],
+    "tactics": [
+      "Initial Access",
+      "Defense Evasion",
+      "Credential Access",
+      "Lateral Movement",
+      "Exfiltration",
+      "C2"
+    ],
+    "techniques": [
+      "T1021",
+      "T1048",
+      "T1071",
+      "T1078",
+      "T1078.002",
+      "T1090.003",
+      "T1110.001",
+      "T1110.003",
+      "T1133",
+      "T1562",
+      "T1562.006"
+    ],
+    "severities": {
+      "HIGH": 13,
+      "MEDIUM": 3,
+      "CRITICAL": 4
+    },
+    "avg_confidence": 81.9
+  },
+  {
+    "pack": "macos",
+    "display_name": "macOS",
+    "rule_count": 20,
+    "platforms": [
+      "splunk"
+    ],
+    "tactics": [
+      "Execution",
+      "Persistence",
+      "Privilege Escalation",
+      "Defense Evasion",
+      "Credential Access",
+      "Collection"
+    ],
+    "techniques": [
+      "T1036",
+      "T1036.001",
+      "T1053.003",
+      "T1059.002",
+      "T1059.004",
+      "T1059.006",
+      "T1098.004",
+      "T1113",
+      "T1543",
+      "T1543.001",
+      "T1543.004",
+      "T1547.006",
+      "T1547.015",
+      "T1548.003",
+      "T1548.004",
+      "T1553.001",
+      "T1555.001",
+      "T1562",
+      "T1565.001"
+    ],
+    "severities": {
+      "HIGH": 13,
+      "CRITICAL": 6,
+      "MEDIUM": 1
+    },
+    "avg_confidence": 85.0
+  },
+  {
+    "pack": "dlp",
+    "display_name": "DLP / Exfiltration",
+    "rule_count": 20,
+    "platforms": [
+      "splunk"
+    ],
+    "tactics": [
+      "Collection",
+      "Exfiltration"
+    ],
+    "techniques": [
+      "T1048",
+      "T1048.002",
+      "T1048.003",
+      "T1052.001",
+      "T1071.001",
+      "T1113",
+      "T1115",
+      "T1213",
+      "T1537",
+      "T1560",
+      "T1560.001",
+      "T1567.001",
+      "T1567.002"
+    ],
+    "severities": {
+      "HIGH": 17,
+      "MEDIUM": 1,
+      "CRITICAL": 2
+    },
+    "avg_confidence": 81.5
+  },
+  {
+    "pack": "deception",
+    "display_name": "Deception / Canary",
+    "rule_count": 15,
+    "platforms": [
+      "splunk"
+    ],
+    "tactics": [
+      "Detection"
+    ],
+    "techniques": [
+      "T1012",
+      "T1021.001",
+      "T1021.002",
+      "T1021.004",
+      "T1046",
+      "T1071.004",
+      "T1078",
+      "T1083",
+      "T1190",
+      "T1213",
+      "T1552.004",
+      "T1552.005",
+      "T1566.001"
+    ],
+    "severities": {
+      "CRITICAL": 15
+    },
+    "avg_confidence": 97.2
+  },
+  {
+    "pack": "correlation",
+    "display_name": "Correlation / Multi-Stage",
+    "rule_count": 20,
+    "platforms": [
+      "splunk"
+    ],
+    "tactics": [
+      "Initial Access",
+      "Persistence",
+      "Defense Evasion",
+      "Credential Access",
+      "Lateral Movement",
+      "Full Kill Chain",
+      "Multi-Stage ATO",
+      "Multi-Stage BEC",
+      "Multi-Stage C2",
+      "Multi-Stage Cloud Identity Attack",
+      "Multi-Stage Cloud PrivEsc",
+      "Multi-Stage Container Escape",
+      "Multi-Stage Credential Theft",
+      "Multi-Stage Data Exfil",
+      "Multi-Stage Hypervisor Attack",
+      "Multi-Stage Insider Exfil",
+      "Multi-Stage K8s Attack",
+      "Multi-Stage Ransomware",
+      "Multi-Stage SVC Abuse",
+      "Multi-Stage Supply Chain"
+    ],
+    "techniques": [
+      "T1003",
+      "T1003.001",
+      "T1003.006",
+      "T1021",
+      "T1021.002",
+      "T1021.004",
+      "T1041",
+      "T1048",
+      "T1059",
+      "T1059.001",
+      "T1070.001",
+      "T1071.001",
+      "T1071.004",
+      "T1078",
+      "T1078.002",
+      "T1083",
+      "T1098",
+      "T1098.003",
+      "T1098.004",
+      "T1105",
+      "T1110.003",
+      "T1114",
+      "T1133",
+      "T1195.002",
+      "T1213",
+      "T1486",
+      "T1490",
+      "T1525",
+      "T1528",
+      "T1534",
+      "T1537",
+      "T1543.002",
+      "T1543.003",
+      "T1548",
+      "T1550.001",
+      "T1552.005",
+      "T1552.007",
+      "T1556",
+      "T1560",
+      "T1562.001",
+      "T1562.004",
+      "T1566",
+      "T1566.001",
+      "T1567",
+      "T1570",
+      "T1611"
+    ],
+    "severities": {
+      "CRITICAL": 11,
+      "HIGH": 8
+    },
+    "avg_confidence": 87.9
+  }
+]
